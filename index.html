@@ -915,21 +915,14 @@ function parseBinary(binary) {
 let sheetTimer = null;
 const SYNC_INTERVAL = 30000; // 30 seconds
 
-const GSHEET_ID = '1WToMt7-X3CJ5J2SeBbm9gf9sF6oq6PabECQBhHgS-gY';
-const GSHEET_GID = '0';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwNPERvvkW4vH_ranAK-eiEY_3D2SlMQxVxZgq7dWsNPNtJlP4v3OGWu4qYeUCfxe3x/exec';
 
 async function fetchGoogleSheet(silent) {
   try {
-    // Use Google's gviz CSV endpoint — it supports CORS natively
-    const url = `https://docs.google.com/spreadsheets/d/${GSHEET_ID}/gviz/tq?tqx=out:csv&gid=${GSHEET_GID}`;
-    const resp = await fetch(url);
+    const resp = await fetch(APPS_SCRIPT_URL);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const csvText = await resp.text();
-    // SheetJS can parse CSV — feed it as a string workbook to reuse existing parser
-    const wb = XLSX.read(csvText, { type:'string' });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const binary = csvText; // not used, but parseBinary expects XLSX
-    rows = parseCSVSheet(ws);
+    const grid = await resp.json();
+    rows = parseGrid(grid);
     saveToStorage(rows);
     refreshAll();
     setLivePill(true);
@@ -940,24 +933,20 @@ async function fetchGoogleSheet(silent) {
   }
 }
 
-function parseCSVSheet(ws) {
-  if (!ws || !ws['!ref']) return [];
-  const range = XLSX.utils.decode_range(ws['!ref']);
-  const grid = [];
-  for (let R = range.s.r; R <= range.e.r; R++) {
-    const row = [];
-    for (let C = range.s.c; C <= range.e.c; C++) {
-      const cell = ws[XLSX.utils.encode_cell({r: R, c: C})];
-      row.push(cell ? String(cell.v ?? '').trim() : '');
+function parseGrid(grid) {
+  function cellVal(v) {
+    if (v == null) return '';
+    // Convert ISO dates from Apps Script (e.g. "2025-06-08T18:30:00.000Z") to DD/MM/YYYY
+    if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v)) {
+      const d = new Date(v);
+      if (!isNaN(d)) return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
     }
-    grid.push(row);
+    return String(v).trim();
   }
-
-  function cellVal(v) { return v == null ? '' : String(v).trim(); }
 
   function isHeaderRow(row) {
     const first = cellVal(row.find(c => cellVal(c) !== '') || '').toLowerCase().replace(/[\s.]/g,'');
-    return ['sno','s.no','srno','slno','no','#','serial'].includes(first);
+    return ['sno','sno','srno','slno','no','#','serial'].includes(first);
   }
 
   const allRows = [];

@@ -936,11 +936,11 @@ async function fetchGoogleSheet(silent) {
 function parseGrid(grid) {
   function cellVal(v) {
     if (v == null) return '';
-    // Convert ISO dates from Apps Script (e.g. "2025-06-08T18:30:00.000Z") to DD/MM/YYYY
-    // Apps Script stores IST midnight as T18:30 UTC, so shift to IST before formatting
+    // Convert ISO dates from Apps Script (e.g. "2026-12-03T18:30:00.000Z") to DD/MM/YYYY
+    // Extract date parts directly from the ISO string to avoid timezone shifts
     if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v)) {
-      const d = new Date(new Date(v).getTime() + 5.5 * 3600000); // UTC → IST
-      if (!isNaN(d)) return `${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCMonth()+1).padStart(2,'0')}/${d.getUTCFullYear()}`;
+      const [y, m, d] = v.split('T')[0].split('-');
+      return `${d}/${m}/${y}`;
     }
     return String(v).trim();
   }

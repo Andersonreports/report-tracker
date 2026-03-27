@@ -394,6 +394,39 @@
     ::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:4px}
     ::-webkit-scrollbar-thumb:hover{background:var(--muted)}
 
+    /* ── PRIORITY BUTTON ── */
+    .priority-btn{
+      display:inline-flex;align-items:center;gap:5px;
+      margin-top:8px;padding:4px 12px;border-radius:20px;
+      font-size:11px;font-weight:700;cursor:pointer;
+      background:rgba(239,68,68,.1);color:#dc2626;border:1px solid rgba(239,68,68,.25);
+      transition:var(--tr);
+    }
+    .priority-btn:hover{background:rgba(239,68,68,.2);transform:translateY(-1px)}
+    .pm-filters{display:flex;gap:6px;padding:10px 22px;flex-wrap:wrap;border-bottom:1px solid var(--pb)}
+    .pm-fbtn{
+      padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;
+      border:1px solid var(--bdr);background:var(--ib);color:var(--muted);transition:var(--tr);
+    }
+    .pm-fbtn:hover{border-color:var(--pri);color:var(--pri)}
+    .pm-fbtn.active{background:var(--pri);color:#fff;border-color:var(--pri)}
+
+    /* ── ANALYST COUNT BLOCK ── */
+    .analyst-counts{margin-top:16px;padding:20px 22px}
+    .ac-title{font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text)}
+    .ac-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+    .ac-card{
+      padding:14px 16px;border-radius:var(--rs);border-left:3px solid var(--rel);
+      display:flex;align-items:center;justify-content:space-between;transition:var(--tr);
+    }
+    .ac-card:hover{transform:translateY(-2px);box-shadow:var(--sh-lg)}
+    .ac-name{font-size:13px;font-weight:600;color:var(--text)}
+    .ac-count{
+      min-width:32px;height:32px;padding:0 10px;border-radius:16px;
+      display:flex;align-items:center;justify-content:center;
+      font-size:15px;font-weight:800;background:rgba(139,92,246,.15);color:#6d28d9;
+    }
+
     /* ── RESPONSIVE ── */
 
     /* Tablet */
@@ -545,7 +578,7 @@
     <!-- Stat cards -->
     <div class="stats">
       <div class="scard glass sc-all"><span class="s-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></span><div class="s-lbl">Total</div><div class="s-val" id="s-all">0</div><div class="s-sub">All samples</div></div>
-      <div class="scard glass sc-yet"><span class="s-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24z"/></svg></span><div class="s-lbl">Yet to Start</div><div class="s-val" id="s-yet">0</div><div class="s-sub">No reviewer assigned</div></div>
+      <div class="scard glass sc-yet"><span class="s-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24z"/></svg></span><div class="s-lbl">Yet to Start</div><div class="s-val" id="s-yet">0</div><div class="s-sub">No reviewer assigned</div><div class="priority-btn" onclick="event.stopPropagation();openPriorityModal()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Priority</div></div>
       <div class="scard glass sc-ong"><span class="s-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><div class="s-lbl">In Review</div><div class="s-val" id="s-ong">0</div><div class="s-sub" id="s-ong-sub">Assigned to reviewers</div></div>
       <div class="scard glass sc-rel"><span class="s-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg></span><div class="s-val" id="s-rel">0</div><div class="s-lbl">Released</div><div class="s-sub">Reports out</div></div>
     </div>
@@ -628,6 +661,10 @@
       <input type="date" class="sel" id="f-rel-date" onchange="render('released')" title="Filter by release date" />
     </div>
     <div class="tbl-wrap glass"><div id="tbl-rel"></div></div>
+    <div id="analyst-count-wrap" class="analyst-counts glass" style="display:none">
+      <div class="ac-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg> Reports Released by Analyst</div>
+      <div class="ac-grid" id="analyst-count-grid"></div>
+    </div>
   </div>
 
 </main>
@@ -1368,6 +1405,7 @@ function renderTable(key) {
 
   if (!data.length) {
     el.innerHTML=`<div class="empty"><div class="ei">${IC.search}</div><p>${rows.filter(r=>getStatus(r)===cfg.status).length===0?'No reports in this category':'No results match your search'}</p></div>`;
+    if (key === 'released') renderAnalystCounts([]);
     return;
   }
 
@@ -1391,6 +1429,9 @@ function renderTable(key) {
   }).join('')}</tr>`).join('');
 
   el.innerHTML=`<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+
+  // Render analyst count block below released table
+  if (key === 'released') renderAnalystCounts(data);
 }
 
 function render(key) { renderTable(key); }
@@ -1494,6 +1535,95 @@ function saveToStorage(data) {
 }
 function loadFromStorage() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); } catch(e) { return null; }
+}
+
+// ================================================================
+//  PRIORITY MODAL — Yet to Start samples with TAT in next 3 months
+// ================================================================
+let _priorityRows = [];
+const PRIORITY_COLS = ['name','test','gen_id','and_id','client','tat','bio_time'];
+
+function openPriorityModal() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const limit = new Date(today);
+  limit.setMonth(limit.getMonth() + 3);
+
+  _priorityRows = rows.filter(r => {
+    if (getStatus(r) !== 'Yet to Start') return false;
+    const td = parseTatDate(r);
+    if (!td) return false;
+    td.setHours(0,0,0,0);
+    return td >= today && td <= limit;
+  }).sort((a,b) => {
+    const da = parseTatDate(a), db = parseTatDate(b);
+    return (da ? da.getTime() : 0) - (db ? db.getTime() : 0);
+  });
+
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const monthSet = new Set();
+  _priorityRows.forEach(r => {
+    const d = parseTatDate(r);
+    if (d) monthSet.add(d.getMonth());
+  });
+  const months = [...monthSet].sort((a,b) => a - b);
+
+  const filterHtml = `<div class="pm-filters">
+    <button class="pm-fbtn active" onclick="filterPriority('')">All (${_priorityRows.length})</button>
+    ${months.map(m => {
+      const cnt = _priorityRows.filter(r => { const d = parseTatDate(r); return d && d.getMonth() === m; }).length;
+      return `<button class="pm-fbtn" onclick="filterPriority('${m}')">${MONTHS[m]} (${cnt})</button>`;
+    }).join('')}
+  </div>`;
+
+  document.getElementById('qmodal-title').textContent = 'Priority — TAT in Next 3 Months';
+  document.getElementById('qmodal-count').textContent = ` · ${_priorityRows.length} samples`;
+  document.getElementById('qmodal-body').innerHTML = filterHtml + '<div id="pm-table">' + buildModalTable(_priorityRows, PRIORITY_COLS) + '</div>';
+  document.getElementById('qmodal-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function filterPriority(month) {
+  document.querySelectorAll('.pm-fbtn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+
+  let filtered = _priorityRows;
+  if (month !== '') {
+    const m = parseInt(month);
+    filtered = filtered.filter(r => {
+      const d = parseTatDate(r);
+      return d && d.getMonth() === m;
+    });
+  }
+
+  document.getElementById('qmodal-count').textContent = ` · ${filtered.length} samples`;
+  document.getElementById('pm-table').innerHTML = buildModalTable(filtered, PRIORITY_COLS);
+}
+
+// ================================================================
+//  ANALYST COUNT BLOCK — shown below Released table
+// ================================================================
+function renderAnalystCounts(data) {
+  const wrap = document.getElementById('analyst-count-wrap');
+  const grid = document.getElementById('analyst-count-grid');
+  if (!wrap || !grid) return;
+
+  if (!data.length) { wrap.style.display = 'none'; return; }
+
+  const counts = {};
+  data.forEach(r => {
+    const name = normalizeAnalystName(r.analyst) || 'Unknown';
+    counts[name] = (counts[name] || 0) + 1;
+  });
+
+  const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
+
+  grid.innerHTML = sorted.map(([name, count]) => `
+    <div class="ac-card glass">
+      <span class="ac-name">${esc(name)}</span>
+      <span class="ac-count">${count}</span>
+    </div>`).join('');
+
+  wrap.style.display = 'block';
 }
 
 // (Auth/idle-logout removed for static GitHub Pages deployment)

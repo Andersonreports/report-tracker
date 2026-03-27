@@ -1315,7 +1315,9 @@ const ANALYST_ALIASES = {
 function normalizeAnalystName(name) {
   if (!name) return '';
   let n = name
-    .replace(/\(.*?\)/g, '')                            // strip (29-12-2025)
+    .replace(/\(.*?\)/g, '')                            // strip complete parens (29-12-2025)
+    .replace(/\([^)]*$/g, '')                           // strip unclosed parens: Vamshi(02
+    .replace(/^[^(]*\)/, '')                            // strip orphan closing: 2025)
     .replace(/\d{1,2}(?:st|nd|rd|th)\s+\w+/gi, '')     // strip "18th Dec", "18th December"
     .replace(/\s*-\s*general\s*analysis/gi, '')          // strip "- General Analysis"
     .replace(/[,](?=\s*[A-Za-z])/g, '.')                // "Dr," → "Dr."
@@ -1323,7 +1325,8 @@ function normalizeAnalystName(name) {
     .replace(/\s+/g, ' ')
     .trim();
 
-  // Pure date in analyst column → discard
+  // Pure numbers, date fragments, or dates → discard
+  if (/^\d+\)?$/.test(n)) return '';
   if (/^\d{1,2}[\-\/\.]\d{1,2}[\-\/\.]\d{2,4}$/.test(n)) return '';
   if (!n) return '';
 
@@ -1339,13 +1342,22 @@ function normalizeAnalystName(name) {
 /** Split multi-analyst fields ("Diwakar / Dr. Meera") into individual normalised names */
 function extractAnalysts(raw) {
   if (!raw) return [];
-  return raw.split(/[\/;]/)
+  // Strip ALL parenthesized content FIRST — dates contain / which would confuse the splitter
+  let cleaned = raw
+    .replace(/\(.*?\)/g, '')     // complete parens: (29-12-2025)
+    .replace(/\([^)]*$/g, '')    // unclosed: Vamshi(02...
+    .replace(/^[^(]*\)/, '')     // orphan closing
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Now safely split on / or ;
+  return cleaned.split(/[\/;]/)
     .map(s => normalizeAnalystName(s.trim()))
     .filter(Boolean);
 }
 
 // ── Test-name normalisation ────────────────────────────────────
-const TEST_ABBREVS = ['NGS','WES','WGS','WMGS','DNA','MCC','ACMG','DMD','PGT','POC','TRF','MTHFR'];
+const TEST_ABBREVS = ['NGS','WES','WGS','WMGS','DNA','MCC','ACMG','DMD','PGT','POC','TRF','MTHFR','CES','ADVAT','HCGP'];
 
 function normalizeTestName(name) {
   if (!name) return '';
@@ -1363,6 +1375,18 @@ function normalizeTestName(name) {
   t = t.replace(/\bPANE\b(?!L)/g, 'PANEL')
        .replace(/\bWORKOUT\b/g, 'WORKUP');
 
+  // ── Merge known duplicate test names (at uppercase level) ──
+  // WES MITO (without +) → WES + MITO
+  t = t.replace(/\bWES\s+MITO\b/, 'WES + MITO');
+  // CES MITO → CES + MITO
+  t = t.replace(/\bCES\s+MITO\b/, 'CES + MITO');
+  // PRE PGT / PRE - PGT → PRE-PGT
+  t = t.replace(/\bPRE\s*-?\s*PGT\b/g, 'PRE-PGT');
+  // "PRE-PGT" alone (no WORKUP) → PRE-PGT WORKUP
+  if (/^PRE-PGT$/.test(t)) t = 'PRE-PGT WORKUP';
+  // ADVAT FOCUSSED → ADVAT FOCUS
+  t = t.replace(/\bFOCUSSED\b/g, 'FOCUS');
+
   // Title case for display
   t = t.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 
@@ -1372,7 +1396,7 @@ function normalizeTestName(name) {
     t = t.replace(re, a);
   });
 
-  // Normalise "Pre - PGT" back to "Pre-PGT" (hyphenated compound)
+  // Keep Pre-PGT as hyphenated compound
   t = t.replace(/\bPre\s*-\s*PGT\b/g, 'Pre-PGT');
 
   return t;

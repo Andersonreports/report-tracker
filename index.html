@@ -406,69 +406,97 @@
 
     /* Mobile */
     @media(max-width:640px){
-      .hdr{padding:12px 16px;flex-direction:column;gap:10px;align-items:stretch}
-      .hdr-title{font-size:17px;text-align:center}
-      .hdr-actions{justify-content:center;flex-wrap:wrap;gap:8px}
-      .live-pill{font-size:11px;padding:4px 10px}
-      .btn{padding:7px 12px;font-size:12px}
+      body{overflow-x:hidden}
 
-      .tabs{padding:12px 16px 0;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+      /* Header */
+      .hdr{padding:10px 14px;flex-wrap:wrap;gap:8px;justify-content:center}
+      .hdr-title{font-size:15px;width:100%;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .hdr-actions{justify-content:center;flex-wrap:wrap;gap:6px}
+      .live-pill{font-size:10px;padding:3px 8px;gap:5px}
+      .btn{padding:6px 10px;font-size:11px;gap:5px}
+
+      /* Tabs */
+      .tabs{padding:10px 14px 0;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
       .tabs::-webkit-scrollbar{display:none}
-      .tab{padding:8px 12px;font-size:12px;white-space:nowrap;flex-shrink:0}
+      .tab{padding:7px 10px;font-size:11px;white-space:nowrap;flex-shrink:0;gap:4px}
+      .tab svg{width:12px;height:12px}
+      .tbadge{min-width:18px;height:18px;font-size:10px;padding:0 5px}
 
-      .main{padding:0 12px 24px}
-      .stats{grid-template-columns:1fr 1fr;gap:10px}
-      .scard{padding:14px 16px}
-      .scard .s-val{font-size:24px}
-      .scard .s-lbl{font-size:10px}
+      /* Main content */
+      .main{padding:0 10px 20px}
 
-      .tat-grid{grid-template-columns:1fr;gap:12px}
-      .tat-card{padding:14px 16px}
-      .tat-item{gap:6px;padding:6px 8px}
+      /* Stat cards */
+      .stats{grid-template-columns:1fr 1fr;gap:8px;padding-top:14px;margin-bottom:16px}
+      .scard{padding:12px 14px}
+      .scard .s-val{font-size:22px}
+      .scard .s-lbl{font-size:9px;letter-spacing:.5px}
+      .scard .s-sub{font-size:10px}
+      .scard .s-icon{margin-bottom:4px}
+      .s-icon svg{width:20px;height:20px}
+
+      /* TAT blocks */
+      .tat-grid{grid-template-columns:1fr;gap:10px;margin-bottom:16px}
+      .tat-card{padding:12px 14px}
+      .tat-card .tc-title{font-size:12px}
+      .tat-card .tc-count{min-width:24px;height:24px;font-size:12px}
+      .tat-list{max-height:250px}
+      .tat-item{gap:5px;padding:5px 8px;font-size:11px}
       .tat-item .ti-name{font-size:11px}
-      .tat-item .ti-date{width:78px;font-size:10px}
-      .tat-item .ti-days{width:68px;font-size:9.5px}
-      .tat-detail.open{gap:6px 8px}
-      .tat-chip{font-size:10.5px;padding:4px 8px}
+      .tat-item .ti-date{width:72px;font-size:10px}
+      .tat-item .ti-days{width:62px;font-size:9px;padding:2px 5px}
+      .tat-detail.open{gap:5px 6px}
+      .tat-chip{font-size:10px;padding:3px 7px}
 
-      .toolbar{gap:8px}
-      .search{min-width:100%}
-      .sel{font-size:12px;height:34px;padding:0 8px}
+      /* Toolbar / filters */
+      .toolbar{gap:6px;padding-top:14px;margin-bottom:10px}
+      .search{min-width:100%;height:34px;padding:0 10px}
+      .search input{font-size:12px}
+      .sel{font-size:11px;height:32px;padding:0 6px}
 
-      .tbl-wrap{border-radius:var(--rs)}
-      table{font-size:11.5px}
-      thead th{padding:9px 10px;font-size:9px}
-      td{padding:8px 10px;font-size:11.5px}
-      .long-cell{max-width:130px}
-      .col-name{max-width:130px}
+      /* Tables */
+      .tbl-wrap{border-radius:var(--rs);-webkit-overflow-scrolling:touch}
+      table{font-size:11px}
+      thead th{padding:8px 10px;font-size:8.5px;letter-spacing:.5px}
+      td{padding:7px 10px;font-size:11px}
+      .long-cell,.col-name{max-width:120px}
 
-      .emp-grid{grid-template-columns:1fr 1fr;gap:10px}
-      .emp-card{padding:14px 16px}
-      .emp-avatar{width:34px;height:34px;font-size:15px}
-      .emp-name{font-size:13px}
-      .emp-count{font-size:11px}
-      .emp-pill{font-size:9.5px;max-width:100px}
+      /* Team workload */
+      .emp-grid{grid-template-columns:1fr 1fr;gap:8px}
+      .emp-card{padding:12px 14px;gap:6px}
+      .emp-avatar{width:32px;height:32px;font-size:14px}
+      .emp-name{font-size:12px}
+      .emp-count{font-size:10px}
+      .emp-pills{gap:3px}
+      .emp-pill{font-size:9px;max-width:90px;padding:2px 6px}
 
-      .qgrid{grid-template-columns:1fr;gap:10px}
-      .qcard{padding:12px 14px}
+      /* Quick cards */
+      .qgrid{grid-template-columns:1fr;gap:8px}
+      .qcard{padding:10px 12px}
+      .qcard .qc-name{font-size:12px}
 
+      /* Modal — full width bottom sheet */
       #qmodal-backdrop.open{align-items:flex-end}
-      #qmodal{margin:0;border-radius:20px 20px 0 0;max-height:90vh;max-width:100%}
-      #qmodal-hdr{padding:14px 16px 12px}
-      #qmodal-body th{padding:8px 10px;font-size:9px}
-      #qmodal-body td{padding:8px 10px;font-size:11.5px}
+      #qmodal{margin:0;border-radius:16px 16px 0 0;max-height:85vh;max-width:100%;width:100%}
+      #qmodal-hdr{padding:12px 14px 10px}
+      #qmodal-title{font-size:14px}
       #qmodal-body{overflow-x:auto}
+      #qmodal-body th{padding:7px 10px;font-size:8.5px}
+      #qmodal-body td{padding:7px 10px;font-size:11px}
 
-      .wcard{padding:30px 24px;border-radius:16px}
-      .w-title{font-size:18px!important}
+      /* Welcome card */
+      .wcard{padding:28px 20px;border-radius:14px;max-width:92vw;width:92vw}
+      .w-logo{font-size:40px;margin-bottom:10px}
+      .w-logo svg{width:40px;height:40px}
+      .w-title{font-size:16px!important}
+      .w-sub{font-size:12px!important}
     }
 
     /* Small phones */
     @media(max-width:380px){
+      .hdr-title{font-size:13px}
       .stats{grid-template-columns:1fr}
       .emp-grid{grid-template-columns:1fr}
-      .hdr-title{font-size:15px}
-      .tab{padding:7px 10px;font-size:11px}
+      .tab{padding:6px 8px;font-size:10px}
     }
   </style>
 </head>

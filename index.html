@@ -677,10 +677,44 @@
 
   <!-- ══ YET TO START ══ -->
   <div id="page-yet" class="page">
-    <div class="toolbar">
-      <div class="search"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><input type="text" id="q-yet" placeholder="Search Sample, Test, Gen_ID…" oninput="render('yet')" /></div>
-      <select class="sel" id="f-yet-test" onchange="render('yet')"><option value="">All Tests</option></select>
-      <select class="sel" id="f-yet-tat"  onchange="render('yet')"><option value="">All TAT</option></select>
+    <!-- Smart search bar + count -->
+    <div class="rel-bar">
+      <div class="rel-search-wrap" onclick="this.querySelector('input').focus()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="q-yet" placeholder="Search Sample, Test, Gen_ID…" oninput="render('yet')" />
+      </div>
+      <button class="rel-filter-toggle" id="yet-filter-btn" onclick="toggleYetFilters()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        Filters <span class="rel-filter-badge" id="yet-active-count">0</span>
+      </button>
+      <div class="rel-count-btn" style="border-color:rgba(99,102,241,.3);background:rgba(99,102,241,.08);color:#4338ca">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24z"/></svg>
+        Yet to Start <span class="rc-num" id="yet-count-num" style="background:rgba(99,102,241,.18);color:#4338ca">0</span>
+      </div>
+    </div>
+    <!-- Collapsible filter panel -->
+    <div class="rel-panel glass" id="yet-panel">
+      <div class="rel-panel-grid">
+        <div class="rel-panel-item">
+          <label>Test</label>
+          <select class="sel" id="f-yet-test" onchange="render('yet')"><option value="">All Tests</option></select>
+        </div>
+        <div class="rel-panel-item">
+          <label>TAT Month</label>
+          <select class="sel" id="f-yet-month" onchange="render('yet')"><option value="">All Months</option></select>
+        </div>
+        <div class="rel-panel-item">
+          <label>TAT Year</label>
+          <select class="sel" id="f-yet-year" onchange="render('yet')"><option value="">All Years</option></select>
+        </div>
+        <div class="rel-panel-item">
+          <label>TAT Date</label>
+          <input type="date" class="sel" id="f-yet-date" onchange="render('yet')" />
+        </div>
+      </div>
+      <div class="rel-panel-actions">
+        <button class="rel-clear-btn" onclick="clearYetFilters()">Clear All Filters</button>
+      </div>
     </div>
     <div class="tbl-wrap glass"><div id="tbl-yet"></div></div>
   </div>
@@ -838,7 +872,7 @@ function mapRow(raw) {
     gen_id:       get(COL_MAP.gen_id),
     and_id:       get(COL_MAP.and_id),
     client:       get(COL_MAP.client),
-    tat:          get(COL_MAP.tat),
+    tat:          fmtDate(get(COL_MAP.tat)),
     bio_time:     get(COL_MAP.bio_time),
     rep_exp:      get(COL_MAP.rep_exp),
     analyst:      analystClean,      // normalized name (Diwakar)
@@ -1233,8 +1267,8 @@ function refreshAll() {
   document.getElementById('b-rel').textContent = rel.length;
 
   // populate filter dropdowns
-  populateFilter('f-yet-test',      rows, 'test');
-  populateFilter('f-yet-tat',       rows, 'tat');
+  populateFilter('f-yet-test',      yet, 'test');
+  populateTatDateFilters('f-yet-month', 'f-yet-year', yet);
   populateFilter('f-asgn-test',     rows, 'test');
   populateFilter('f-asgn-employee', ong, 'pri_rev');
   populateFilter('f-asgn-tat',      rows, 'tat');
@@ -1252,6 +1286,7 @@ function refreshAll() {
   renderQuickCards('q-released', rel.slice(-6).reverse(), 'Released');
   renderTatAlerts();
   updateRelCount();
+  updateYetCount();
 
   // re-render active table
   const active = document.querySelector('.page.active');
@@ -1293,6 +1328,20 @@ function populateDateFilters(monthId, yearId, data) {
   const curM = mSel.value, curY = ySel.value;
   const months = [...new Set(data.map(r=>{ const d=parseDate(r.rel_date); return d?d.getMonth()+1:null; }).filter(Boolean))].sort((a,b)=>a-b);
   const years  = [...new Set(data.map(r=>{ const d=parseDate(r.rel_date); return d?d.getFullYear():null; }).filter(Boolean))].filter(y=>y<=2026).sort((a,b)=>b-a);
+  mSel.innerHTML = '<option value="">All Months</option>' + months.map(m=>`<option value="${m}">${MONTHS[m-1]}</option>`).join('');
+  ySel.innerHTML = '<option value="">All Years</option>'  + years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  if (months.map(String).includes(curM)) mSel.value=curM;
+  if (years.map(String).includes(curY))  ySel.value=curY;
+}
+
+function populateTatDateFilters(monthId, yearId, data) {
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const mSel = document.getElementById(monthId);
+  const ySel = document.getElementById(yearId);
+  if (!mSel || !ySel) return;
+  const curM = mSel.value, curY = ySel.value;
+  const months = [...new Set(data.map(r=>{ const d=parseDate(r.tat); return d?d.getMonth()+1:null; }).filter(Boolean))].sort((a,b)=>a-b);
+  const years  = [...new Set(data.map(r=>{ const d=parseDate(r.tat); return d?d.getFullYear():null; }).filter(Boolean))].sort((a,b)=>b-a);
   mSel.innerHTML = '<option value="">All Months</option>' + months.map(m=>`<option value="${m}">${MONTHS[m-1]}</option>`).join('');
   ySel.innerHTML = '<option value="">All Years</option>'  + years.map(y=>`<option value="${y}">${y}</option>`).join('');
   if (months.map(String).includes(curM)) mSel.value=curM;
@@ -1510,7 +1559,7 @@ function renderQuickCards(containerId, data, status) {
 //  TABLE RENDER
 // ================================================================
 const TABLE_CFG = {
-  yet:       { status:'Yet to Start', q:'q-yet',  test:'f-yet-test',  analyst:null,              tat:'f-yet-tat',  relMonth:null,          relYear:null,
+  yet:       { status:'Yet to Start', q:'q-yet',  test:'f-yet-test',  analyst:null,              tat:null,  tatMonth:'f-yet-month', tatYear:'f-yet-year', tatDate:'f-yet-date',
                cols:['sno','name','test','gen_id','and_id','client','tat','bio_time','rep_exp'] },
   assigned:  { status:'Ongoing',      q:'q-asgn', test:'f-asgn-test', reviewer:'f-asgn-employee', tat:'f-asgn-tat', relMonth:null,          relYear:null,
                cols:['sno','pri_rev','analyst','assign_date','name','test','gen_id','and_id','client','tat','ana_date','remark'] },
@@ -1536,6 +1585,9 @@ function renderTable(key) {
   const relMonth = cfg.relMonth  ? (document.getElementById(cfg.relMonth)?.value||'') : '';
   const relYear  = cfg.relYear   ? (document.getElementById(cfg.relYear)?.value||'')  : '';
   const relDate  = cfg.relDate   ? (document.getElementById(cfg.relDate)?.value||'')  : '';
+  const tatMonth = cfg.tatMonth  ? (document.getElementById(cfg.tatMonth)?.value||'') : '';
+  const tatYear  = cfg.tatYear   ? (document.getElementById(cfg.tatYear)?.value||'')  : '';
+  const tatDate  = cfg.tatDate   ? (document.getElementById(cfg.tatDate)?.value||'')  : '';
 
   let data = rows.filter(r=>getStatus(r)===cfg.status);
   if (test)     data = data.filter(r=>r.test===test);
@@ -1545,6 +1597,9 @@ function renderTable(key) {
   if (relMonth) data = data.filter(r=>{ const d=parseDate(r.rel_date); return d&&String(d.getMonth()+1)===relMonth; });
   if (relYear)  data = data.filter(r=>{ const d=parseDate(r.rel_date); return d&&String(d.getFullYear())===relYear; });
   if (relDate)  data = data.filter(r=>{ const d=parseDate(r.rel_date); if(!d) return false; const pick=new Date(relDate+'T00:00:00'); return d.getFullYear()===pick.getFullYear()&&d.getMonth()===pick.getMonth()&&d.getDate()===pick.getDate(); });
+  if (tatMonth) data = data.filter(r=>{ const d=parseDate(r.tat); return d&&String(d.getMonth()+1)===tatMonth; });
+  if (tatYear)  data = data.filter(r=>{ const d=parseDate(r.tat); return d&&String(d.getFullYear())===tatYear; });
+  if (tatDate)  data = data.filter(r=>{ const d=parseDate(r.tat); if(!d) return false; const pick=new Date(tatDate+'T00:00:00'); return d.getFullYear()===pick.getFullYear()&&d.getMonth()===pick.getMonth()&&d.getDate()===pick.getDate(); });
   if (q)        data = data.filter(r=>
     (r.name||'').toLowerCase().includes(q) ||
     (r.test||'').toLowerCase().includes(q) ||
@@ -1601,6 +1656,7 @@ function renderTable(key) {
 function render(key) {
   renderTable(key);
   if (key === 'released') updateRelCount();
+  if (key === 'yet') updateYetCount();
 }
 
 // ================================================================
@@ -1656,6 +1712,57 @@ function updateRelCount() {
     (r.client||'').toLowerCase().includes(q)||(r.analyst||'').toLowerCase().includes(q)
   );
   document.getElementById('rel-count-num').textContent = data.length;
+}
+
+// ================================================================
+//  YET TO START — SMART FILTER BAR
+// ================================================================
+function toggleYetFilters() {
+  const panel = document.getElementById('yet-panel');
+  const btn = document.getElementById('yet-filter-btn');
+  panel.classList.toggle('open');
+  btn.classList.toggle('active');
+}
+
+function clearYetFilters() {
+  ['f-yet-test','f-yet-month','f-yet-year'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const dateEl = document.getElementById('f-yet-date');
+  if (dateEl) dateEl.value = '';
+  const qEl = document.getElementById('q-yet');
+  if (qEl) qEl.value = '';
+  render('yet');
+}
+
+function updateYetCount() {
+  let active = 0;
+  ['f-yet-test','f-yet-month','f-yet-year'].forEach(id => {
+    if (document.getElementById(id)?.value) active++;
+  });
+  if (document.getElementById('f-yet-date')?.value) active++;
+  if (document.getElementById('q-yet')?.value?.trim()) active++;
+  document.getElementById('yet-active-count').textContent = active;
+
+  // Count filtered results
+  const q        = (document.getElementById('q-yet')?.value||'').toLowerCase();
+  const test     = document.getElementById('f-yet-test')?.value||'';
+  const tatMonth = document.getElementById('f-yet-month')?.value||'';
+  const tatYear  = document.getElementById('f-yet-year')?.value||'';
+  const tatDate  = document.getElementById('f-yet-date')?.value||'';
+
+  let data = rows.filter(r=>getStatus(r)==='Yet to Start');
+  if (test)     data = data.filter(r=>r.test===test);
+  if (tatMonth) data = data.filter(r=>{ const d=parseDate(r.tat); return d&&String(d.getMonth()+1)===tatMonth; });
+  if (tatYear)  data = data.filter(r=>{ const d=parseDate(r.tat); return d&&String(d.getFullYear())===tatYear; });
+  if (tatDate)  data = data.filter(r=>{ const d=parseDate(r.tat); if(!d) return false; const pick=new Date(tatDate+'T00:00:00'); return d.getFullYear()===pick.getFullYear()&&d.getMonth()===pick.getMonth()&&d.getDate()===pick.getDate(); });
+  if (q)        data = data.filter(r=>
+    (r.name||'').toLowerCase().includes(q)||(r.test||'').toLowerCase().includes(q)||
+    (r.gen_id||'').toLowerCase().includes(q)||(r.and_id||'').toLowerCase().includes(q)||
+    (r.client||'').toLowerCase().includes(q)
+  );
+  document.getElementById('yet-count-num').textContent = data.length;
 }
 
 // ================================================================

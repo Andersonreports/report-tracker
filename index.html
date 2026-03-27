@@ -465,21 +465,6 @@
     .pm-fbtn:hover{border-color:var(--pri);color:var(--pri)}
     .pm-fbtn.active{background:var(--pri);color:#fff;border-color:var(--pri)}
 
-    /* ── ANALYST COUNT BLOCK ── */
-    .analyst-counts{margin-top:16px;padding:20px 22px}
-    .ac-title{font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text)}
-    .ac-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
-    .ac-card{
-      padding:14px 16px;border-radius:var(--rs);border-left:3px solid var(--rel);
-      display:flex;align-items:center;justify-content:space-between;transition:var(--tr);
-    }
-    .ac-card:hover{transform:translateY(-2px);box-shadow:var(--sh-lg)}
-    .ac-name{font-size:13px;font-weight:600;color:var(--text)}
-    .ac-count{
-      min-width:32px;height:32px;padding:0 10px;border-radius:16px;
-      display:flex;align-items:center;justify-content:center;
-      font-size:15px;font-weight:800;background:rgba(139,92,246,.15);color:#6d28d9;
-    }
 
     /* ── RESPONSIVE ── */
 
@@ -759,10 +744,6 @@
       </div>
     </div>
     <div class="tbl-wrap glass"><div id="tbl-rel"></div></div>
-    <div id="analyst-count-wrap" class="analyst-counts glass" style="display:none">
-      <div class="ac-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg> Reports Released by Analyst</div>
-      <div class="ac-grid" id="analyst-count-grid"></div>
-    </div>
   </div>
 
 </main>
@@ -853,7 +834,7 @@ function mapRow(raw) {
   return {
     sno:          get(COL_MAP.sno),
     name:         get(COL_MAP.name),
-    test:         get(COL_MAP.test),
+    test:         normalizeTestName(get(COL_MAP.test)),
     gen_id:       get(COL_MAP.gen_id),
     and_id:       get(COL_MAP.and_id),
     client:       get(COL_MAP.client),
@@ -1295,7 +1276,10 @@ function populateNormalizedFilter(selectId, data) {
   const sel = document.getElementById(selectId);
   if (!sel) return;
   const cur = sel.value;
-  const vals = [...new Set(data.map(r=>normalizeAnalystName(r.analyst)).filter(Boolean))].sort();
+  // Extract individual analyst names from multi-analyst fields (e.g. "Diwakar / Dr. Meera")
+  const nameSet = new Set();
+  data.forEach(r => extractAnalysts(r.analyst_raw).forEach(n => nameSet.add(n)));
+  const vals = [...nameSet].sort();
   sel.innerHTML = '<option value="">All Analysts</option>';
   vals.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
   if (vals.includes(cur)) sel.value=cur;
@@ -1318,21 +1302,80 @@ function populateDateFilters(monthId, yearId, data) {
 // ================================================================
 //  TEAM WORKLOAD (groups assigned reports by employee)
 // ================================================================
-// Map variant spellings → canonical name (add more pairs here as needed)
+// ── Analyst normalisation ────────────────────────────────────
 const ANALYST_ALIASES = {
-  'Vamsi':  'Vamshi',
-  'Meera':  'Dr. Meera',
+  'Vamsi':       'Vamshi',
+  'Meera':       'Dr. Meera',
+  'Diwakr':      'Diwakar',
+  'Drr. Meera':  'Dr. Meera',
+  'Gaythri':     'Gayathri',
+  'Gayathri S':  'Gayathri',
 };
 
 function normalizeAnalystName(name) {
-  const n = (name || '')
-    .replace(/\(.*?\)/g, '')
-    .replace(/\.(?=[a-zA-Z])/g, '. ')
+  if (!name) return '';
+  let n = name
+    .replace(/\(.*?\)/g, '')                            // strip (29-12-2025)
+    .replace(/\d{1,2}(?:st|nd|rd|th)\s+\w+/gi, '')     // strip "18th Dec", "18th December"
+    .replace(/\s*-\s*general\s*analysis/gi, '')          // strip "- General Analysis"
+    .replace(/[,](?=\s*[A-Za-z])/g, '.')                // "Dr," → "Dr."
+    .replace(/\.(?=[a-zA-Z])/g, '. ')                   // "Dr.Meera" → "Dr. Meera"
     .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase()
-    .replace(/\b\w/g, c => c.toUpperCase());
+    .trim();
+
+  // Pure date in analyst column → discard
+  if (/^\d{1,2}[\-\/\.]\d{1,2}[\-\/\.]\d{2,4}$/.test(n)) return '';
+  if (!n) return '';
+
+  // Title case
+  n = n.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+
+  // Fix double-r typo in Dr prefix (Drr. → Dr.)
+  n = n.replace(/^Drr\.\s*/i, 'Dr. ');
+
   return ANALYST_ALIASES[n] || n;
+}
+
+/** Split multi-analyst fields ("Diwakar / Dr. Meera") into individual normalised names */
+function extractAnalysts(raw) {
+  if (!raw) return [];
+  return raw.split(/[\/;]/)
+    .map(s => normalizeAnalystName(s.trim()))
+    .filter(Boolean);
+}
+
+// ── Test-name normalisation ────────────────────────────────────
+const TEST_ABBREVS = ['NGS','WES','WGS','WMGS','DNA','MCC','ACMG','DMD','PGT','POC','TRF','MTHFR'];
+
+function normalizeTestName(name) {
+  if (!name) return '';
+  let t = name.trim();
+  if (!t) return '';
+
+  // Uppercase canonical → deduplicate case variants
+  t = t.toUpperCase()
+    .replace(/\s+/g, ' ')
+    .replace(/\s*[+]\s*/g, ' + ')
+    .replace(/\s*[–—]\s*/g, ' - ')
+    .replace(/\s*[-]\s*/g, ' - ');
+
+  // Fix known typos
+  t = t.replace(/\bPANE\b(?!L)/g, 'PANEL')
+       .replace(/\bWORKOUT\b/g, 'WORKUP');
+
+  // Title case for display
+  t = t.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+
+  // Restore common abbreviations to uppercase
+  TEST_ABBREVS.forEach(a => {
+    const re = new RegExp('\\b' + a.charAt(0) + a.slice(1).toLowerCase() + '\\b', 'g');
+    t = t.replace(re, a);
+  });
+
+  // Normalise "Pre - PGT" back to "Pre-PGT" (hyphenated compound)
+  t = t.replace(/\bPre\s*-\s*PGT\b/g, 'Pre-PGT');
+
+  return t;
 }
 
 function renderTeamWorkload(containerId, data) {
@@ -1472,7 +1515,7 @@ function renderTable(key) {
 
   let data = rows.filter(r=>getStatus(r)===cfg.status);
   if (test)     data = data.filter(r=>r.test===test);
-  if (ana)      data = data.filter(r=>normalizeAnalystName(r.analyst)===ana);
+  if (ana)      data = data.filter(r=>extractAnalysts(r.analyst_raw).includes(ana));
   if (reviewer) data = data.filter(r=>r.pri_rev===reviewer);
   if (tat)      data = data.filter(r=>r.tat===tat);
   if (relMonth) data = data.filter(r=>{ const d=parseDate(r.rel_date); return d&&String(d.getMonth()+1)===relMonth; });
@@ -1504,7 +1547,7 @@ function renderTable(key) {
 
   if (!data.length) {
     el.innerHTML=`<div class="empty"><div class="ei">${IC.search}</div><p>${rows.filter(r=>getStatus(r)===cfg.status).length===0?'No reports in this category':'No results match your search'}</p></div>`;
-    if (key === 'released') renderAnalystCounts([]);
+
     return;
   }
 
@@ -1529,8 +1572,6 @@ function renderTable(key) {
 
   el.innerHTML=`<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
 
-  // Render analyst count block below released table
-  if (key === 'released') renderAnalystCounts(data);
 }
 
 function render(key) {
@@ -1581,7 +1622,7 @@ function updateRelCount() {
 
   let data = rows.filter(r=>getStatus(r)==='Released');
   if (test)     data = data.filter(r=>r.test===test);
-  if (ana)      data = data.filter(r=>normalizeAnalystName(r.analyst)===ana);
+  if (ana)      data = data.filter(r=>extractAnalysts(r.analyst_raw).includes(ana));
   if (relMonth) data = data.filter(r=>{ const d=parseDate(r.rel_date); return d&&String(d.getMonth()+1)===relMonth; });
   if (relYear)  data = data.filter(r=>{ const d=parseDate(r.rel_date); return d&&String(d.getFullYear())===relYear; });
   if (relDate)  data = data.filter(r=>{ const d=parseDate(r.rel_date); if(!d) return false; const pick=new Date(relDate+'T00:00:00'); return d.getFullYear()===pick.getFullYear()&&d.getMonth()===pick.getMonth()&&d.getDate()===pick.getDate(); });
@@ -1757,32 +1798,6 @@ function filterPriority(month) {
   document.getElementById('pm-table').innerHTML = buildModalTable(filtered, PRIORITY_COLS);
 }
 
-// ================================================================
-//  ANALYST COUNT BLOCK — shown below Released table
-// ================================================================
-function renderAnalystCounts(data) {
-  const wrap = document.getElementById('analyst-count-wrap');
-  const grid = document.getElementById('analyst-count-grid');
-  if (!wrap || !grid) return;
-
-  if (!data.length) { wrap.style.display = 'none'; return; }
-
-  const counts = {};
-  data.forEach(r => {
-    const name = normalizeAnalystName(r.analyst) || 'Unknown';
-    counts[name] = (counts[name] || 0) + 1;
-  });
-
-  const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
-
-  grid.innerHTML = sorted.map(([name, count]) => `
-    <div class="ac-card glass">
-      <span class="ac-name">${esc(name)}</span>
-      <span class="ac-count">${count}</span>
-    </div>`).join('');
-
-  wrap.style.display = 'block';
-}
 
 // (Auth/idle-logout removed for static GitHub Pages deployment)
 

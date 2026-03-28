@@ -1509,9 +1509,81 @@ function buildModalTable(data, cols) {
   return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
 }
 
+// ================================================================
+//  ALL SAMPLES MODAL — with search + filters
+// ================================================================
+const ALL_COLS = ['name','gen_id','and_id','client','test','_status','_rel'];
+let _allModalData = [];
+
 function openAllSamplesModal() {
-  const allCols = ['name','gen_id','and_id','client','test','_status','_rel'];
-  openQModal('All Samples', rows, allCols);
+  _allModalData = rows;
+
+  // Build unique filter values
+  const tests = [...new Set(rows.map(r=>r.test).filter(Boolean))].sort();
+  const statuses = ['Yet to Start','Ongoing','Released'];
+  const analysts = [...new Set(rows.flatMap(r=>extractAnalysts(r.analyst_raw)).filter(Boolean))].sort();
+
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const tatMonths = [...new Set(rows.map(r=>{ const d=parseDate(r.tat); return d?d.getMonth()+1:null; }).filter(Boolean))].sort((a,b)=>a-b);
+
+  const filterHtml = `
+    <div style="padding:12px 22px 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+      <div class="rel-search-wrap" style="flex:1;min-width:180px;height:36px" onclick="this.querySelector('input').focus()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="all-q" placeholder="Search…" oninput="filterAllSamples()" style="font-size:12px" />
+      </div>
+      <button class="rel-filter-toggle" id="all-filter-btn" onclick="document.getElementById('all-filter-panel').classList.toggle('open');this.classList.toggle('active')" style="height:36px;font-size:11px;padding:0 10px">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        Filters
+      </button>
+      <span style="font-size:12px;font-weight:700;color:var(--pri)" id="all-count-label">${rows.length} samples</span>
+    </div>
+    <div class="rel-panel" id="all-filter-panel" style="margin:8px 22px 0;padding:10px 14px">
+      <div class="rel-panel-grid">
+        <div class="rel-panel-item"><label>Test</label><select class="sel" id="all-f-test" onchange="filterAllSamples()">${'<option value="">All Tests</option>'+tests.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('')}</select></div>
+        <div class="rel-panel-item"><label>Status</label><select class="sel" id="all-f-status" onchange="filterAllSamples()">${'<option value="">All Statuses</option>'+statuses.map(s=>`<option value="${s}">${s}</option>`).join('')}</select></div>
+        <div class="rel-panel-item"><label>Analyst</label><select class="sel" id="all-f-analyst" onchange="filterAllSamples()">${'<option value="">All Analysts</option>'+analysts.map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('')}</select></div>
+        <div class="rel-panel-item"><label>TAT Month</label><select class="sel" id="all-f-month" onchange="filterAllSamples()">${'<option value="">All Months</option>'+tatMonths.map(m=>`<option value="${m}">${MONTHS[m-1]}</option>`).join('')}</select></div>
+      </div>
+      <div class="rel-panel-actions"><button class="rel-clear-btn" onclick="clearAllSamplesFilters()">Clear All</button></div>
+    </div>`;
+
+  document.getElementById('qmodal-title').textContent = 'All Samples';
+  document.getElementById('qmodal-count').textContent = ` · ${rows.length} records`;
+  document.getElementById('qmodal-body').innerHTML = filterHtml + '<div id="all-table-wrap">' + buildModalTable(rows, ALL_COLS) + '</div>';
+  document.getElementById('qmodal-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function filterAllSamples() {
+  const q       = (document.getElementById('all-q')?.value||'').toLowerCase();
+  const test    = document.getElementById('all-f-test')?.value||'';
+  const status  = document.getElementById('all-f-status')?.value||'';
+  const analyst = document.getElementById('all-f-analyst')?.value||'';
+  const month   = document.getElementById('all-f-month')?.value||'';
+
+  let data = rows;
+  if (test)    data = data.filter(r=>r.test===test);
+  if (status)  data = data.filter(r=>getStatus(r)===status);
+  if (analyst) data = data.filter(r=>extractAnalysts(r.analyst_raw).includes(analyst));
+  if (month)   data = data.filter(r=>{ const d=parseDate(r.tat); return d&&String(d.getMonth()+1)===month; });
+  if (q)       data = data.filter(r=>
+    (r.name||'').toLowerCase().includes(q)||(r.test||'').toLowerCase().includes(q)||
+    (r.gen_id||'').toLowerCase().includes(q)||(r.and_id||'').toLowerCase().includes(q)||
+    (r.client||'').toLowerCase().includes(q)||(r.analyst||'').toLowerCase().includes(q)
+  );
+
+  document.getElementById('qmodal-count').textContent = ` · ${data.length} records`;
+  document.getElementById('all-count-label').textContent = `${data.length} samples`;
+  document.getElementById('all-table-wrap').innerHTML = buildModalTable(data, ALL_COLS);
+}
+
+function clearAllSamplesFilters() {
+  ['all-f-test','all-f-status','all-f-analyst','all-f-month'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  const q = document.getElementById('all-q'); if (q) q.value = '';
+  filterAllSamples();
 }
 
 function openQModal(title, data, cols) {

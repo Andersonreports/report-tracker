@@ -368,14 +368,16 @@
       color:var(--muted);padding:4px 8px;border-radius:8px;line-height:1;
     }
     #qmodal-close:hover{background:var(--pb);color:var(--text)}
-    #qmodal-body{overflow-y:auto;flex:1;padding:0 0 16px}
-    #qmodal-body table{width:100%;border-collapse:collapse;font-size:13px}
+    #qmodal-body{display:flex;flex-direction:column;overflow:hidden;flex:1;padding:0}
+    .modal-filters-wrap{flex-shrink:0;padding-bottom:12px;border-bottom:1px solid var(--pb)}
+    .modal-table-wrap{overflow:auto;flex:1}
+    #qmodal-body table{border-collapse:collapse;font-size:12.5px;min-width:max-content}
     #qmodal-body th{
-      position:sticky;top:0;background:var(--panel);
-      padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:.06em;
-      text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--pb);text-align:left;
+      position:sticky;top:0;background:var(--panel);z-index:10;
+      padding:8px 14px;font-size:10.5px;font-weight:700;letter-spacing:.06em;
+      text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--pb);text-align:left;white-space:nowrap;
     }
-    #qmodal-body td{padding:10px 14px;border-bottom:1px solid var(--pb);vertical-align:middle}
+    #qmodal-body td{padding:8px 14px;border-bottom:1px solid var(--pb);vertical-align:middle;white-space:nowrap}
     #qmodal-body tr:last-child td{border-bottom:none}
     #qmodal-body tr:hover td{background:rgba(99,102,241,.04)}
     .emp-card{cursor:pointer}
@@ -561,7 +563,7 @@
       #qmodal{margin:0;border-radius:16px 16px 0 0;max-height:85vh;max-width:100%;width:100%}
       #qmodal-hdr{padding:12px 14px 10px}
       #qmodal-title{font-size:14px}
-      #qmodal-body{overflow-x:auto}
+      #qmodal-body{overflow:hidden}
       #qmodal-body th{padding:7px 10px;font-size:8.5px}
       #qmodal-body td{padding:7px 10px;font-size:11px}
 
@@ -627,7 +629,15 @@
 
     <!-- Stat cards -->
     <div class="stats">
-      <div class="scard glass sc-all clickable" onclick="openAllSamplesModal()"><span class="s-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></span><div class="s-lbl">Total</div><div class="s-val" id="s-all">0</div><div class="s-sub">Click to view all samples</div></div>
+      <div class="scard glass sc-all clickable" onclick="openAllSamplesModal()">
+        <span class="s-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></span>
+        <div class="s-lbl">Total</div>
+        <div class="s-val" id="s-all">0</div>
+        <div class="s-sub" id="s-all-sub" style="margin-bottom:8px">Click to view all samples</div>
+        <select id="f-total-year" onchange="event.stopPropagation();onTotalYearChange()" style="width:100%;font-size:11px;padding:5px 8px;border-radius:6px;border:1px solid rgba(79,70,229,.3);background:rgba(79,70,229,.05);color:var(--pri);font-weight:600;outline:none;cursor:pointer">
+          <option value="">All Years</option>
+        </select>
+      </div>
       <div class="scard glass sc-yet"><span class="s-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24z"/></svg></span><div class="s-lbl">Yet to Start</div><div class="s-val" id="s-yet">0</div><div class="s-sub">No reviewer assigned</div><div class="priority-btn" onclick="event.stopPropagation();openPriorityModal()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Priority</div></div>
       <div class="scard glass sc-ong"><span class="s-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><div class="s-lbl">In Review</div><div class="s-val" id="s-ong">0</div><div class="s-sub" id="s-ong-sub">Assigned to reviewers</div></div>
       <div class="scard glass sc-rel"><span class="s-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg></span><div class="s-val" id="s-rel">0</div><div class="s-lbl">Released</div><div class="s-sub">Reports out</div></div>
@@ -1308,17 +1318,54 @@ function switchTab(id, btn) {
 // ================================================================
 //  RENDER ALL
 // ================================================================
+//  YEAR FILTER — Total Samples Stat Card
+// ================================================================
+// Returns the "year" for a row: prefers TAT date year, falls back to ana_date, then rel_date
+function getRowYear(r) {
+  const d = parseDate(r.tat) || parseDate(r.ana_date) || parseDate(r.rel_date);
+  return d ? d.getFullYear() : null;
+}
+
+function populateTotalYearFilter() {
+  const sel = document.getElementById('f-total-year');
+  if (!sel) return;
+  const curY = sel.value;
+  const years = [...new Set(rows.map(getRowYear).filter(Boolean))].sort((a,b)=>b-a);
+  sel.innerHTML = '<option value="">All Years</option>' +
+    years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  if (years.map(String).includes(curY)) sel.value = curY;
+}
+
+function updateStatsByYear() {
+  const yr = document.getElementById('f-total-year')?.value || '';
+  const filtered = yr ? rows.filter(r => String(getRowYear(r)) === yr) : rows;
+
+  const yet = filtered.filter(r=>getStatus(r)==='Yet to Start');
+  const ong = filtered.filter(r=>getStatus(r)==='Ongoing');
+  const rel = filtered.filter(r=>getStatus(r)==='Released');
+
+  document.getElementById('s-all').textContent = filtered.length;
+  document.getElementById('s-yet').textContent = yet.length;
+  document.getElementById('s-ong').textContent = ong.length;
+  document.getElementById('s-rel').textContent = rel.length;
+  document.getElementById('s-all-sub').textContent = yr ? `Samples in ${yr}` : 'Click to view all samples';
+}
+
+function onTotalYearChange() {
+  updateStatsByYear();
+}
+
 function refreshAll() {
   const yet = rows.filter(r=>getStatus(r)==='Yet to Start');
   const ong = rows.filter(r=>getStatus(r)==='Ongoing');
   const rel = rows.filter(r=>getStatus(r)==='Released');
   const n   = rows.length;
 
-  // stat cards
-  document.getElementById('s-all').textContent = n;
-  document.getElementById('s-yet').textContent = yet.length;
-  document.getElementById('s-ong').textContent = ong.length;
-  document.getElementById('s-rel').textContent = rel.length;
+  // populate year filter first (preserves selection on refresh)
+  populateTotalYearFilter();
+
+  // stat cards — respect year filter
+  updateStatsByYear();
 
   // badges
   document.getElementById('b-yet').textContent = yet.length;
@@ -1621,7 +1668,7 @@ function openAllSamplesModal() {
 
   document.getElementById('qmodal-title').textContent = 'All Samples';
   document.getElementById('qmodal-count').textContent = ` · ${rows.length} records`;
-  document.getElementById('qmodal-body').innerHTML = filterHtml + '<div id="all-table-wrap">' + buildModalTable(rows, ALL_COLS) + '</div>';
+  document.getElementById('qmodal-body').innerHTML = '<div class="modal-filters-wrap">' + filterHtml + '</div><div class="modal-table-wrap" id="all-table-wrap">' + buildModalTable(rows, ALL_COLS) + '</div>';
   document.getElementById('qmodal-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -1662,7 +1709,7 @@ function clearAllSamplesFilters() {
 function openQModal(title, data, cols) {
   document.getElementById('qmodal-title').textContent = title;
   document.getElementById('qmodal-count').textContent = ` · ${data.length} record${data.length!==1?'s':''}`;
-  document.getElementById('qmodal-body').innerHTML = buildModalTable(data, cols);
+  document.getElementById('qmodal-body').innerHTML = '<div class="modal-table-wrap">' + buildModalTable(data, cols) + '</div>';
   document.getElementById('qmodal-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -2189,7 +2236,7 @@ function openPriorityModal() {
 
   document.getElementById('qmodal-title').textContent = 'Priority — TAT in Next 3 Months';
   document.getElementById('qmodal-count').textContent = ` · ${_priorityRows.length} samples`;
-  document.getElementById('qmodal-body').innerHTML = filterHtml + '<div id="pm-table">' + buildModalTable(_priorityRows, PRIORITY_COLS) + '</div>';
+  document.getElementById('qmodal-body').innerHTML = '<div class="modal-filters-wrap">' + filterHtml + '</div><div class="modal-table-wrap" id="pm-table">' + buildModalTable(_priorityRows, PRIORITY_COLS) + '</div>';
   document.getElementById('qmodal-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
 }

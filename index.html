@@ -214,11 +214,11 @@
     /* ── TABLE ── */
     .tbl-wrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--pb);width:fit-content;max-width:100%}
     table{border-collapse:collapse;font-size:12px;white-space:nowrap;width:auto;table-layout:auto;margin:0}
-    thead th, tbody td{padding:5px 5px;vertical-align:middle;text-align:left;white-space:nowrap}
+    thead th, tbody td{padding:5px 4px;vertical-align:middle;text-align:left;white-space:nowrap}
     thead th:last-child, tbody td:last-child{width:auto}
     .col-tight{width:1px;white-space:nowrap}
     thead th{
-      padding:6px 5px;text-align:left;font-size:10px;font-weight:700;
+      padding:6px 4px;text-align:left;font-size:10px;font-weight:700;
       text-transform:uppercase;letter-spacing:.7px;color:var(--muted);
       background:rgba(79,70,229,.04);border-bottom:1.5px solid var(--bdr);
       position:sticky;top:0;z-index:10;white-space:nowrap;
@@ -377,10 +377,10 @@
     #qmodal-body table{border-collapse:collapse;font-size:12.5px;width:max-content}
     #qmodal-body th{
       position:sticky;top:0;background:var(--panel);z-index:10;
-      padding:6px 5px;font-size:10.5px;font-weight:700;letter-spacing:.06em;
+      padding:6px 4px;font-size:10.5px;font-weight:700;letter-spacing:.06em;
       text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--pb);text-align:left;white-space:nowrap;
     }
-    #qmodal-body td{padding:6px 5px;border-bottom:1px solid var(--pb);vertical-align:middle;white-space:nowrap}
+    #qmodal-body td{padding:6px 4px;border-bottom:1px solid var(--pb);vertical-align:middle;white-space:nowrap}
     #qmodal-body tr:last-child td{border-bottom:none}
     #qmodal-body tr:hover td{background:rgba(99,102,241,.04)}
     .emp-card{cursor:pointer}
@@ -1652,8 +1652,9 @@ const MODAL_COLS = {
 
 function buildModalTable(data, cols) {
   if (!data.length) return `<div class="empty" style="padding:40px"><div class="ei">${IC.inbox}</div><p>No records</p></div>`;
-  const ths = cols.map(c=>`<th>${COL_LABELS[c]||c}</th>`).join('');
-  const trs = data.map(r=>`<tr>${cols.map(c=>{
+  const visibleCols = cols.filter(c=>COL_LABELS[c]&&COL_LABELS[c].trim());
+  const ths = visibleCols.map(c=>`<th>${COL_LABELS[c]}</th>`).join('');
+  const trs = data.map(r=>`<tr>${visibleCols.map(c=>{
     const v = r[c]||'';
     if (c==='run_text') return `<td>${esc(v)||'—'}</td>`;
     if (c==='name')    return `<td style="font-weight:600;color:var(--text)">${esc(v)||'—'}</td>`;
@@ -1816,7 +1817,7 @@ const TABLE_CFG = {
   assigned:  { status:'Ongoing',      q:'q-asgn', test:'f-asgn-test', reviewer:'f-asgn-employee', tat:'f-asgn-tat', relMonth:null,          relYear:null,
                cols:['pri_rev','analyst','assign_date','name','run_text','test','gen_id','and_id','client','tat','ana_date','remark'] },
   released:  { status:'Released',     q:'q-rel',  test:'f-rel-test',  analyst:'f-rel-analyst',  client:'f-rel-client', tat:null,  relMonth:'f-rel-month', relYear:'f-rel-year', relDate:'f-rel-date',
-               cols:['name','test','gen_id','and_id','run_text','analyst_txt','client','tat', 'final','rel_date'] },
+               cols:['name','test','gen_id','and_id','run_text','analyst_txt','client','tat','rel_date'] },
 };
 
 const COL_LABELS = {
@@ -1885,8 +1886,9 @@ function renderTable(key) {
     return;
   }
 
-  const ths = cfg.cols.map(c=>`<th>${COL_LABELS[c]||c}</th>`).join('');
-  const trs = data.map(r=>`<tr>${cfg.cols.map(c=>{
+  const visibleCols = cfg.cols.filter(c=>COL_LABELS[c]&&COL_LABELS[c].trim());
+  const ths = visibleCols.map(c=>`<th>${COL_LABELS[c]}</th>`).join('');
+  const trs = data.map(r=>`<tr>${visibleCols.map(c=>{
     const v = r[c]||'';
     if (c==='run_text') return `<td>${esc(v)||'—'}</td>`;
     if (c==='name')    return `<td style="font-weight:600;color:var(--text)">${esc(v)||'—'}</td>`;

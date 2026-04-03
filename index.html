@@ -330,7 +330,9 @@
       color:#fff;font-size:18px;font-weight:800;
       display:flex;align-items:center;justify-content:center;
     }
-    .emp-name{font-size:14px;font-weight:700;color:var(--text)}
+    .emp-name{font-size:14px;color:var(--text);display:flex;flex-direction:column;gap:1px}
+    .emp-team-title{font-size:16px;font-weight:800;color:var(--text)}
+    .emp-team-sub{font-size:12px;font-weight:500;color:var(--muted)}
     .emp-count{font-size:12px;font-weight:600;color:var(--ong)}
     .emp-pills{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
     .emp-pill{
@@ -913,6 +915,12 @@ const COL_MAP = {
   history:   ['history writeup','history','writeup'],
 };
 
+function extractRunNumber(text) {
+  if (!text) return null;
+  const m = text.match(/Run-?(\d+)/i);
+  return m ? parseInt(m[1], 10) : null;
+}
+
 function mapRow(raw) {
   const keys = Object.keys(raw).map(k => k.toLowerCase().trim());
   function get(aliases) {
@@ -948,6 +956,8 @@ function mapRow(raw) {
     remark:       get(COL_MAP.remark),
     rel_date:     get(COL_MAP.rel_date),
     history:      get(COL_MAP.history),
+    run_number:   raw._run || 0,
+    is_hidden:    !!raw._hidden,
   };
 }
 
@@ -958,7 +968,19 @@ function mapRow(raw) {
 //  Yet to Start → pri_rev empty and no rel_date
 // ================================================================
 function getStatus(r) {
-  if (r.rel_date) return 'Released';
+  // Released logic with Run number consideration
+  const run = parseInt(r.run_number || 0, 10);
+  const isHidden = !!r.is_hidden;
+  const hasRelDate = !!r.rel_date;
+
+  let isReleased = false;
+  if (run > 0 && run <= 54) {
+    isReleased = isHidden || hasRelDate;
+  } else {
+    isReleased = hasRelDate; // Run > 54 or Run unknown
+  }
+
+  if (isReleased) return 'Released';
   if (r.pri_rev) return 'Ongoing';
   return 'Yet to Start';
 }
@@ -1079,6 +1101,7 @@ function tatDetailBlock(id, r) {
     ['TAT', fmtDate(r.tat)],
     ['Analyst', r.analyst],
     ['Reviewer', r.pri_rev],
+    ['Remark', r.remark],
   ];
   return `<div class="tat-detail" id="tat-d-${id}">
     ${chips.map(([l,v]) => `<span class="tat-chip"><span class="tc-label">${l}</span><span class="tc-val">${esc(v||'—')}</span></span>`).join('')}
@@ -1157,9 +1180,6 @@ function parseBinary(binary) {
   const ws = wb.Sheets[sheetName];
   if (!ws) { toast('Could not find sheet in this file.', 'err'); return []; }
 
-  // Force-include hidden rows
-  if (ws['!rows']) ws['!rows'].forEach(r => { if (r) r.hidden = false; });
-
   const ref = ws['!ref'];
   if (!ref) return [];
   const range = XLSX.utils.decode_range(ref);
@@ -1167,44 +1187,46 @@ function parseBinary(binary) {
   const grid = [];
   for (let R = range.s.r; R <= range.e.r; R++) {
     const row = [];
+    const isHidden = !!(ws['!rows'] && ws['!rows'][R] && ws['!rows'][R].hidden);
     for (let C = range.s.c; C <= range.e.c; C++) {
       const cell = ws[XLSX.utils.encode_cell({r: R, c: C})];
       if (!cell) { row.push(''); continue; }
 
       let val = '';
-      
-      // If cell.w is present, it is exactly the literal visual string that the user sees in Excel.
-      // (e.g. "12/04/26", "24-03-2026", "17 Jul 2026")
       if (cell.w !== undefined) {
         val = cell.w;
       } else if (cell.v !== null && cell.v !== undefined) {
-        // Fallback: If no formatted string exists, convert the raw value directly ensuring no date auto-math.
         val = String(cell.v);
       }
-      
       row.push(String(val).trim());
     }
-    grid.push(row);
+    grid.push({ _cells: row, _hidden: isHidden });
   }
-
 
   function cellVal(v) {
     if (v == null) return '';
     return String(v).trim();
   }
 
-  // A row is a column-header row if its first non-empty cell looks like a serial-number header
   function isHeaderRow(row) {
-    const first = cellVal(row.find(c => cellVal(c) !== '') || '').toLowerCase().replace(/[\\s.]/g,'');
+    const first = cellVal(row.find(c => cellVal(c) !== '') || '').toLowerCase().replace(/[\s.]/g,'');
     return ['sno','s.no','srno','slno','no','#','serial'].includes(first);
   }
 
   const allRows = [];
   let headers = null;
+  let currentRun = null;
 
-  for (const row of grid) {
+  for (const rowObj of grid) {
+    const row = rowObj._cells;
     const nonEmpty = row.filter(c => cellVal(c) !== '');
     if (nonEmpty.length === 0) continue;
+
+    // Detect section header: "SURFseq- Run-54A"
+    if (nonEmpty.length === 1) {
+      const run = extractRunNumber(nonEmpty[0]);
+      if (run) { currentRun = run; continue; }
+    }
 
     if (isHeaderRow(row)) {
       headers = row.map(c => cellVal(c));
@@ -1215,8 +1237,10 @@ function parseBinary(binary) {
 
     const obj = {};
     headers.forEach((h, i) => { obj[h] = cellVal(row[i] ?? ''); });
+    obj._run = currentRun;
+    obj._hidden = rowObj._hidden;
 
-    if (Object.values(obj).every(v => v === '')) continue;
+    if (Object.values(obj).every(v => v === '' || v === currentRun)) continue;
 
     allRows.push(obj);
   }
@@ -1261,15 +1285,24 @@ function parseGrid(grid) {
 
   const allRows = [];
   let headers = null;
+  let currentRun = null;
 
   for (const row of grid) {
     const nonEmpty = row.filter(c => cellVal(c) !== '');
     if (nonEmpty.length === 0) continue;
+
+    // Detect section header: "SURFseq- Run-54A"
+    if (nonEmpty.length === 1) {
+      const run = extractRunNumber(nonEmpty[0]);
+      if (run) { currentRun = run; continue; }
+    }
+
     if (isHeaderRow(row)) { headers = row.map(c => cellVal(c)); continue; }
     if (!headers) continue;
     const obj = {};
     headers.forEach((h, i) => { obj[h] = cellVal(row[i] ?? ''); });
-    if (Object.values(obj).every(v => v === '')) continue;
+    obj._run = currentRun;
+    if (Object.values(obj).every(v => v === '' || v === currentRun)) continue;
     allRows.push(obj);
   }
 
@@ -1546,6 +1579,14 @@ function normalizeTestName(name) {
   return t;
 }
 
+const TEAM_MAP = {
+  'Naveen':  'Team 1',
+  'Vignesh': 'Team 2',
+  'Vikram':  'Team 3',
+  'Diwakar': 'Team 4',
+  'Sudha':   'Team 5'
+};
+
 function renderTeamWorkload(containerId, data) {
   const el = document.getElementById(containerId);
   if (!data.length) {
@@ -1563,17 +1604,22 @@ function renderTeamWorkload(containerId, data) {
     if (!byEmp[emp]) byEmp[emp] = [];
     byEmp[emp].push(r);
   });
-  el.innerHTML = Object.entries(byEmp).sort((a,b)=>b[1].length-a[1].length).map(([emp, reports])=>`
+  el.innerHTML = Object.entries(byEmp).sort((a,b)=>b[1].length-a[1].length).map(([emp, reports])=>{
+    const teamTitle = TEAM_MAP[emp] || 'Other Team';
+    return `
     <div class="emp-card glass" onclick="openEmpModal('${emp.replace(/'/g,"\\'")}')">
       <div class="emp-avatar">${esc(emp.charAt(0).toUpperCase())}</div>
-      <div class="emp-name">${esc(emp)}</div>
+      <div class="emp-name">
+        <span class="emp-team-title">${esc(teamTitle)}</span>
+        <span class="emp-team-sub">${esc(emp)}</span>
+      </div>
       <div class="emp-count">${reports.length} report${reports.length!==1?'s':''} in review</div>
       <div class="emp-pills">
         ${reports.slice(0,3).map(r=>`<span class="emp-pill" title="${esc(r.name||r.gen_id||'')}">${esc(r.name||r.gen_id||'—')}</span>`).join('')}
         ${reports.length>3?`<span class="emp-pill">+${reports.length-3} more</span>`:''}
       </div>
       <div style="font-size:11px;color:var(--muted);margin-top:4px">Click to view samples ↗</div>
-    </div>`).join('');
+    </div>`}).join('');
 }
 
 // ================================================================

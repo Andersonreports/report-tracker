@@ -971,7 +971,7 @@ function getStatus(r) {
   // Released logic with Run number consideration
   const run = parseInt(r.run_number || 0, 10);
   const isHidden = !!r.is_hidden;
-  const hasRelDate = !!r.rel_date;
+  const hasRelDate = r.rel_date && r.rel_date !== '—' && r.rel_date !== '-' && String(r.rel_date).trim() !== '';
 
   let isReleased = false;
   if (run > 0 && run <= 54) {
@@ -1222,13 +1222,15 @@ function parseBinary(binary) {
     const nonEmpty = row.filter(c => cellVal(c) !== '');
     if (nonEmpty.length === 0) continue;
 
+    const rowIsHeader = isHeaderRow(row);
     // Detect section header: "SURFseq- Run-54A"
-    if (nonEmpty.length === 1) {
-      const run = extractRunNumber(nonEmpty[0]);
-      if (run) { currentRun = run; continue; }
+    const foundRun = row.reduce((acc, c) => acc || extractRunNumber(c), null);
+    if (foundRun && !rowIsHeader && nonEmpty.length < 5) {
+      currentRun = foundRun;
+      continue;
     }
 
-    if (isHeaderRow(row)) {
+    if (rowIsHeader) {
       headers = row.map(c => cellVal(c));
       continue;
     }
@@ -1291,13 +1293,15 @@ function parseGrid(grid) {
     const nonEmpty = row.filter(c => cellVal(c) !== '');
     if (nonEmpty.length === 0) continue;
 
+    const rowIsHeader = isHeaderRow(row);
     // Detect section header: "SURFseq- Run-54A"
-    if (nonEmpty.length === 1) {
-      const run = extractRunNumber(nonEmpty[0]);
-      if (run) { currentRun = run; continue; }
+    const foundRun = row.reduce((acc, c) => acc || extractRunNumber(c), null);
+    if (foundRun && !rowIsHeader && nonEmpty.length < 5) {
+      currentRun = foundRun;
+      continue;
     }
 
-    if (isHeaderRow(row)) { headers = row.map(c => cellVal(c)); continue; }
+    if (rowIsHeader) { headers = row.map(c => cellVal(c)); continue; }
     if (!headers) continue;
     const obj = {};
     headers.forEach((h, i) => { obj[h] = cellVal(row[i] ?? ''); });

@@ -315,7 +315,7 @@
     }
     #qmodal-close:hover{background:var(--pb);color:var(--text)}
     #qmodal-body{overflow-y:auto;flex:1;padding:0 0 16px}
-    #qmodal-body table{width:100%;border-collapse:collapse;font-size:13px}
+    #qmodal-body table{width: max-content;border-collapse:collapse;font-size:13px}
     #qmodal-body th{
       position:sticky;top:0;background:var(--panel);
       padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:.06em;
@@ -1167,7 +1167,7 @@ function buildModalTable(data, cols) {
   const trs = data.map(r=>`<tr>${cols.map(c=>{
     const v = r[c]||'';
     if (c==='sno')     return `<td>${esc(v)||'—'}</td>`;
-    if (c==='name')    return `<td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(v)}">${esc(v)||'—'}</td>`;
+    if (c==='name')    return `<td title="${esc(v)}">${esc(v)||'—'}</td>`;
     if (c==='gen_id'||c==='and_id') return `<td><span class="col-mono">${esc(v)||'—'}</span></td>`;
     if (c==='analyst') return `<td>${v?`<span class="analyst-pill">${IC.user} ${esc(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
     if (c==='assign_date') return `<td class="col-date">${v?fmtDate(v):'<span class="muted-val">—</span>'}</td>`;

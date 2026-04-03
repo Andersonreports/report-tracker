@@ -212,8 +212,10 @@
     .rel-clear-btn:hover{border-color:var(--danger);color:var(--danger)}
 
     /* ── TABLE ── */
-    .tbl-wrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--pb);max-width:100%}
-    table{border-collapse:collapse;font-size:12.5px;white-space:nowrap}
+    .tbl-wrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--pb);max-width:100%;width:fit-content}
+    table{border-collapse:collapse;font-size:12px;white-space:nowrap;width:auto;table-layout:auto;margin:0}
+    thead th, tbody td{width:1%;padding:5px 8px;vertical-align:middle}
+    .col-flex{width:auto!important;min-width:150px}
     thead th{
       padding:8px 10px;text-align:left;font-size:10px;font-weight:700;
       text-transform:uppercase;letter-spacing:.7px;color:var(--muted);
@@ -227,8 +229,8 @@
     tbody tr:nth-child(even){background:rgba(0,0,0,.012)}
     @media(prefers-color-scheme:dark){tbody tr:nth-child(even){background:rgba(255,255,255,.02)}}
     tbody tr:hover{background:rgba(79,70,229,.06)!important}
-    td{padding:8px 10px;vertical-align:middle;color:var(--text)}
-    td:first-child{text-align:center;color:var(--muted);font-size:11px;font-weight:600;width:44px}
+    td{vertical-align:middle;color:var(--text)}
+    td:first-child{text-align:center;color:var(--muted);font-size:10.5px;font-weight:600;width:38px}
     td.fw{font-weight:700}
     .muted-val{font-size:11px;color:var(--muted)}
     .long-cell{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -905,7 +907,6 @@ const COL_MAP = {
   and_id:    ['anderson_id','andersonid','anderson id'],
   client:    ['client'],
   tat:       ['tat(30 days)','tat','turnaround'],
-  bio_time:  ['bioinfo analysis time','bioinfo time','analysis time'],
   rep_exp:   ['repeat expansion','repeat'],
   analyst:   ['analyze by','analysed by','analyzed by','analyst','analyze_by'],
   ana_date:  ['analyze date','analysis date','analyzed date','date of analysis','analyze_date'],
@@ -946,11 +947,10 @@ function mapRow(raw) {
     and_id:       get(COL_MAP.and_id),
     client:       get(COL_MAP.client),
     tat:          fmtDate(get(COL_MAP.tat)),
-    bio_time:     get(COL_MAP.bio_time),
     rep_exp:      get(COL_MAP.rep_exp),
-    analyst:      analystClean,      // normalized name (Diwakar)
-    analyst_raw:  analystRaw,        // original value (Diwakar(18-2-2026)) — used in Released
-    assign_date:  assignDate,        // extracted date from parentheses
+    analyst:      analystClean,
+    analyst_raw:  analystRaw,
+    assign_date:  assignDate,
     ana_date:     get(COL_MAP.ana_date),
     pri_rev:      get(COL_MAP.pri_rev),
     final:        get(COL_MAP.final),
@@ -1654,14 +1654,17 @@ const MODAL_COLS = {
 
 function buildModalTable(data, cols) {
   if (!data.length) return `<div class="empty" style="padding:40px"><div class="ei">${IC.inbox}</div><p>No records</p></div>`;
-  const ths = cols.map(c=>`<th>${COL_LABELS[c]||c}</th>`).join('');
+  const ths = cols.map(c=>{
+    const cls = (c==='client'||c==='remark'||c==='name') ? ' class="col-flex"' : '';
+    return `<th${cls}>${COL_LABELS[c]||c}</th>`;
+  }).join('');
   const trs = data.map(r=>`<tr>${cols.map(c=>{
     const v = r[c]||'';
-    const cls = (c==='sno'||c==='run_text') ? ' class="col-compact"' : '';
-    if (c==='sno')     return `<td${cls}>${esc(v)||'—'}</td>`;
-    if (c==='name')    return `<td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(v)}">${esc(v)||'—'}</td>`;
+    const cls = (c==='client'||c==='remark'||c==='name') ? ' class="col-flex"' : '';
+    if (c==='sno')     return `<td class="col-compact">${esc(v)||'—'}</td>`;
+    if (c==='run_text') return `<td class="col-compact">${esc(v)||'—'}</td>`;
+    if (c==='name')    return `<td class="col-flex" style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(v)}">${esc(v)||'—'}</td>`;
     if (c==='gen_id'||c==='and_id') return `<td><span class="col-mono">${esc(v)||'—'}</span></td>`;
-    if (c==='run_text') return `<td${cls}>${esc(v)||'—'}</td>`;
     if (c==='analyst') return `<td>${v?`<span class="analyst-pill">${IC.user} ${esc(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
     if (c==='assign_date') return `<td class="col-date">${v?fmtDate(v):'<span class="muted-val">—</span>'}</td>`;
     if (c==='rel_date') return `<td class="col-date">${fmtRelDate(v, r)}</td>`;
@@ -1677,7 +1680,7 @@ function buildModalTable(data, cols) {
 // ================================================================
 //  ALL SAMPLES MODAL — with search + filters
 // ================================================================
-const ALL_COLS = ['name','gen_id','and_id','run_text','client','test', 'tat', '_status','_rel'];
+const ALL_COLS = ['sno','run_text','name','gen_id','and_id', 'client','test', 'tat', '_status','_rel'];
 let _allModalData = [];
 
 function openAllSamplesModal() {
@@ -1816,15 +1819,15 @@ function renderQuickCards(containerId, data, status) {
 // ================================================================
 const TABLE_CFG = {
   yet:       { status:'Yet to Start', q:'q-yet',  test:'f-yet-test',  analyst:null,              tat:null,  tatMonth:'f-yet-month', tatYear:'f-yet-year', tatDate:'f-yet-date',
-               cols:['sno','name', 'run_text', 'test','gen_id','and_id','client','tat','rep_exp'] },
+               cols:['sno','name','run_text','test','gen_id','and_id','client','tat','rep_exp'] },
   assigned:  { status:'Ongoing',      q:'q-asgn', test:'f-asgn-test', reviewer:'f-asgn-employee', tat:'f-asgn-tat', relMonth:null,          relYear:null,
-               cols:['sno','pri_rev','analyst','assign_date','name','test','gen_id','and_id','run_text','client','tat','ana_date','remark'] },
+               cols:['sno','pri_rev','analyst','assign_date','name','run_text','test','gen_id','and_id','client','tat','ana_date','remark'] },
   released:  { status:'Released',     q:'q-rel',  test:'f-rel-test',  analyst:'f-rel-analyst',  client:'f-rel-client', tat:null,  relMonth:'f-rel-month', relYear:'f-rel-year', relDate:'f-rel-date',
-               cols:['analyst_txt','name','test','gen_id','and_id','run_text','client','tat','final','rel_date','remark'] },
+               cols:['sno','run_text','analyst_txt','name','test','gen_id','and_id', 'client','tat','final','rel_date','remark'] },
 };
 
 const COL_LABELS = {
-  sno:'#', name:'Sample Name', test:'Test', gen_id:'Gen ID', and_id:'And. ID', run_text: 'Run',
+  sno:'#', name:'Sample Name', test:'Test', gen_id:'ID', and_id:'And. ID', run_text: 'Run',
   client:'Client', tat:'TAT', rep_exp:'Repeat Exp',
   analyst:'Assigned To', analyst_raw:'Assigned To', analyst_txt:'Analyst', assign_date:'Assigned Date', ana_date:'Analyze Date', pri_rev:'Primary Reviewer',
   final:'Final Review', remark:'Remark', rel_date:'Release Date', history:'History',

@@ -212,8 +212,8 @@
     .rel-clear-btn:hover{border-color:var(--danger);color:var(--danger)}
 
     /* ── TABLE ── */
-    .tbl-wrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--pb)}
-    table{width:100%;border-collapse:collapse;font-size:12.5px;white-space:nowrap}
+    .tbl-wrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--pb);max-width:100%}
+    table{border-collapse:collapse;font-size:12.5px;white-space:nowrap}
     thead th{
       padding:8px 10px;text-align:left;font-size:10px;font-weight:700;
       text-transform:uppercase;letter-spacing:.7px;color:var(--muted);
@@ -1667,7 +1667,6 @@ function buildModalTable(data, cols) {
     if (c==='rel_date') return `<td class="col-date">${fmtRelDate(v, r)}</td>`;
     if (c==='ana_date') return `<td class="col-date">${fmtDate(v)}</td>`;
     if (c==='tat') return `<td class="muted-val">${fmtDate(v)}</td>`;
-    if (c==='bio_time') return `<td>${esc(v)||'—'}</td>`;
     if (c==='_status') { const st=getStatus(r); return `<td>${badgeHtml(st)}</td>`; }
     if (c==='_rel') { const st=getStatus(r); return `<td class="col-date">${st==='Released'?fmtRelDate(r.rel_date,r):'<span class="muted-val">—</span>'}</td>`; }
     return `<td>${esc(v)||'—'}</td>`;
@@ -1817,7 +1816,7 @@ function renderQuickCards(containerId, data, status) {
 // ================================================================
 const TABLE_CFG = {
   yet:       { status:'Yet to Start', q:'q-yet',  test:'f-yet-test',  analyst:null,              tat:null,  tatMonth:'f-yet-month', tatYear:'f-yet-year', tatDate:'f-yet-date',
-               cols:['sno','name','test','gen_id','and_id','run_text','client','tat','bio_time','rep_exp'] },
+               cols:['sno','name', 'run_text', 'test','gen_id','and_id','client','tat','rep_exp'] },
   assigned:  { status:'Ongoing',      q:'q-asgn', test:'f-asgn-test', reviewer:'f-asgn-employee', tat:'f-asgn-tat', relMonth:null,          relYear:null,
                cols:['sno','pri_rev','analyst','assign_date','name','test','gen_id','and_id','run_text','client','tat','ana_date','remark'] },
   released:  { status:'Released',     q:'q-rel',  test:'f-rel-test',  analyst:'f-rel-analyst',  client:'f-rel-client', tat:null,  relMonth:'f-rel-month', relYear:'f-rel-year', relDate:'f-rel-date',
@@ -1826,7 +1825,7 @@ const TABLE_CFG = {
 
 const COL_LABELS = {
   sno:'#', name:'Sample Name', test:'Test', gen_id:'Gen ID', and_id:'And. ID', run_text: 'Run',
-  client:'Client', tat:'TAT', bio_time:'Bioinfo Time', rep_exp:'Repeat Exp',
+  client:'Client', tat:'TAT', rep_exp:'Repeat Exp',
   analyst:'Assigned To', analyst_raw:'Assigned To', analyst_txt:'Analyst', assign_date:'Assigned Date', ana_date:'Analyze Date', pri_rev:'Primary Reviewer',
   final:'Final Review', remark:'Remark', rel_date:'Release Date', history:'History',
   _status:'Status', _rel:'Release Date',
@@ -1907,7 +1906,6 @@ function renderTable(key) {
     if (c==='ana_date') return `<td class="col-date">${fmtDate(v)}</td>`;
     if (c==='pri_rev'||c==='final') return `<td>${v?`<span class="badge b-cmp">${IC.check} ${fmtDate(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
     if (c==='tat') return `<td class="muted-val">${fmtDate(v)}</td>`;
-    if (c==='bio_time') return `<td>${esc(v)||'—'}</td>`;
     return `<td>${esc(v)||'—'}</td>`;
   }).join('')}</tr>`).join('');
 
@@ -2259,7 +2257,7 @@ function loadFromStorage() {
 //  PRIORITY MODAL — Yet to Start + In Review samples with TAT in next 3 months
 // ================================================================
 let _priorityRows = [];
-const PRIORITY_COLS = ['name','test','gen_id','and_id','run_text', 'client','tat','pri_rev','bio_time'];
+const PRIORITY_COLS = ['name','test', 'run_text', 'gen_id','and_id','client','tat','pri_rev'];
 
 function openPriorityModal() {
   const today = new Date(); today.setHours(0,0,0,0);

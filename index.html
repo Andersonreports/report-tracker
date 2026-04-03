@@ -212,10 +212,10 @@
     .rel-clear-btn:hover{border-color:var(--danger);color:var(--danger)}
 
     /* ── TABLE ── */
-    .tbl-wrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--pb);max-width:100%;width:fit-content}
-    table{border-collapse:collapse;font-size:12px;white-space:nowrap;width:auto;table-layout:auto;margin:0}
-    thead th, tbody td{width:1%;padding:5px 8px;vertical-align:middle}
-    .col-flex{width:auto!important;min-width:150px}
+    .tbl-wrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--pb);width:100%}
+    table{border-collapse:collapse;font-size:12px;white-space:nowrap;width:100%;table-layout:auto;margin:0}
+    thead th, tbody td{padding:6px 10px;vertical-align:middle;text-align:left}
+    .col-tight{width:1px;white-space:nowrap}
     thead th{
       padding:8px 10px;text-align:left;font-size:10px;font-weight:700;
       text-transform:uppercase;letter-spacing:.7px;color:var(--muted);
@@ -230,7 +230,7 @@
     @media(prefers-color-scheme:dark){tbody tr:nth-child(even){background:rgba(255,255,255,.02)}}
     tbody tr:hover{background:rgba(79,70,229,.06)!important}
     td{vertical-align:middle;color:var(--text)}
-    td:first-child{text-align:center;color:var(--muted);font-size:10.5px;font-weight:600;width:38px}
+    td:first-child{text-align:center;color:var(--muted);font-size:10.5px;font-weight:600;width:40px}
     td.fw{font-weight:700}
     .muted-val{font-size:11px;color:var(--muted)}
     .long-cell{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1655,23 +1655,23 @@ const MODAL_COLS = {
 function buildModalTable(data, cols) {
   if (!data.length) return `<div class="empty" style="padding:40px"><div class="ei">${IC.inbox}</div><p>No records</p></div>`;
   const ths = cols.map(c=>{
-    const cls = (c==='client'||c==='remark'||c==='name') ? ' class="col-flex"' : '';
+    const cls = ['sno','run_text','gen_id','and_id','tat','assign_date','rel_date','ana_date'].includes(c) ? ' class="col-tight"' : '';
     return `<th${cls}>${COL_LABELS[c]||c}</th>`;
   }).join('');
   const trs = data.map(r=>`<tr>${cols.map(c=>{
     const v = r[c]||'';
-    const cls = (c==='client'||c==='remark'||c==='name') ? ' class="col-flex"' : '';
-    if (c==='sno')     return `<td class="col-compact">${esc(v)||'—'}</td>`;
-    if (c==='run_text') return `<td class="col-compact">${esc(v)||'—'}</td>`;
-    if (c==='name')    return `<td class="col-flex" style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(v)}">${esc(v)||'—'}</td>`;
-    if (c==='gen_id'||c==='and_id') return `<td><span class="col-mono">${esc(v)||'—'}</span></td>`;
-    if (c==='analyst') return `<td>${v?`<span class="analyst-pill">${IC.user} ${esc(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
-    if (c==='assign_date') return `<td class="col-date">${v?fmtDate(v):'<span class="muted-val">—</span>'}</td>`;
-    if (c==='rel_date') return `<td class="col-date">${fmtRelDate(v, r)}</td>`;
-    if (c==='ana_date') return `<td class="col-date">${fmtDate(v)}</td>`;
-    if (c==='tat') return `<td class="muted-val">${fmtDate(v)}</td>`;
-    if (c==='_status') { const st=getStatus(r); return `<td>${badgeHtml(st)}</td>`; }
-    if (c==='_rel') { const st=getStatus(r); return `<td class="col-date">${st==='Released'?fmtRelDate(r.rel_date,r):'<span class="muted-val">—</span>'}</td>`; }
+    const cls = ['sno','run_text','gen_id','and_id','tat','assign_date','rel_date','ana_date'].includes(c) ? ' class="col-tight"' : '';
+    if (c==='sno')     return `<td class="col-tight">${esc(v)||'—'}</td>`;
+    if (c==='run_text') return `<td class="col-tight">${esc(v)||'—'}</td>`;
+    if (c==='name')    return `<td style="font-weight:600;color:var(--text)">${esc(v)||'—'}</td>`;
+    if (c==='gen_id'||c==='and_id') return `<td class="col-tight"><span class="col-mono">${esc(v)||'—'}</span></td>`;
+    if (c==='analyst') return `<td class="col-tight">${v?`<span class="analyst-pill">${IC.user} ${esc(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
+    if (c==='assign_date') return `<td class="col-date col-tight">${v?fmtDate(v):'<span class="muted-val">—</span>'}</td>`;
+    if (c==='rel_date') return `<td class="col-date col-tight">${fmtRelDate(v, r)}</td>`;
+    if (c==='ana_date') return `<td class="col-date col-tight">${fmtDate(v)}</td>`;
+    if (c==='tat') return `<td class="muted-val col-tight">${fmtDate(v)}</td>`;
+    if (c==='_status') { const st=getStatus(r); return `<td class="col-tight">${badgeHtml(st)}</td>`; }
+    if (c==='_rel') { const st=getStatus(r); return `<td class="col-date col-tight">${st==='Released'?fmtRelDate(r.rel_date,r):'<span class="muted-val">—</span>'}</td>`; }
     return `<td>${esc(v)||'—'}</td>`;
   }).join('')}</tr>`).join('');
   return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
@@ -1823,7 +1823,7 @@ const TABLE_CFG = {
   assigned:  { status:'Ongoing',      q:'q-asgn', test:'f-asgn-test', reviewer:'f-asgn-employee', tat:'f-asgn-tat', relMonth:null,          relYear:null,
                cols:['sno','pri_rev','analyst','assign_date','name','run_text','test','gen_id','and_id','client','tat','ana_date','remark'] },
   released:  { status:'Released',     q:'q-rel',  test:'f-rel-test',  analyst:'f-rel-analyst',  client:'f-rel-client', tat:null,  relMonth:'f-rel-month', relYear:'f-rel-year', relDate:'f-rel-date',
-               cols:['sno','run_text','analyst_txt','name','test','gen_id','and_id', 'client','tat','final','rel_date','remark'] },
+               cols:['run_text','analyst_txt','name','test','gen_id','and_id', 'client','tat', 'final','rel_date'] },
 };
 
 const COL_LABELS = {
@@ -1892,23 +1892,25 @@ function renderTable(key) {
     return;
   }
 
-  const ths = cfg.cols.map(c=>`<th>${COL_LABELS[c]||c}</th>`).join('');
+  const ths = cfg.cols.map(c=>{
+    const cls = ['sno','run_text','gen_id','and_id','tat','assign_date','rel_date','ana_date'].includes(c) ? ' class="col-tight"' : '';
+    return `<th${cls}>${COL_LABELS[c]||c}</th>`;
+  }).join('');
   const trs = data.map(r=>`<tr>${cfg.cols.map(c=>{
     const v = r[c]||'';
-    const cls = (c==='sno'||c==='run_text') ? ' class="col-compact"' : '';
-    if (c==='sno')     return `<td${cls}>${esc(v)||'—'}</td>`;
-    if (c==='name')    return `<td class="col-name" title="${esc(v)}">${esc(v)||'—'}</td>`;
-    if (c==='gen_id'||c==='and_id') return `<td><span class="col-mono">${esc(v)||'—'}</span></td>`;
-    if (c==='run_text') return `<td${cls}>${esc(v)||'—'}</td>`;
-    if (c==='analyst') return `<td>${v?`<span class="analyst-pill">${IC.user} ${esc(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
-    if (c==='analyst_raw') return `<td>${v?`<span class="analyst-pill">${IC.user} ${esc(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
-    if (c==='analyst_txt') { const av = r.analyst||''; return `<td style="font-size:13px;color:var(--text)">${esc(av)||'<span class="muted-val">—</span>'}</td>`; }
-    if (c==='assign_date') return `<td class="col-date">${v?fmtDate(v):'<span class="muted-val">—</span>'}</td>`;
-    if (c==='remark'||c==='history') return `<td class="long-cell muted-val" title="${esc(v)}">${esc(v)||'—'}</td>`;
-    if (c==='rel_date') return `<td class="col-date">${fmtRelDate(v, r)}</td>`;
-    if (c==='ana_date') return `<td class="col-date">${fmtDate(v)}</td>`;
-    if (c==='pri_rev'||c==='final') return `<td>${v?`<span class="badge b-cmp">${IC.check} ${fmtDate(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
-    if (c==='tat') return `<td class="muted-val">${fmtDate(v)}</td>`;
+    const cls = ['sno','run_text','gen_id','and_id','tat','assign_date','rel_date','ana_date'].includes(c) ? ' class="col-tight"' : '';
+    if (c==='sno')     return `<td class="col-tight">${esc(v)||'—'}</td>`;
+    if (c==='run_text') return `<td class="col-tight">${esc(v)||'—'}</td>`;
+    if (c==='name')    return `<td class="col-name" style="font-weight:600;color:var(--text)">${esc(v)||'—'}</td>`;
+    if (c==='gen_id'||c==='and_id') return `<td class="col-tight"><span class="col-mono">${esc(v)||'—'}</span></td>`;
+    if (c==='analyst') return `<td class="col-tight">${v?`<span class="analyst-pill">${IC.user} ${esc(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
+    if (c==='analyst_raw') return `<td class="col-tight">${v?`<span class="analyst-pill">${IC.user} ${esc(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
+    if (c==='analyst_txt') { const av = r.analyst||''; return `<td class="col-tight" style="font-size:13px;color:var(--text)">${esc(av)||'<span class="muted-val">—</span>'}</td>`; }
+    if (c==='assign_date') return `<td class="col-date col-tight">${v?fmtDate(v):'<span class="muted-val">—</span>'}</td>`;
+    if (c==='rel_date') return `<td class="col-date col-tight">${fmtRelDate(v, r)}</td>`;
+    if (c==='ana_date') return `<td class="col-date col-tight">${fmtDate(v)}</td>`;
+    if (c==='pri_rev'||c==='final') return `<td class="col-tight">${v?`<span class="badge b-cmp">${IC.check} ${fmtDate(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
+    if (c==='tat') return `<td class="muted-val col-tight">${fmtDate(v)}</td>`;
     return `<td>${esc(v)||'—'}</td>`;
   }).join('')}</tr>`).join('');
 

@@ -393,6 +393,13 @@
     #qmodal-body td{padding:10px 14px;border-bottom:1px solid var(--pb);vertical-align:middle;white-space:nowrap}
     #qmodal-body tr:last-child td{border-bottom:none}
     #qmodal-body tr:hover td{background:rgba(99,102,241,.04)}
+    /* Status-based row colors for All Samples table */
+    #qmodal-body tr.row-status-released td{background-color:#d4edda}
+    #qmodal-body tr.row-status-released:hover td{background-color:#c3e6cb}
+    #qmodal-body tr.row-status-ongoing td{background-color:#fff9c4}
+    #qmodal-body tr.row-status-ongoing:hover td{background-color:#fff176}
+    #qmodal-body tr.row-status-yet td{background-color:#f5e6d3}
+    #qmodal-body tr.row-status-yet:hover td{background-color:#ead5ba}
     .emp-card{cursor:pointer}
     .scard.clickable{cursor:pointer}
     .scard.clickable:hover{transform:translateY(-2px);box-shadow:var(--sh-lg)}
@@ -1682,11 +1689,19 @@ function getColClass(c) {
   return classMap[c]||'';
 }
 
-function buildModalTable(data, cols) {
+function buildModalTable(data, cols, applyStatusColors = false) {
   if (!data.length) return `<div class="empty" style="padding:40px"><div class="ei">${IC.inbox}</div><p>No records</p></div>`;
   const visibleCols = cols.filter(c=>COL_LABELS[c]&&COL_LABELS[c].trim());
   const ths = visibleCols.map(c=>`<th class="${getColClass(c)}">${COL_LABELS[c]}</th>`).join('');
-  const trs = data.map(r=>`<tr>${visibleCols.map(c=>{
+  const trs = data.map(r=>{
+    let rowClass = '';
+    if (applyStatusColors) {
+      const st = getStatus(r);
+      if (st === 'Released') rowClass = 'row-status-released';
+      else if (st === 'Ongoing') rowClass = 'row-status-ongoing';
+      else if (st === 'Yet to Start') rowClass = 'row-status-yet';
+    }
+    return `<tr class="${rowClass}">${visibleCols.map(c=>{
     const v = r[c]||'';
     const cls = getColClass(c);
     if (c==='run_text') return `<td class="${cls}">${esc(v)||'—'}</td>`;
@@ -1700,7 +1715,7 @@ function buildModalTable(data, cols) {
     if (c==='_status') { const st=getStatus(r); return `<td class="${cls}">${badgeHtml(st)}</td>`; }
     if (c==='_rel') { const st=getStatus(r); return `<td class="${cls} col-date">${st==='Released'?fmtRelDate(r.rel_date,r):'<span class="muted-val">—</span>'}</td>`; }
     return `<td class="${cls}" title="${esc(v)}">${esc(v)||'—'}</td>`;
-  }).join('')}</tr>`).join('');
+    }).join('')}</tr>`; }).join('');
   return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
 }
 
@@ -1753,7 +1768,7 @@ function openAllSamplesModal() {
 
   document.getElementById('qmodal-title').textContent = 'All Samples';
   document.getElementById('qmodal-count').textContent = ` · ${_allModalData.length} records`;
-  document.getElementById('qmodal-body').innerHTML = '<div class="modal-filters-wrap">' + filterHtml + '</div><div class="modal-table-wrap" id="all-table-wrap">' + buildModalTable(_allModalData, ALL_COLS) + '</div>';
+  document.getElementById('qmodal-body').innerHTML = '<div class="modal-filters-wrap">' + filterHtml + '</div><div class="modal-table-wrap" id="all-table-wrap">' + buildModalTable(_allModalData, ALL_COLS, true) + '</div>';
   document.getElementById('qmodal-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -1782,7 +1797,7 @@ function filterAllSamples() {
 
   document.getElementById('qmodal-count').textContent = ` · ${data.length} records`;
   document.getElementById('all-count-label').textContent = `${data.length} samples`;
-  document.getElementById('all-table-wrap').innerHTML = buildModalTable(data, ALL_COLS);
+  document.getElementById('all-table-wrap').innerHTML = buildModalTable(data, ALL_COLS, true);
 }
 
 function clearAllSamplesFilters() {

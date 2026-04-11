@@ -1197,10 +1197,9 @@ function closeQModal(e) {
 document.addEventListener('keydown', e => { if (e.key==='Escape') closeQModal(null); });
 
 function openEmpModal(empName) {
-  // Ongoing only: has pri_rev, NOT released
+  // Ongoing reports only
   let empRows = rows.filter(r =>
-    !r.rel_date &&
-    r.pri_rev &&
+    getStatus(r) === 'Ongoing' &&
     normalizeAnalystName(r.pri_rev) === empName
   );
   // Most recent TAT first (descending)

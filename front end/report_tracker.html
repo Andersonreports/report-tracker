@@ -693,6 +693,22 @@
       accent-color: var(--pri); 
     }
 
+    .an-custom-legend {
+      display: flex; flex-direction: column; gap: 8px;
+      max-height: 150px; overflow-y: auto; padding: 10px 0;
+      scrollbar-width: thin; margin-top: 10px;
+    }
+    .an-leg-item {
+      display: flex; align-items: center; gap: 10px; cursor: pointer;
+      font-size: 11px; font-weight: 600; color: var(--text);
+      transition: var(--tr); padding: 4px 8px; border-radius: 4px;
+      text-align: left;
+    }
+    .an-leg-item:hover { background: rgba(0,0,0,0.04); }
+    .an-leg-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .an-leg-text { flex: 1; }
+    .an-leg-item.hidden { text-decoration: line-through; opacity: 0.5; }
+
     @media(max-width:1100px){ 
       .an-layout { grid-template-columns: 1fr; }
       .an-sidebar { position: static; order: -1; max-height: none; }
@@ -1018,6 +1034,7 @@
           <div class="an-chart-body">
             <canvas id="an-chart-1"></canvas>
           </div>
+          <div id="an-legend-1" class="an-custom-legend"></div>
         </div>
 
         <!-- Chart 2: Client Wise Volume -->
@@ -2895,15 +2912,7 @@ function renderPieChart(map) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { 
-          position: 'bottom', 
-          labels: { 
-            boxWidth: 12, 
-            font: { size: 11, weight: '600' },
-            padding: 15,
-            usePointStyle: true
-          } 
-        },
+        legend: { display: false },
         tooltip: { 
           backgroundColor: 'rgba(0,0,0,0.8)',
           padding: 12,
@@ -2920,6 +2929,27 @@ function renderPieChart(map) {
       }
     }
   });
+
+  // Generate Custom Legend
+  const legendContainer = document.getElementById('an-legend-1');
+  if (legendContainer) {
+    legendContainer.innerHTML = '';
+    labels.forEach((label, i) => {
+      const item = document.createElement('div');
+      item.className = 'an-leg-item';
+      item.innerHTML = `
+        <span class="an-leg-dot" style="background:${CHART_COLORS[i % CHART_COLORS.length]}"></span>
+        <span class="an-leg-text">${label}</span>
+      `;
+      item.onclick = () => {
+        const isHidden = anChart1.getDataVisibility(i);
+        anChart1.toggleDataVisibility(i);
+        item.classList.toggle('hidden', isHidden);
+        anChart1.update();
+      };
+      legendContainer.appendChild(item);
+    });
+  }
 }
 
 function renderBarChart(map) {

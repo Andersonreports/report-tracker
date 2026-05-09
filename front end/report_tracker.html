@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Anderson Lab — Report Tracker</title>
+  <title>Anderson Lab Report Tracker</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <!-- SheetJS served through authenticated backend endpoint — not publicly accessible -->
-  <script src="xlsx.full.min.js"></script>
+  <script src="/tracker/xlsx.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 
   <style>
     /* ── TOKENS ── */
@@ -49,6 +51,16 @@
     .ei svg{width:44px;height:44px}
     .w-logo svg{width:50px;height:50px;stroke:var(--pri)}
     .glass{background:var(--panel);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--pb);box-shadow:var(--sh);border-radius:var(--r)}
+
+    /* ── Back button ── */
+    .back-to-home{
+      display:inline-flex;align-items:center;justify-content:center;
+      width:32px;height:32px;border-radius:50%;
+      background:rgba(79,70,229,.1);border:1.5px solid rgba(79,70,229,.2);
+      color:var(--pri);text-decoration:none;flex-shrink:0;
+      transition:all .2s ease;margin-right:10px;
+    }
+    .back-to-home:hover{background:var(--pri);color:#fff;border-color:var(--pri);transform:translateX(-2px);}
 
     /* ── HEADER ── */
     .hdr{
@@ -157,24 +169,79 @@
     }
     .sel:focus{outline:none;border-color:var(--pri)}
 
+    /* ── RELEASED SMART TOOLBAR ── */
+    .rel-bar{display:flex;align-items:center;gap:10px;padding-top:20px;margin-bottom:14px}
+    .rel-search-wrap{
+      flex:1;display:flex;align-items:center;gap:8px;
+      padding:0 14px;height:42px;
+      border:1.5px solid var(--bdr);border-radius:var(--rs);background:var(--ib);transition:var(--tr);cursor:text;
+    }
+    .rel-search-wrap:focus-within{border-color:var(--pri);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+    .rel-search-wrap svg{color:var(--muted);flex-shrink:0}
+    .rel-search-wrap input{border:none;background:transparent;outline:none;font-family:inherit;font-size:13px;color:var(--text);width:100%}
+    .rel-filter-toggle{
+      display:flex;align-items:center;gap:6px;padding:0 14px;height:42px;
+      border:1.5px solid var(--bdr);border-radius:var(--rs);background:var(--ib);
+      font-family:inherit;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;transition:var(--tr);white-space:nowrap;
+    }
+    .rel-filter-toggle:hover{border-color:var(--pri);color:var(--pri)}
+    .rel-filter-toggle.active{border-color:var(--pri);color:var(--pri);background:rgba(79,70,229,.06)}
+    .rel-filter-toggle svg{transition:transform .2s ease}
+    .rel-filter-toggle.active svg{transform:rotate(180deg)}
+    .rel-filter-badge{
+      display:inline-flex;align-items:center;justify-content:center;
+      min-width:20px;height:20px;padding:0 6px;border-radius:10px;
+      font-size:11px;font-weight:700;background:rgba(79,70,229,.12);color:var(--pri);
+    }
+    .rel-filter-toggle.active .rel-filter-badge{background:var(--pri);color:#fff}
+    .rel-count-btn{
+      display:flex;align-items:center;gap:8px;padding:0 18px;height:42px;
+      border-radius:var(--rs);border:1.5px solid rgba(139,92,246,.3);
+      background:rgba(139,92,246,.08);color:#6d28d9;font-family:inherit;
+      font-size:13px;font-weight:700;cursor:default;transition:var(--tr);white-space:nowrap;
+    }
+    .rel-count-btn .rc-num{
+      min-width:28px;height:28px;padding:0 8px;border-radius:14px;
+      display:flex;align-items:center;justify-content:center;
+      font-size:15px;font-weight:800;background:rgba(139,92,246,.18);color:#6d28d9;
+    }
+    .rel-panel{
+      display:none;padding:14px 18px;margin-bottom:14px;border-radius:var(--r);
+      border:1px solid var(--pb);background:var(--panel);backdrop-filter:blur(12px);
+      animation:fadeUp .2s ease-out;
+    }
+    .rel-panel.open{display:block}
+    .rel-panel-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+    .rel-panel-item label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:5px}
+    .rel-panel-item .sel{width:100%;font-size:12px;height:36px}
+    .rel-panel-item input[type="date"]{width:100%;font-size:12px;height:36px}
+    .rel-panel-actions{display:flex;justify-content:flex-end;margin-top:12px;gap:8px}
+    .rel-clear-btn{
+      padding:6px 14px;border-radius:var(--rs);border:1px solid var(--bdr);
+      background:var(--ib);color:var(--muted);font-family:inherit;font-size:12px;
+      font-weight:600;cursor:pointer;transition:var(--tr);
+    }
+    .rel-clear-btn:hover{border-color:var(--danger);color:var(--danger)}
+
     /* ── TABLE ── */
-    .tbl-wrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--pb)}
-    table{width:100%;border-collapse:collapse;font-size:12.5px;white-space:nowrap}
+    .tbl-wrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--pb);width:fit-content;max-width:100%}
+    table{border-collapse:collapse;font-size:12px;white-space:nowrap;width:auto;table-layout:auto;margin:0}
+    thead th, tbody td{padding:10px 14px;vertical-align:middle;text-align:left;white-space:nowrap}
+    thead th:last-child, tbody td:last-child{width:auto}
+    .col-tight{width:1px;white-space:nowrap}
     thead th{
-      padding:11px 16px;text-align:left;font-size:10px;font-weight:700;
+      padding:10px 14px;text-align:left;font-size:10px;font-weight:700;
       text-transform:uppercase;letter-spacing:.7px;color:var(--muted);
       background:rgba(79,70,229,.04);border-bottom:1.5px solid var(--bdr);
       position:sticky;top:0;z-index:10;white-space:nowrap;
     }
-    thead th:first-child{width:44px;text-align:center}
     @media(prefers-color-scheme:dark){thead th{background:rgba(79,70,229,.08)}}
     tbody tr{transition:var(--tr);border-bottom:1px solid var(--bdr)}
     tbody tr:last-child{border-bottom:none}
     tbody tr:nth-child(even){background:rgba(0,0,0,.012)}
     @media(prefers-color-scheme:dark){tbody tr:nth-child(even){background:rgba(255,255,255,.02)}}
     tbody tr:hover{background:rgba(79,70,229,.06)!important}
-    td{padding:10px 16px;vertical-align:middle;color:var(--text)}
-    td:first-child{text-align:center;color:var(--muted);font-size:11px;font-weight:600;width:44px}
+    td{vertical-align:middle;color:var(--text)}
     td.fw{font-weight:700}
     .muted-val{font-size:11px;color:var(--muted)}
     .long-cell{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -182,6 +249,16 @@
     .col-mono{font-family:'SF Mono',Menlo,Consolas,monospace;font-size:11.5px;letter-spacing:.3px;color:var(--pri)}
     .col-date{color:var(--muted);font-size:12px;white-space:nowrap}
     .col-name{font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    /* column width classes */
+    th.col-w-name, td.col-w-name{min-width:200px;flex:2;overflow:hidden;text-overflow:ellipsis}
+    th.col-w-client, td.col-w-client{min-width:200px;flex:2;overflow:hidden;text-overflow:ellipsis}
+    th.col-w-test, td.col-w-test{min-width:120px;width:120px}
+    th.col-w-id, td.col-w-id{min-width:180px;width:180px}
+    th.col-w-run, td.col-w-run{min-width:160px;width:160px}
+    th.col-w-tat, td.col-w-tat{min-width:120px;width:120px}
+    th.col-w-date, td.col-w-date{min-width:130px;width:130px}
+    th.col-w-status, td.col-w-status{min-width:110px;width:110px}
+    th.col-w-analyst, td.col-w-analyst{min-width:120px;width:120px}
     /* analyst pill in tables */
     .analyst-pill{
       display:inline-flex;align-items:center;gap:5px;
@@ -220,13 +297,13 @@
 
     /* ── TAT ALERT BLOCKS ── */
     .tat-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:22px}
-    .tat-card{padding:20px 22px;border-radius:var(--r);border-left:4px solid transparent;transition:var(--tr)}
+    .tat-card{padding:20px 22px;border-radius:var(--r);border-left:4px solid transparent;transition:var(--tr);min-width:0;overflow:hidden}
     .tat-card:hover{transform:translateY(-2px);box-shadow:var(--sh-lg)}
     .tat-soon{border-left-color:#f59e0b;background:rgba(245,158,11,.07)}
     .tat-over{border-left-color:#ef4444;background:rgba(239,68,68,.07)}
-    .tat-card .tc-hdr{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-    .tat-card .tc-icon{font-size:22px}
-    .tat-card .tc-title{font-size:13px;font-weight:700;color:var(--text)}
+    .tat-card .tc-hdr{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:nowrap;overflow:hidden}
+    .tat-card .tc-icon{font-size:22px;flex-shrink:0}
+    .tat-card .tc-title{font-size:13px;font-weight:700;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .tat-card .tc-count{
       margin-left:auto;min-width:28px;height:28px;padding:0 8px;border-radius:14px;
       display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;
@@ -276,7 +353,9 @@
       color:#fff;font-size:18px;font-weight:800;
       display:flex;align-items:center;justify-content:center;
     }
-    .emp-name{font-size:14px;font-weight:700;color:var(--text)}
+    .emp-name{font-size:14px;color:var(--text);display:flex;flex-direction:column;gap:1px}
+    .emp-team-title{font-size:16px;font-weight:800;color:var(--text)}
+    .emp-team-sub{font-size:12px;font-weight:500;color:var(--muted)}
     .emp-count{font-size:12px;font-weight:600;color:var(--ong)}
     .emp-pills{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
     .emp-pill{
@@ -314,16 +393,25 @@
       color:var(--muted);padding:4px 8px;border-radius:8px;line-height:1;
     }
     #qmodal-close:hover{background:var(--pb);color:var(--text)}
-    #qmodal-body{overflow-y:auto;flex:1;padding:0 0 16px}
-    #qmodal-body table{width: max-content;border-collapse:collapse;font-size:13px}
+    #qmodal-body{display:flex;flex-direction:column;overflow:hidden;flex:1;padding:0}
+    .modal-filters-wrap{flex-shrink:0;padding-bottom:12px;border-bottom:1px solid var(--pb);background:var(--panel);position:sticky;top:0;z-index:20}
+    .modal-table-wrap{overflow:auto;flex:1;width:max-content;max-width:100%}
+    #qmodal-body table{border-collapse:collapse;font-size:12.5px;width:max-content}
     #qmodal-body th{
-      position:sticky;top:0;background:var(--panel);
-      padding:6px 8px;font-size:11px;font-weight:700;letter-spacing:.06em;
-      text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--pb);text-align:left;
+      position:sticky;top:0;background:var(--panel);z-index:10;
+      padding:10px 14px;font-size:10.5px;font-weight:700;letter-spacing:.06em;
+      text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--pb);text-align:left;white-space:nowrap;
     }
-    #qmodal-body td{padding:6px 8px;border-bottom:1px solid var(--pb);vertical-align:middle}
+    #qmodal-body td{padding:10px 14px;border-bottom:1px solid var(--pb);vertical-align:middle;white-space:nowrap}
     #qmodal-body tr:last-child td{border-bottom:none}
     #qmodal-body tr:hover td{background:rgba(99,102,241,.04)}
+    /* Status-based row colors for All Samples table */
+    #qmodal-body tr.row-status-released td{background-color:#d4edda}
+    #qmodal-body tr.row-status-released:hover td{background-color:#c3e6cb}
+    #qmodal-body tr.row-status-ongoing td{background-color:#fff9c4}
+    #qmodal-body tr.row-status-ongoing:hover td{background-color:#fff176}
+    #qmodal-body tr.row-status-yet td{background-color:#f5e6d3}
+    #qmodal-body tr.row-status-yet:hover td{background-color:#ead5ba}
     .emp-card{cursor:pointer}
     .scard.clickable{cursor:pointer}
     .scard.clickable:hover{transform:translateY(-2px);box-shadow:var(--sh-lg)}
@@ -394,26 +482,234 @@
     ::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:4px}
     ::-webkit-scrollbar-thumb:hover{background:var(--muted)}
 
-    /* ── YEAR FILTER (inside Total stat card) ── */
-    .scard-year-wrap{margin-top:8px}
-    .scard-year-sel{
-      width:100%;padding:3px 8px;border-radius:6px;
-      border:1px solid rgba(79,70,229,.25);background:rgba(79,70,229,.06);
-      color:var(--pri);font-family:inherit;font-size:11px;font-weight:600;
-      cursor:pointer;outline:none;transition:var(--tr);
+    /* ── PRIORITY BUTTON ── */
+    .priority-btn{
+      display:inline-flex;align-items:center;gap:5px;
+      margin-top:8px;padding:4px 12px;border-radius:20px;
+      font-size:11px;font-weight:700;cursor:pointer;
+      background:rgba(239,68,68,.1);color:#dc2626;border:1px solid rgba(239,68,68,.25);
+      transition:var(--tr);
     }
-    .scard-year-sel:focus,.scard-year-sel:hover{border-color:var(--pri);background:rgba(79,70,229,.12)}
+    .priority-btn:hover{background:rgba(239,68,68,.2);transform:translateY(-1px)}
+    .pm-filters{display:flex;gap:6px;padding:10px 22px;flex-wrap:wrap;border-bottom:1px solid var(--pb)}
+    .pm-fbtn{
+      padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;
+      border:1px solid var(--bdr);background:var(--ib);color:var(--muted);transition:var(--tr);
+    }
+    .pm-fbtn:hover{border-color:var(--pri);color:var(--pri)}
+    .pm-fbtn.active{background:var(--pri);color:#fff;border-color:var(--pri)}
+
 
     /* ── RESPONSIVE ── */
-    @media(max-width:900px){.stats{grid-template-columns:repeat(3,1fr)}}
-    @media(max-width:640px){.stats{grid-template-columns:1fr 1fr};.hdr{padding:12px 16px};.tabs,.main{padding-left:16px;padding-right:16px}}
+
+    /* Tablet */
+    @media(max-width:900px){
+      .stats{grid-template-columns:repeat(2,1fr)}
+      .tat-grid{grid-template-columns:1fr}
+      .emp-grid{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
+      #qmodal{max-width:95vw;margin:10px}
+    }
+
+    /* Mobile */
+    @media(max-width:640px){
+      body{overflow-x:hidden}
+
+      /* Header */
+      .hdr{padding:10px 14px;flex-wrap:wrap;gap:8px;justify-content:center}
+      .hdr-title{font-size:15px;width:100%;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .hdr-actions{justify-content:center;flex-wrap:wrap;gap:6px}
+      .live-pill{font-size:10px;padding:3px 8px;gap:5px}
+      .btn{padding:6px 10px;font-size:11px;gap:5px}
+
+      /* Tabs */
+      .tabs{padding:10px 14px 0;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+      .tabs::-webkit-scrollbar{display:none}
+      .tab{padding:7px 10px;font-size:11px;white-space:nowrap;flex-shrink:0;gap:4px}
+      .tab svg{width:12px;height:12px}
+      .tbadge{min-width:18px;height:18px;font-size:10px;padding:0 5px}
+
+      /* Main content */
+      .main{padding:0 10px 20px}
+
+      /* Stat cards */
+      .stats{grid-template-columns:1fr 1fr;gap:8px;padding-top:14px;margin-bottom:16px}
+      .scard{padding:12px 14px}
+      .scard .s-val{font-size:22px}
+      .scard .s-lbl{font-size:9px;letter-spacing:.5px}
+      .scard .s-sub{font-size:10px}
+      .scard .s-icon{margin-bottom:4px}
+      .s-icon svg{width:20px;height:20px}
+
+      /* TAT blocks */
+      .tat-grid{grid-template-columns:1fr;gap:10px;margin-bottom:16px}
+      .tat-card{padding:12px 14px}
+      .tat-card .tc-title{font-size:12px}
+      .tat-card .tc-count{min-width:24px;height:24px;font-size:12px}
+      .tat-list{max-height:250px}
+      .tat-item{gap:5px;padding:5px 8px;font-size:11px}
+      .tat-item .ti-name{font-size:11px}
+      .tat-item .ti-date{width:72px;font-size:10px}
+      .tat-item .ti-days{width:62px;font-size:9px;padding:2px 5px}
+      .tat-detail.open{gap:5px 6px}
+      .tat-chip{font-size:10px;padding:3px 7px}
+
+      /* Toolbar / filters */
+      .toolbar{gap:6px;padding-top:14px;margin-bottom:10px}
+      .search{min-width:100%;height:34px;padding:0 10px}
+      .search input{font-size:12px}
+      .sel{font-size:11px;height:32px;padding:0 6px}
+
+      /* Released smart bar */
+      .rel-bar{flex-wrap:wrap;gap:8px;padding-top:14px}
+      .rel-search-wrap{min-width:100%;height:36px;padding:0 10px}
+      .rel-search-wrap input{font-size:12px}
+      .rel-filter-toggle{height:36px;font-size:11px;padding:0 10px}
+      .rel-count-btn{height:36px;font-size:11px;padding:0 12px}
+      .rel-count-btn .rc-num{min-width:24px;height:24px;font-size:13px;padding:0 6px}
+      .rel-panel-grid{grid-template-columns:1fr 1fr}
+      .rel-panel{padding:10px 12px}
+
+      /* Tables */
+      .tbl-wrap{border-radius:var(--rs);-webkit-overflow-scrolling:touch}
+      table{font-size:11px}
+      thead th{padding:8px 10px;font-size:8.5px;letter-spacing:.5px}
+      td{padding:7px 10px;font-size:11px}
+      .long-cell,.col-name{max-width:120px}
+
+      /* Team workload */
+      .emp-grid{grid-template-columns:1fr 1fr;gap:8px}
+      .emp-card{padding:12px 14px;gap:6px}
+      .emp-avatar{width:32px;height:32px;font-size:14px}
+      .emp-name{font-size:12px}
+      .emp-count{font-size:10px}
+      .emp-pills{gap:3px}
+      .emp-pill{font-size:9px;max-width:90px;padding:2px 6px}
+
+      /* Quick cards */
+      .qgrid{grid-template-columns:1fr;gap:8px}
+      .qcard{padding:10px 12px}
+      .qcard .qc-name{font-size:12px}
+
+      /* Modal — full width bottom sheet */
+      #qmodal-backdrop.open{align-items:flex-end}
+      #qmodal{margin:0;border-radius:16px 16px 0 0;max-height:85vh;max-width:100%;width:100%}
+      #qmodal-hdr{padding:12px 14px 10px}
+      #qmodal-title{font-size:14px}
+      #qmodal-body{overflow:hidden}
+      #qmodal-body th{padding:7px 10px;font-size:8.5px}
+      #qmodal-body td{padding:7px 10px;font-size:11px}
+
+      /* Welcome card */
+      .wcard{padding:28px 20px;border-radius:14px;max-width:92vw;width:92vw}
+      .w-logo{font-size:40px;margin-bottom:10px}
+      .w-logo svg{width:40px;height:40px}
+      .w-title{font-size:16px!important}
+      .w-sub{font-size:12px!important}
+    }
+
+    /* Small phones */
+    @media(max-width:380px){
+      .hdr-title{font-size:13px}
+      .stats{grid-template-columns:1fr}
+      .emp-grid{grid-template-columns:1fr}
+      .tab{padding:6px 8px;font-size:10px}
+    }
+    /* ── ANALYTICS TAB ── */
+    .an-header{display:flex;align-items:center;justify-content:space-between;padding:20px 0 10px}
+    .an-title{font-size:18px;font-weight:800;background:linear-gradient(135deg,#4f46e5,#8b5cf6);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+    
+    .an-layout { display: grid; grid-template-columns: 1fr 280px; gap: 20px; align-items: start; }
+    
+    .an-charts-scroll { 
+      display: flex; flex-direction: column; gap: 20px; 
+      max-height: calc(100vh - 200px); overflow-y: auto; padding-right: 8px;
+      scrollbar-width: thin;
+    }
+    
+    .an-chart-card { 
+      padding: 24px; min-height: 450px; display: flex; flex-direction: column; 
+      background: #ffffff; border: 1px solid var(--pb); border-radius: var(--r);
+      box-shadow: var(--sh); overflow: hidden;
+    }
+    @media(prefers-color-scheme:dark){ .an-chart-card { background: var(--panel); } }
+    
+    .an-chart-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; gap: 15px; }
+    .an-chart-info { display: flex; flex-direction: column; gap: 4px; }
+    .an-chart-title { font-size: 15px; font-weight: 700; color: var(--text); }
+    .an-chart-sub { font-size: 11px; color: var(--muted); font-weight: 500; }
+    
+    .an-chart-body { flex: 1; position: relative; min-height: 300px; }
+    
+    .an-chart-actions { display: flex; align-items: center; gap: 10px; }
+    
+    .an-total-box { 
+      padding: 6px 14px; border-radius: 20px; background: rgba(79,70,229,.1); 
+      color: var(--pri); font-weight: 700; font-size: 13px; border: 1px solid rgba(79,70,229,.2);
+    }
+    
+    .an-layout { display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start; }
+    .an-charts-scroll { display: flex; flex-direction: column; gap: 24px; width: 100%; }
+    
+    .an-sidebar {
+      position: sticky; top: 100px; padding: 24px;
+      background: var(--panel); border-radius: var(--r);
+      border: 1px solid var(--pb); display: flex; flex-direction: column; gap: 32px;
+      max-height: calc(100vh - 140px); overflow-y: auto;
+    }
+    
+    .an-sidebar-section { display: flex; flex-direction: column; gap: 16px; }
+    .an-section-title { 
+      font-size: 11px; font-weight: 800; text-transform: uppercase; 
+      letter-spacing: 1px; color: var(--pri); border-bottom: 1px solid var(--pb); 
+      padding-bottom: 8px; margin-bottom: 4px;
+    }
+    
+    .an-filter-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .an-filter-group { display: flex; flex-direction: column; gap: 6px; }
+    .an-filter-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); }
+    
+    .an-sidebar-search {
+      display: flex; align-items: center; gap: 8px;
+      padding: 0 12px; height: 38px; border: 1.5px solid var(--bdr);
+      border-radius: 8px; background: var(--ib);
+    }
+    .an-sidebar-search input { border: none; background: transparent; outline: none; font-size: 13px; color: var(--text); width: 100%; }
+    .an-sidebar-search svg { color: var(--muted); }
+
+    .an-check-list {
+      display: flex; flex-direction: column; gap: 8px; 
+      max-height: 180px; overflow-y: auto; padding: 12px;
+      border: 1.5px solid var(--bdr); border-radius: 8px;
+      background: var(--ib);
+    }
+    .an-check-item {
+      display: flex; align-items: center; gap: 10px; cursor: pointer;
+      font-size: 12px; font-weight: 500; color: var(--text);
+      transition: var(--tr); padding: 4px 6px; border-radius: 4px;
+    }
+    .an-check-item:hover { background: rgba(79,70,229,0.06); }
+    .an-check-item input { 
+      cursor: pointer; width: 15px; height: 15px; 
+      accent-color: var(--pri); 
+    }
+
+    @media(max-width:1100px){ 
+      .an-layout { grid-template-columns: 1fr; }
+      .an-sidebar { position: static; order: -1; max-height: none; }
+    }
+
   </style>
 </head>
 <body>
 
 <!-- ╔═ HEADER ═╗ -->
 <header class="hdr">
-  <span class="hdr-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:6px"><path d="M2 15c6.667-6 13.333 0 20-6"/><path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/><path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993"/><path d="M17 6l-2.5-2.5"/><path d="M14 8l-1-1"/><path d="M7 18l2.5 2.5"/><path d="M3.5 14.5l.5.5"/><path d="M20 9l.5.5"/><path d="M6.5 12.5l1 1"/><path d="M16.5 10.5l1 1"/><path d="M10 16l1.5 1.5"/></svg> Anderson Lab — Report Tracker</span>
+  <div style="display:flex;align-items:center;gap:10px">
+    <a href="/?section=trackers&amp;team=bioinfo" onclick="event.preventDefault();history.back()" class="back-to-home" title="Back to Bioinfo Team">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </a>
+    <span class="hdr-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:6px"><path d="M2 15c6.667-6 13.333 0 20-6"/><path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/><path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993"/><path d="M17 6l-2.5-2.5"/><path d="M14 8l-1-1"/><path d="M7 18l2.5 2.5"/><path d="M3.5 14.5l.5.5"/><path d="M20 9l.5.5"/><path d="M6.5 12.5l1 1"/><path d="M16.5 10.5l1 1"/><path d="M10 16l1.5 1.5"/></svg> Anderson Lab Report Tracker</span>
+  </div>
   <div class="hdr-actions">
     <!-- Live-sync indicator -->
     <div class="live-pill" id="live-pill">
@@ -443,6 +739,8 @@
   <button class="tab active" onclick="switchTab('dashboard',this)" id="t-dash"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> Dashboard</button>
   <button class="tab" onclick="switchTab('yet',this)" id="t-yet"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24z"/></svg> Yet to Start <span class="tbadge" id="b-yet">0</span></button>
   <button class="tab" onclick="switchTab('released',this)" id="t-rel"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg> Released <span class="tbadge" id="b-rel">0</span></button>
+  <button class="tab" onclick="switchTab('overdue',this)" id="t-overdue"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Overdue <span class="tbadge" id="b-overdue" style="background:rgba(239,68,68,.18);color:#dc2626">0</span></button>
+  <button class="tab" onclick="switchTab('analytics',this)" id="t-analytics"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Analytics</button>
 </nav>
 
 <!-- ╔═ MAIN ═╗ -->
@@ -453,10 +751,26 @@
 
     <!-- Stat cards -->
     <div class="stats">
-      <div class="scard glass sc-all"><span class="s-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></span><div class="s-lbl">Total</div><div class="s-val" id="s-all">0</div><div class="s-sub" id="s-all-sub">All samples</div><div class="scard-year-wrap"><select class="scard-year-sel" id="f-total-year" onchange="onTotalYearChange()"><option value="">All Years</option></select></div></div>
-      <div class="scard glass sc-yet"><span class="s-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24z"/></svg></span><div class="s-lbl">Yet to Start</div><div class="s-val" id="s-yet">0</div><div class="s-sub">No reviewer assigned</div></div>
+      <div class="scard glass sc-all clickable" onclick="openAllSamplesModal()">
+        <span class="s-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></span>
+        <div class="s-lbl">Total</div>
+        <div class="s-val" id="s-all">0</div>
+        <div class="s-sub" id="s-all-sub">Click to view all samples</div>
+      </div>
+      <div class="scard glass sc-yet"><span class="s-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24z"/></svg></span><div class="s-lbl">Yet to Start</div><div class="s-val" id="s-yet">0</div><div class="s-sub">No reviewer assigned</div><div class="priority-btn" onclick="event.stopPropagation();openPriorityModal()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Priority</div></div>
       <div class="scard glass sc-ong"><span class="s-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><div class="s-lbl">In Review</div><div class="s-val" id="s-ong">0</div><div class="s-sub" id="s-ong-sub">Assigned to reviewers</div></div>
       <div class="scard glass sc-rel"><span class="s-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg></span><div class="s-val" id="s-rel">0</div><div class="s-lbl">Released</div><div class="s-sub">Reports out</div></div>
+    </div>
+
+    <!-- Global Search Bar -->
+    <div style="margin-bottom:20px;position:relative">
+      <div class="rel-search-wrap glass" style="max-width:400px" onclick="this.querySelector('input').focus()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="global-search" placeholder="Search samples..." oninput="performGlobalSearch()" style="font-size:13px" />
+      </div>
+      <div id="global-search-results" style="display:none;position:absolute;top:100%;left:0;right:0;margin-top:8px;background:white;border:1px solid var(--pb);border-radius:var(--r);box-shadow:0 4px 24px rgba(0,0,0,.12);z-index:100;overflow:hidden" onclick="event.stopPropagation()">
+        <div style="max-height:500px;overflow-y:auto" id="global-search-table-wrap"></div>
+      </div>
     </div>
 
     <!-- TAT alert blocks -->
@@ -479,6 +793,10 @@
           <span class="tc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
           <span class="tc-title">TAT Overdue — Not Released</span>
           <span class="tc-count" id="tat-over-count">0</span>
+          <button class="btn btn-sm btn-out" onclick="downloadOverdueExcel()" style="margin-left:auto;border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.08);color:#059669;flex-shrink:0;padding:4px 8px" title="Download overdue list as Excel">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download
+          </button>
         </div>
         <div class="tat-list" id="tat-over-list"><div class="empty" style="padding:16px 0;font-size:13px">All good!</div></div>
       </div>
@@ -504,10 +822,44 @@
 
   <!-- ══ YET TO START ══ -->
   <div id="page-yet" class="page">
-    <div class="toolbar">
-      <div class="search"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><input type="text" id="q-yet" placeholder="Search Sample, Test, Gen_ID…" oninput="render('yet')" /></div>
-      <select class="sel" id="f-yet-test" onchange="render('yet')"><option value="">All Tests</option></select>
-      <select class="sel" id="f-yet-tat"  onchange="render('yet')"><option value="">All TAT</option></select>
+    <!-- Smart search bar + count -->
+    <div class="rel-bar">
+      <div class="rel-search-wrap" onclick="this.querySelector('input').focus()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="q-yet" placeholder="Search Sample, Test, Gen_ID…" oninput="render('yet')" />
+      </div>
+      <button class="rel-filter-toggle" id="yet-filter-btn" onclick="toggleYetFilters()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        Filters <span class="rel-filter-badge" id="yet-active-count">0</span>
+      </button>
+      <div class="rel-count-btn" style="border-color:rgba(99,102,241,.3);background:rgba(99,102,241,.08);color:#4338ca">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24z"/></svg>
+        Yet to Start <span class="rc-num" id="yet-count-num" style="background:rgba(99,102,241,.18);color:#4338ca">0</span>
+      </div>
+    </div>
+    <!-- Collapsible filter panel -->
+    <div class="rel-panel glass" id="yet-panel">
+      <div class="rel-panel-grid">
+        <div class="rel-panel-item">
+          <label>Test</label>
+          <select class="sel" id="f-yet-test" onchange="render('yet')"><option value="">All Tests</option></select>
+        </div>
+        <div class="rel-panel-item">
+          <label>TAT Month</label>
+          <select class="sel" id="f-yet-month" onchange="render('yet')"><option value="">All Months</option></select>
+        </div>
+        <div class="rel-panel-item">
+          <label>TAT Year</label>
+          <select class="sel" id="f-yet-year" onchange="render('yet')"><option value="">All Years</option></select>
+        </div>
+        <div class="rel-panel-item">
+          <label>TAT Date</label>
+          <input type="date" class="sel" id="f-yet-date" onchange="render('yet')" />
+        </div>
+      </div>
+      <div class="rel-panel-actions">
+        <button class="rel-clear-btn" onclick="clearYetFilters()">Clear All Filters</button>
+      </div>
     </div>
     <div class="tbl-wrap glass"><div id="tbl-yet"></div></div>
   </div>
@@ -527,17 +879,259 @@
 
   <!-- ══ RELEASED ══ -->
   <div id="page-released" class="page">
-    <div class="toolbar">
-      <div class="search"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><input type="text" id="q-rel" placeholder="Search Sample, Analyst, Test, Gen_ID…" oninput="render('released')" /></div>
-      <select class="sel" id="f-rel-analyst" onchange="render('released')"><option value="">All Analysts</option></select>
-      <select class="sel" id="f-rel-test"    onchange="render('released')"><option value="">All Tests</option></select>
-      <select class="sel" id="f-rel-tat"     onchange="render('released')"><option value="">All TAT</option></select>
-      <select class="sel" id="f-rel-month"   onchange="render('released')"><option value="">All Months</option></select>
-      <select class="sel" id="f-rel-year"    onchange="render('released')"><option value="">All Years</option></select>
-      <input type="date" class="sel" id="f-rel-date" onchange="render('released')" title="Filter by release date" />
+    <!-- Smart search bar + count -->
+    <div class="rel-bar">
+      <div class="rel-search-wrap" onclick="this.querySelector('input').focus()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="q-rel" placeholder="Search Sample, Analyst, Test, Gen_ID…" oninput="render('released')" />
+      </div>
+      <button class="rel-filter-toggle" id="rel-filter-btn" onclick="toggleRelFilters()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        Filters <span class="rel-filter-badge" id="rel-active-count">0</span>
+      </button>
+      <div class="rel-count-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/></svg>
+        Released <span class="rc-num" id="rel-count-num">0</span>
+      </div>
+    </div>
+    <!-- Collapsible filter panel -->
+    <div class="rel-panel glass" id="rel-panel">
+      <div class="rel-panel-grid">
+        <div class="rel-panel-item">
+          <label>Analyst</label>
+          <select class="sel" id="f-rel-analyst" onchange="render('released')"><option value="">All Analysts</option></select>
+        </div>
+        <div class="rel-panel-item">
+          <label>Test</label>
+          <select class="sel" id="f-rel-test" onchange="render('released')"><option value="">All Tests</option></select>
+        </div>
+        <div class="rel-panel-item">
+          <label>Client</label>
+          <select class="sel" id="f-rel-client" onchange="render('released')"><option value="">All Clients</option></select>
+        </div>
+        <div class="rel-panel-item">
+          <label>Month</label>
+          <select class="sel" id="f-rel-month" onchange="render('released')"><option value="">All Months</option></select>
+        </div>
+        <div class="rel-panel-item">
+          <label>Year</label>
+          <select class="sel" id="f-rel-year" onchange="render('released')"><option value="">All Years</option></select>
+        </div>
+        <div class="rel-panel-item">
+          <label>Release Date</label>
+          <input type="date" class="sel" id="f-rel-date" onchange="render('released')" />
+        </div>
+      </div>
+      <div class="rel-panel-actions">
+        <button class="rel-clear-btn" onclick="clearRelFilters()">Clear All Filters</button>
+      </div>
     </div>
     <div class="tbl-wrap glass"><div id="tbl-rel"></div></div>
   </div>
+
+  <!-- ══ TAT OVERDUE (all) ══ -->
+  <div id="page-overdue" class="page">
+    <!-- Smart search bar + count + download -->
+    <div class="rel-bar">
+      <div class="rel-search-wrap" onclick="this.querySelector('input').focus()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="q-overdue" placeholder="Search Sample, Test, Gen_ID…" oninput="renderOverdue()" />
+      </div>
+      <button class="rel-filter-toggle" id="overdue-filter-btn" onclick="toggleOverdueFilters()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        Filters <span class="rel-filter-badge" id="overdue-active-count">0</span>
+      </button>
+      <div class="rel-count-btn" style="border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.08);color:#dc2626">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Overdue <span class="rc-num" id="overdue-count-num" style="background:rgba(239,68,68,.18);color:#dc2626">0</span>
+      </div>
+      <button class="rel-filter-toggle" onclick="downloadOverdueExcel()" style="border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.08);color:#059669">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download Excel
+      </button>
+    </div>
+    <!-- Collapsible filter panel -->
+    <div class="rel-panel glass" id="overdue-panel">
+      <div class="rel-panel-grid">
+        <div class="rel-panel-item">
+          <label>Test</label>
+          <select class="sel" id="f-overdue-test" onchange="renderOverdue()"><option value="">All Tests</option></select>
+        </div>
+        <div class="rel-panel-item">
+          <label>Client</label>
+          <select class="sel" id="f-overdue-client" onchange="renderOverdue()"><option value="">All Clients</option></select>
+        </div>
+        <div class="rel-panel-item">
+          <label>Status</label>
+          <select class="sel" id="f-overdue-status" onchange="renderOverdue()">
+            <option value="">All Statuses</option>
+            <option value="Yet to Start">Yet to Start</option>
+            <option value="Ongoing">Ongoing</option>
+          </select>
+        </div>
+        <div class="rel-panel-item">
+          <label>No of days</label>
+          <input type="number" class="sel" id="f-overdue-days" min="1" placeholder="Days…" oninput="renderOverdue()" />
+        </div>
+        <div class="rel-panel-item">
+          <label>Reviewer</label>
+          <select class="sel" id="f-overdue-reviewer" onchange="renderOverdue()"><option value="">All Reviewers</option></select>
+        </div>
+      </div>
+      <div class="rel-panel-actions">
+        <button class="rel-clear-btn" onclick="clearOverdueFilters()">Clear All Filters</button>
+      </div>
+    </div>
+    <div class="tbl-wrap glass"><div id="tbl-overdue"></div></div>
+  </div>
+
+  <!-- ══ ANALYTICS ══ -->
+  <div id="page-analytics" class="page">
+    <div class="an-header">
+      <div>
+        <h2 class="an-title">Analytics Studio</h2>
+        <p class="an-sub">Monthly trend and distribution analysis</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-out btn-sm" onclick="anExportPNG()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export PNG
+        </button>
+      </div>
+    </div>
+
+    <div class="an-layout">
+      <!-- 1. LEFT: Charts -->
+      <div class="an-charts-scroll">
+        
+        <!-- Chart 1: Test Wise Sample Count -->
+        <div class="an-chart-card">
+          <div class="an-chart-header">
+            <div class="an-chart-info">
+              <span class="an-chart-title">Test-wise Sample Count</span>
+              <span class="an-chart-sub">Distribution of samples by test type</span>
+            </div>
+            <div class="an-chart-actions">
+              <span class="badge b-rel">Pie Chart</span>
+              <div id="an-total-1" class="an-total-box">Total: 0</div>
+            </div>
+          </div>
+          <div class="an-chart-body">
+            <canvas id="an-chart-1"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 2: Client Wise Volume -->
+        <div class="an-chart-card">
+          <div class="an-chart-header">
+            <div class="an-chart-info">
+              <span class="an-chart-title">Client-wise Analysis</span>
+              <span class="an-chart-sub">Sample volume comparison by client</span>
+            </div>
+            <div class="an-chart-actions">
+              <span class="badge b-ong">Bar Chart</span>
+              <div id="an-total-2" class="an-total-box">Total: 0</div>
+            </div>
+          </div>
+          <div class="an-chart-body" style="min-height:350px">
+            <canvas id="an-chart-2"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 2. RIGHT: Sidebar Filters (Split) -->
+      <div class="an-sidebar">
+        
+        <!-- SECTION 1: CHART 1 FILTERS -->
+        <div class="an-sidebar-section">
+          <div class="an-section-title">Test-wise Filters</div>
+          
+          <div class="an-filter-row">
+            <div class="an-filter-group">
+              <label class="an-filter-label">Year</label>
+              <select id="an-f1-year" class="sel" onchange="anDrawChart1()">
+                <option value="All">All</option>
+              </select>
+            </div>
+            <div class="an-filter-group">
+              <label class="an-filter-label">Month</label>
+              <select id="an-f1-month" class="sel" onchange="anDrawChart1()">
+                <option value="All">All</option>
+                <option value="Jan">Jan</option><option value="Feb">Feb</option><option value="Mar">Mar</option>
+                <option value="Apr">Apr</option><option value="May">May</option><option value="Jun">Jun</option>
+                <option value="Jul">Jul</option><option value="Aug">Aug</option><option value="Sep">Sep</option>
+                <option value="Oct">Oct</option><option value="Nov">Nov</option><option value="Dec">Dec</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="an-filter-group">
+            <label class="an-filter-label">Select Tests</label>
+            <div style="display:flex; gap:8px; margin-bottom:8px">
+              <button class="pm-fbtn" style="padding:2px 8px; font-size:10px" onclick="anToggleAll('f1',true)">Select All</button>
+              <button class="pm-fbtn" style="padding:2px 8px; font-size:10px" onclick="anToggleAll('f1',false)">Clear All</button>
+            </div>
+            <div id="an-f1-test-list" class="an-check-list">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <div class="an-filter-group">
+            <label class="an-filter-label">Manual Search</label>
+            <div class="an-sidebar-search">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              <input type="text" id="an-f1-search" placeholder="Type to search..." oninput="anDrawChart1()">
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION 2: CHART 2 FILTERS -->
+        <div class="an-sidebar-section">
+          <div class="an-section-title">Client-wise Filters</div>
+          
+          <div class="an-filter-row">
+            <div class="an-filter-group">
+              <label class="an-filter-label">Year</label>
+              <select id="an-f2-year" class="sel" onchange="anDrawChart2()">
+                <option value="All">All</option>
+              </select>
+            </div>
+            <div class="an-filter-group">
+              <label class="an-filter-label">Month</label>
+              <select id="an-f2-month" class="sel" onchange="anDrawChart2()">
+                <option value="All">All</option>
+                <option value="Jan">Jan</option><option value="Feb">Feb</option><option value="Mar">Mar</option>
+                <option value="Apr">Apr</option><option value="May">May</option><option value="Jun">Jun</option>
+                <option value="Jul">Jul</option><option value="Aug">Aug</option><option value="Sep">Sep</option>
+                <option value="Oct">Oct</option><option value="Nov">Nov</option><option value="Dec">Dec</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="an-filter-group">
+            <label class="an-filter-label">Select Clients</label>
+            <div style="display:flex; gap:8px; margin-bottom:8px">
+              <button class="pm-fbtn" style="padding:2px 8px; font-size:10px" onclick="anToggleAll('f2',true)">Select All</button>
+              <button class="pm-fbtn" style="padding:2px 8px; font-size:10px" onclick="anToggleAll('f2',false)">Clear All</button>
+            </div>
+            <div id="an-f2-client-list" class="an-check-list">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <div class="an-filter-group">
+            <label class="an-filter-label">Manual Search</label>
+            <div class="an-sidebar-search">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              <input type="text" id="an-f2-search" placeholder="Type to search..." oninput="anDrawChart2()">
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
 
 </main>
 
@@ -545,7 +1139,7 @@
 <div id="welcome">
   <div class="wcard">
     <span class="w-logo"><svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="var(--pri)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 15c6.667-6 13.333 0 20-6"/><path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/><path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993"/><path d="M17 6l-2.5-2.5"/><path d="M14 8l-1-1"/><path d="M7 18l2.5 2.5"/><path d="M3.5 14.5l.5.5"/><path d="M20 9l.5.5"/><path d="M6.5 12.5l1 1"/><path d="M16.5 10.5l1 1"/><path d="M10 16l1.5 1.5"/></svg></span>
-    <div class="w-title">Anderson Lab — Report Tracker</div>
+    <div class="w-title">Anderson Lab Report Tracker</div>
     <p class="w-sub">Connecting to Google Sheet…<br>Data will auto-sync every 30 seconds.</p>
     <div style="text-align:center;padding:20px 0">
       <div class="live-dot" style="width:12px;height:12px;margin:0 auto"></div>
@@ -597,7 +1191,6 @@ const COL_MAP = {
   and_id:    ['anderson_id','andersonid','anderson id'],
   client:    ['client'],
   tat:       ['tat(30 days)','tat','turnaround'],
-  bio_time:  ['bioinfo analysis time','bioinfo time','analysis time'],
   rep_exp:   ['repeat expansion','repeat'],
   analyst:   ['analyze by','analysed by','analyzed by','analyst','analyze_by'],
   ana_date:  ['analyze date','analysis date','analyzed date','date of analysis','analyze_date'],
@@ -607,6 +1200,12 @@ const COL_MAP = {
   rel_date:  ['report release date','release date','released on','report_release_date'],
   history:   ['history writeup','history','writeup'],
 };
+
+function extractRunNumber(text) {
+  if (!text) return null;
+  const m = text.match(/Run[\s-]*(\d+)/i);
+  return m ? parseInt(m[1], 10) : null;
+}
 
 function mapRow(raw) {
   const keys = Object.keys(raw).map(k => k.toLowerCase().trim());
@@ -627,22 +1226,24 @@ function mapRow(raw) {
   return {
     sno:          get(COL_MAP.sno),
     name:         get(COL_MAP.name),
-    test:         get(COL_MAP.test),
+    test:         normalizeTestName(get(COL_MAP.test)),
     gen_id:       get(COL_MAP.gen_id),
     and_id:       get(COL_MAP.and_id),
     client:       get(COL_MAP.client),
-    tat:          get(COL_MAP.tat),
-    bio_time:     get(COL_MAP.bio_time),
+    tat:          fmtDate(get(COL_MAP.tat)),
     rep_exp:      get(COL_MAP.rep_exp),
-    analyst:      analystClean,      // normalized name (Diwakar)
-    analyst_raw:  analystRaw,        // original value (Diwakar(18-2-2026)) — used in Released
-    assign_date:  assignDate,        // extracted date from parentheses
+    analyst:      analystClean,
+    analyst_raw:  analystRaw,
+    assign_date:  assignDate,
     ana_date:     get(COL_MAP.ana_date),
     pri_rev:      get(COL_MAP.pri_rev),
     final:        get(COL_MAP.final),
     remark:       get(COL_MAP.remark),
     rel_date:     get(COL_MAP.rel_date),
     history:      get(COL_MAP.history),
+    run_number:   raw._run_num || 0,
+    run_text:     raw._run_txt || '—',
+    is_hidden:    !!raw._hidden,
   };
 }
 
@@ -653,7 +1254,25 @@ function mapRow(raw) {
 //  Yet to Start → pri_rev empty and no rel_date
 // ================================================================
 function getStatus(r) {
-  if (r.rel_date) return 'Released';
+  const run = parseInt(r.run_number || 0, 10);
+  const isHidden = !!r.is_hidden;
+  const hasRelDate = r.rel_date && r.rel_date !== '—' && r.rel_date !== '-' && String(r.rel_date).trim() !== '';
+
+  let isReleased = false;
+  // Rule: Everything strictly before Run 54 is released (including no run number)
+  if (run < 54) {
+    isReleased = true;
+  } 
+  // Rule: Run 54 is released if hidden OR released date filled
+  else if (run === 54) {
+    isReleased = isHidden || hasRelDate;
+  }
+  // Rule: Run > 54 (or unknown run) is only released if date filled
+  else {
+    isReleased = hasRelDate;
+  }
+
+  if (isReleased) return 'Released';
   if (r.pri_rev) return 'Ongoing';
   return 'Yet to Start';
 }
@@ -725,7 +1344,7 @@ function getTatAlerts() {
     if (!td) return;
     td.setHours(0,0,0,0);
     const diff = Math.round((td - today) / 86400000); // days from today
-    if (diff < -45) return; // skip anything overdue more than 45 days
+    if (diff < -20) return; // skip anything overdue more than 20 days
     if (diff < 0)       overdue.push({...r, tatDate:td, diff});
     else if (diff === 0) dueToday.push({...r, tatDate:td, diff});
     else if (diff <= TAT_WARN_DAYS) dueSoon.push({...r, tatDate:td, diff});
@@ -774,6 +1393,7 @@ function tatDetailBlock(id, r) {
     ['TAT', fmtDate(r.tat)],
     ['Analyst', r.analyst],
     ['Reviewer', r.pri_rev],
+    ['Remark', r.remark],
   ];
   return `<div class="tat-detail" id="tat-d-${id}">
     ${chips.map(([l,v]) => `<span class="tat-chip"><span class="tc-label">${l}</span><span class="tc-val">${esc(v||'—')}</span></span>`).join('')}
@@ -852,9 +1472,6 @@ function parseBinary(binary) {
   const ws = wb.Sheets[sheetName];
   if (!ws) { toast('Could not find sheet in this file.', 'err'); return []; }
 
-  // Force-include hidden rows
-  if (ws['!rows']) ws['!rows'].forEach(r => { if (r) r.hidden = false; });
-
   const ref = ws['!ref'];
   if (!ref) return [];
   const range = XLSX.utils.decode_range(ref);
@@ -862,46 +1479,54 @@ function parseBinary(binary) {
   const grid = [];
   for (let R = range.s.r; R <= range.e.r; R++) {
     const row = [];
+    const isHidden = !!(ws['!rows'] && ws['!rows'][R] && ws['!rows'][R].hidden);
     for (let C = range.s.c; C <= range.e.c; C++) {
       const cell = ws[XLSX.utils.encode_cell({r: R, c: C})];
       if (!cell) { row.push(''); continue; }
 
       let val = '';
-      
-      // If cell.w is present, it is exactly the literal visual string that the user sees in Excel.
-      // (e.g. "12/04/26", "24-03-2026", "17 Jul 2026")
       if (cell.w !== undefined) {
         val = cell.w;
       } else if (cell.v !== null && cell.v !== undefined) {
-        // Fallback: If no formatted string exists, convert the raw value directly ensuring no date auto-math.
         val = String(cell.v);
       }
-      
       row.push(String(val).trim());
     }
-    grid.push(row);
+    grid.push({ _cells: row, _hidden: isHidden });
   }
-
 
   function cellVal(v) {
     if (v == null) return '';
     return String(v).trim();
   }
 
-  // A row is a column-header row if its first non-empty cell looks like a serial-number header
   function isHeaderRow(row) {
-    const first = cellVal(row.find(c => cellVal(c) !== '') || '').toLowerCase().replace(/[\\s.]/g,'');
+    const first = cellVal(row.find(c => cellVal(c) !== '') || '').toLowerCase().replace(/[\s.]/g,'');
     return ['sno','s.no','srno','slno','no','#','serial'].includes(first);
   }
 
   const allRows = [];
   let headers = null;
+  let currentRunTxt = null;
+  let currentRunNum = null;
 
-  for (const row of grid) {
+  for (const rowObj of grid) {
+    const row = rowObj._cells;
     const nonEmpty = row.filter(c => cellVal(c) !== '');
     if (nonEmpty.length === 0) continue;
 
-    if (isHeaderRow(row)) {
+    const rowIsHeader = isHeaderRow(row);
+    // Detect section header: "SURFseq- Run-54A"
+    const runCell = row.find(c => /Run-?\d+/i.test(cellVal(c)));
+    const foundRunNum = runCell ? extractRunNumber(cellVal(runCell)) : null;
+
+    if (foundRunNum && !rowIsHeader && nonEmpty.length < 5) {
+      currentRunTxt = cellVal(runCell);
+      currentRunNum = foundRunNum;
+      continue;
+    }
+
+    if (rowIsHeader) {
       headers = row.map(c => cellVal(c));
       continue;
     }
@@ -910,13 +1535,16 @@ function parseBinary(binary) {
 
     const obj = {};
     headers.forEach((h, i) => { obj[h] = cellVal(row[i] ?? ''); });
+    obj._run_txt = currentRunTxt;
+    obj._run_num = currentRunNum;
+    obj._hidden = rowObj._hidden;
 
-    if (Object.values(obj).every(v => v === '')) continue;
+    if (Object.values(obj).every(v => v === '' || v === currentRunTxt || v === currentRunNum)) continue;
 
     allRows.push(obj);
   }
 
-  return allRows.map(mapRow).filter(r => Object.values(r).some(v => v !== ''));
+  return allRows.map(mapRow).filter(r => r.name || r.gen_id || r.and_id || r.client || r.test);
 }
 
 // ================================================================
@@ -925,17 +1553,14 @@ function parseBinary(binary) {
 let sheetTimer = null;
 const SYNC_INTERVAL = 30000; // 30 seconds
 
-const GSHEET_ID = '1WToMt7-X3CJ5J2SeBbm9gf9sF6oq6PabECQBhHgS-gY';
-const GSHEET_GID = '1126267100'; // Sheet1 (3rd tab)
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz1L3kvdFve5flajc89OeyEEXbfZTjI5t0Kqefs70kjO9Y8_JC_fcytKp-FAqmzyOjV/exec';
 
 async function fetchGoogleSheet(silent) {
   try {
-    const url = `https://docs.google.com/spreadsheets/d/${GSHEET_ID}/export?format=xlsx&gid=${GSHEET_GID}`;
-    const resp = await fetch(url);
+    const resp = await fetch(APPS_SCRIPT_URL);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const ab = await resp.arrayBuffer();
-    const binary = new Uint8Array(ab).reduce((s,b) => s + String.fromCharCode(b), '');
-    rows = parseBinary(binary);
+    const grid = await resp.json();
+    rows = parseGrid(grid);
     saveToStorage(rows);
     refreshAll();
     setLivePill(true);
@@ -944,6 +1569,50 @@ async function fetchGoogleSheet(silent) {
     setLivePill(false, e.message);
     if (!silent) toast('Failed to fetch Google Sheet: ' + e.message, 'err');
   }
+}
+
+function parseGrid(grid) {
+  function cellVal(v) {
+    if (v == null) return '';
+    return String(v).trim();
+  }
+
+  function isHeaderRow(row) {
+    const first = cellVal(row.find(c => cellVal(c) !== '') || '').toLowerCase().replace(/[\s.]/g,'');
+    return ['sno','sno','srno','slno','no','#','serial'].includes(first);
+  }
+
+  const allRows = [];
+  let headers = null;
+  let currentRunTxt = null;
+  let currentRunNum = null;
+
+  for (const row of grid) {
+    const nonEmpty = row.filter(c => cellVal(c) !== '');
+    if (nonEmpty.length === 0) continue;
+
+    const rowIsHeader = isHeaderRow(row);
+    // Detect section header: "SURFseq- Run-54A"
+    const runCell = row.find(c => /Run-?\d+/i.test(cellVal(c)));
+    const foundRunNum = runCell ? extractRunNumber(cellVal(runCell)) : null;
+
+    if (foundRunNum && !rowIsHeader && nonEmpty.length < 5) {
+      currentRunTxt = cellVal(runCell);
+      currentRunNum = foundRunNum;
+      continue;
+    }
+
+    if (rowIsHeader) { headers = row.map(c => cellVal(c)); continue; }
+    if (!headers) continue;
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = cellVal(row[i] ?? ''); });
+    obj._run_txt = currentRunTxt;
+    obj._run_num = currentRunNum;
+    if (Object.values(obj).every(v => v === '' || v === currentRunTxt || v === currentRunNum)) continue;
+    allRows.push(obj);
+  }
+
+  return allRows.map(mapRow).filter(r => r.name || r.gen_id || r.and_id || r.client || r.test);
 }
 
 function startAutoSync() {
@@ -971,66 +1640,20 @@ function dismissWelcome() { document.getElementById('welcome').classList.remove(
 // ================================================================
 //  TAB ROUTING
 // ================================================================
-const PAGE_MAP = { dashboard:'page-dashboard', yet:'page-yet', assigned:'page-assigned', released:'page-released' };
+const PAGE_MAP = { dashboard:'page-dashboard', yet:'page-yet', assigned:'page-assigned', released:'page-released', overdue:'page-overdue', analytics:'page-analytics' };
 
 function switchTab(id, btn) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById(PAGE_MAP[id]).classList.add('active');
   btn.classList.add('active');
-  if (id!=='dashboard') renderTable(id);
+  if (id==='overdue') renderOverdue();
+  else if (id==='analytics') { anInitFilters(); anDrawAll(); }
+  else if (id!=='dashboard') renderTable(id);
 }
 
 // ================================================================
 //  RENDER ALL
-// ================================================================
-function refreshAll() {
-  const yet = rows.filter(r=>getStatus(r)==='Yet to Start');
-  const ong = rows.filter(r=>getStatus(r)==='Ongoing');
-  const rel = rows.filter(r=>getStatus(r)==='Released');
-  const n   = rows.length;
-
-  // populate year filter first (preserves selection on refresh)
-  populateTotalYearFilter();
-
-  // stat cards — respect year filter
-  updateStatsByYear();
-
-  // always update badge counts with FULL (unfiltered) counts
-  // (badges reflect what's in the tab, not the year filter)
-
-  // badges (always full counts — reflect actual tab rows)
-  document.getElementById('b-yet').textContent = yet.length;
-  document.getElementById('b-rel').textContent = rel.length;
-
-  // populate filter dropdowns
-  populateFilter('f-yet-test',      rows, 'test');
-  populateFilter('f-yet-tat',       rows, 'tat');
-  populateFilter('f-asgn-test',     rows, 'test');
-  populateFilter('f-asgn-employee', ong, 'pri_rev');
-  populateFilter('f-asgn-tat',      rows, 'tat');
-  populateNormalizedFilter('f-rel-analyst', rel);
-  populateFilter('f-rel-test',      rows, 'test');
-  populateFilter('f-rel-tat',       rows, 'tat');
-  populateDateFilters('f-rel-month', 'f-rel-year', rel);
-
-  // team workload + stat card subtext (grouped by primary reviewer)
-  const empNames = [...new Set(ong.map(r=>normalizeAnalystName(r.pri_rev)).filter(Boolean))];
-  document.getElementById('s-ong-sub').textContent =
-    empNames.length ? empNames.slice(0,3).join(', ') + (empNames.length>3?` +${empNames.length-3} more`:'') : 'Assigned to reviewers';
-
-  renderTeamWorkload('q-active', ong);
-  renderQuickCards('q-released', rel.slice(-6).reverse(), 'Released');
-  renderTatAlerts();
-
-  // re-render active table
-  const active = document.querySelector('.page.active');
-  if (active && active.id!=='page-dashboard') {
-    const key = Object.keys(PAGE_MAP).find(k=>PAGE_MAP[k]===active.id);
-    if (key) renderTable(key);
-  }
-}
-
 // ================================================================
 //  YEAR FILTER — Total Samples Stat Card
 // ================================================================
@@ -1040,33 +1663,72 @@ function getRowYear(r) {
   return d ? d.getFullYear() : null;
 }
 
-function populateTotalYearFilter() {
-  const sel = document.getElementById('f-total-year');
-  if (!sel) return;
-  const curY = sel.value;
-  const years = [...new Set(rows.map(getRowYear).filter(Boolean))].sort((a,b)=>b-a);
-  sel.innerHTML = '<option value="">All Years</option>' +
-    years.map(y=>`<option value="${y}">${y}</option>`).join('');
-  if (years.map(String).includes(curY)) sel.value = curY;
-}
-
 function updateStatsByYear() {
-  const yr = document.getElementById('f-total-year')?.value || '';
-  const filtered = yr ? rows.filter(r => String(getRowYear(r)) === yr) : rows;
+  const filtered = rows;
 
   const yet = filtered.filter(r=>getStatus(r)==='Yet to Start');
   const ong = filtered.filter(r=>getStatus(r)==='Ongoing');
   const rel = filtered.filter(r=>getStatus(r)==='Released');
 
   document.getElementById('s-all').textContent = filtered.length;
+  document.getElementById('s-all-sub').textContent = 'Click to view all samples';
   document.getElementById('s-yet').textContent = yet.length;
   document.getElementById('s-ong').textContent = ong.length;
   document.getElementById('s-rel').textContent = rel.length;
-  document.getElementById('s-all-sub').textContent = yr ? `Samples in ${yr}` : 'All samples';
 }
 
-function onTotalYearChange() {
+function refreshAll() {
+  const yet = rows.filter(r=>getStatus(r)==='Yet to Start');
+  const ong = rows.filter(r=>getStatus(r)==='Ongoing');
+  const rel = rows.filter(r=>getStatus(r)==='Released');
+  const n   = rows.length;
+
+  // stat cards
   updateStatsByYear();
+
+  // badges
+  document.getElementById('b-yet').textContent = yet.length;
+  document.getElementById('b-rel').textContent = rel.length;
+
+  // overdue badge count
+  const overdueAll = getOverdueRows();
+  document.getElementById('b-overdue').textContent = overdueAll.length;
+
+  // populate filter dropdowns
+  populateFilter('f-yet-test',      yet, 'test');
+  populateTatDateFilters('f-yet-month', 'f-yet-year', yet);
+  populateFilter('f-asgn-test',     rows, 'test');
+  populateFilter('f-asgn-employee', ong, 'pri_rev');
+  populateFilter('f-asgn-tat',      rows, 'tat');
+  populateNormalizedFilter('f-rel-analyst', rel);
+  populateFilter('f-rel-test',      rows, 'test');
+  populateFilter('f-rel-client',    rel,  'client');
+  // f-rel-tat removed — TAT filter not in released panel
+  populateDateFilters('f-rel-month', 'f-rel-year', rel);
+
+  // overdue filter dropdowns
+  populateFilter('f-overdue-test',   overdueAll, 'test');
+  populateFilter('f-overdue-client', overdueAll, 'client');
+
+  // team workload + stat card subtext (grouped by primary reviewer)
+  const empNames = [...new Set(ong.map(r=>normalizeAnalystName(r.pri_rev)).filter(Boolean))];
+  document.getElementById('s-ong-sub').textContent =
+    empNames.length ? empNames.slice(0,3).join(', ') + (empNames.length>3?` +${empNames.length-3} more`:'') : 'Assigned to reviewers';
+
+  renderTeamWorkload('q-active', ong);
+  renderQuickCards('q-released', rel.slice(-6).reverse(), 'Released');
+  renderTatAlerts();
+  updateRelCount();
+  updateYetCount();
+
+  // re-render active table
+  const active = document.querySelector('.page.active');
+  if (active && active.id==='page-overdue') {
+    renderOverdue();
+  } else if (active && active.id!=='page-dashboard') {
+    const key = Object.keys(PAGE_MAP).find(k=>PAGE_MAP[k]===active.id);
+    if (key) renderTable(key);
+  }
 }
 
 function populateFilter(selectId, data, field) {
@@ -1084,7 +1746,10 @@ function populateNormalizedFilter(selectId, data) {
   const sel = document.getElementById(selectId);
   if (!sel) return;
   const cur = sel.value;
-  const vals = [...new Set(data.map(r=>normalizeAnalystName(r.analyst)).filter(Boolean))].sort();
+  // Extract individual analyst names from multi-analyst fields (e.g. "Diwakar / Dr. Meera")
+  const nameSet = new Set();
+  data.forEach(r => extractAnalysts(r.analyst_raw).forEach(n => nameSet.add(n)));
+  const vals = [...nameSet].sort();
   sel.innerHTML = '<option value="">All Analysts</option>';
   vals.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
   if (vals.includes(cur)) sel.value=cur;
@@ -1104,25 +1769,131 @@ function populateDateFilters(monthId, yearId, data) {
   if (years.map(String).includes(curY))  ySel.value=curY;
 }
 
+function populateTatDateFilters(monthId, yearId, data) {
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const mSel = document.getElementById(monthId);
+  const ySel = document.getElementById(yearId);
+  if (!mSel || !ySel) return;
+  const curM = mSel.value, curY = ySel.value;
+  const months = [...new Set(data.map(r=>{ const d=parseDate(r.tat); return d?d.getMonth()+1:null; }).filter(Boolean))].sort((a,b)=>a-b);
+  const years  = [...new Set(data.map(r=>{ const d=parseDate(r.tat); return d?d.getFullYear():null; }).filter(Boolean))].sort((a,b)=>b-a);
+  mSel.innerHTML = '<option value="">All Months</option>' + months.map(m=>`<option value="${m}">${MONTHS[m-1]}</option>`).join('');
+  ySel.innerHTML = '<option value="">All Years</option>'  + years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  if (months.map(String).includes(curM)) mSel.value=curM;
+  if (years.map(String).includes(curY))  ySel.value=curY;
+}
+
 // ================================================================
 //  TEAM WORKLOAD (groups assigned reports by employee)
 // ================================================================
-// Map variant spellings → canonical name (add more pairs here as needed)
+// ── Analyst normalisation ────────────────────────────────────
 const ANALYST_ALIASES = {
-  'Vamsi':  'Vamshi',
-  'Meera':  'Dr. Meera',
+  'Vamsi':       'Vamshi',
+  'Meera':       'Dr. Meera',
+  'Diwakr':      'Diwakar',
+  'Drr. Meera':  'Dr. Meera',
+  'Gaythri':     'Gayathri',
+  'Gayathri S':  'Gayathri',
+  'Sudha':       'Dr. Sudha',
 };
 
 function normalizeAnalystName(name) {
-  const n = (name || '')
-    .replace(/\(.*?\)/g, '')
-    .replace(/\.(?=[a-zA-Z])/g, '. ')
+  if (!name) return '';
+  let n = name
+    .replace(/\(.*?\)/g, '')                            // strip complete parens (29-12-2025)
+    .replace(/\([^)]*$/g, '')                           // strip unclosed parens: Vamshi(02
+    .replace(/^[^(]*\)/, '')                            // strip orphan closing: 2025)
+    .replace(/\d{1,2}(?:st|nd|rd|th)\s+\w+/gi, '')     // strip "18th Dec", "18th December"
+    .replace(/\s*-\s*general\s*analysis/gi, '')          // strip "- General Analysis"
+    .replace(/[,](?=\s*[A-Za-z])/g, '.')                // "Dr," → "Dr."
+    .replace(/\.(?=[a-zA-Z])/g, '. ')                   // "Dr.Meera" → "Dr. Meera"
     .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase()
-    .replace(/\b\w/g, c => c.toUpperCase());
+    .trim();
+
+  // Pure numbers, date fragments, or dates → discard
+  if (/^\d+\)?$/.test(n)) return '';
+  if (/^\d{1,2}[\-\/\.]\d{1,2}[\-\/\.]\d{2,4}$/.test(n)) return '';
+  if (!n) return '';
+
+  // Title case
+  n = n.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+
+  // Fix double-r typo in Dr prefix (Drr. → Dr.)
+  n = n.replace(/^Drr\.\s*/i, 'Dr. ');
+
   return ANALYST_ALIASES[n] || n;
 }
+
+/** Split multi-analyst fields ("Diwakar / Dr. Meera") into individual normalised names */
+function extractAnalysts(raw) {
+  if (!raw) return [];
+  // Strip ALL parenthesized content FIRST — dates contain / which would confuse the splitter
+  let cleaned = raw
+    .replace(/\(.*?\)/g, '')     // complete parens: (29-12-2025)
+    .replace(/\([^)]*$/g, '')    // unclosed: Vamshi(02...
+    .replace(/^[^(]*\)/, '')     // orphan closing
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Now safely split on / or ;
+  return cleaned.split(/[\/;]/)
+    .map(s => normalizeAnalystName(s.trim()))
+    .filter(Boolean);
+}
+
+// ── Test-name normalisation ────────────────────────────────────
+const TEST_ABBREVS = ['NGS','WES','WGS','WMGS','DNA','MCC','ACMG','DMD','PGT','POC','TRF','MTHFR','CES','ADVAT','HCGP'];
+
+function normalizeTestName(name) {
+  if (!name) return '';
+  let t = name.trim();
+  if (!t) return '';
+
+  // Uppercase canonical → deduplicate case variants
+  t = t.toUpperCase()
+    .replace(/\s+/g, ' ')
+    .replace(/\s*[+]\s*/g, ' + ')
+    .replace(/\s*[–—]\s*/g, ' - ')
+    .replace(/\s*[-]\s*/g, ' - ');
+
+  // Fix known typos
+  t = t.replace(/\bPANE\b(?!L)/g, 'PANEL')
+       .replace(/\bWORKOUT\b/g, 'WORKUP');
+
+  // ── Merge known duplicate test names (at uppercase level) ──
+  // WES MITO (without +) → WES + MITO
+  t = t.replace(/\bWES\s+MITO\b/, 'WES + MITO');
+  // CES MITO → CES + MITO
+  t = t.replace(/\bCES\s+MITO\b/, 'CES + MITO');
+  // PRE PGT / PRE - PGT → PRE-PGT
+  t = t.replace(/\bPRE\s*-?\s*PGT\b/g, 'PRE-PGT');
+  // "PRE-PGT" alone (no WORKUP) → PRE-PGT WORKUP
+  if (/^PRE-PGT$/.test(t)) t = 'PRE-PGT WORKUP';
+  // ADVAT FOCUSSED → ADVAT FOCUS
+  t = t.replace(/\bFOCUSSED\b/g, 'FOCUS');
+
+  // Title case for display
+  t = t.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+
+  // Restore common abbreviations to uppercase
+  TEST_ABBREVS.forEach(a => {
+    const re = new RegExp('\\b' + a.charAt(0) + a.slice(1).toLowerCase() + '\\b', 'g');
+    t = t.replace(re, a);
+  });
+
+  // Keep Pre-PGT as hyphenated compound
+  t = t.replace(/\bPre\s*-\s*PGT\b/g, 'Pre-PGT');
+
+  return t;
+}
+
+const TEAM_MAP = {
+  'Naveen':    'Team 1',
+  'Diwakar':   'Team 2',
+  'Vignesh':   'Team 3',
+  'Dr. Sudha': 'Team 4',
+  'Vikram':    'Team 5'
+};
 
 function renderTeamWorkload(containerId, data) {
   const el = document.getElementById(containerId);
@@ -1141,49 +1912,226 @@ function renderTeamWorkload(containerId, data) {
     if (!byEmp[emp]) byEmp[emp] = [];
     byEmp[emp].push(r);
   });
-  el.innerHTML = Object.entries(byEmp).sort((a,b)=>b[1].length-a[1].length).map(([emp, reports])=>`
+  el.innerHTML = Object.entries(byEmp).sort((a,b)=>b[1].length-a[1].length).map(([emp, reports])=>{
+    const teamTitle = TEAM_MAP[emp] || 'Other Team';
+    return `
     <div class="emp-card glass" onclick="openEmpModal('${emp.replace(/'/g,"\\'")}')">
       <div class="emp-avatar">${esc(emp.charAt(0).toUpperCase())}</div>
-      <div class="emp-name">${esc(emp)}</div>
+      <div class="emp-name">
+        <span class="emp-team-title">${esc(teamTitle)}</span>
+        <span class="emp-team-sub">${esc(emp)}</span>
+      </div>
       <div class="emp-count">${reports.length} report${reports.length!==1?'s':''} in review</div>
       <div class="emp-pills">
         ${reports.slice(0,3).map(r=>`<span class="emp-pill" title="${esc(r.name||r.gen_id||'')}">${esc(r.name||r.gen_id||'—')}</span>`).join('')}
         ${reports.length>3?`<span class="emp-pill">+${reports.length-3} more</span>`:''}
       </div>
       <div style="font-size:11px;color:var(--muted);margin-top:4px">Click to view samples ↗</div>
-    </div>`).join('');
+    </div>`}).join('');
 }
 
 // ================================================================
 //  QUICK MODAL (employee drill-down + stat card drill-down)
 // ================================================================
 const MODAL_COLS = {
-  assigned: ['assign_date','name','test','gen_id','and_id','client','tat','ana_date'],
+  assigned: ['name','test','gen_id','and_id','run_text','client','tat','ana_date'],
 };
 
-function buildModalTable(data, cols) {
+function getColClass(c) {
+  const classMap = {
+    'name':'col-w-name','client':'col-w-client','test':'col-w-test',
+    'gen_id':'col-w-id','and_id':'col-w-id','run_text':'col-w-run',
+    'tat':'col-w-tat','rel_date':'col-w-date','ana_date':'col-w-date','assign_date':'col-w-date',
+    '_status':'col-w-status','_rel':'col-w-date',
+    'analyst':'col-w-analyst','analyst_txt':'col-w-analyst','pri_rev':'col-w-analyst'
+  };
+  return classMap[c]||'';
+}
+
+function buildModalTable(data, cols, applyStatusColors = false) {
   if (!data.length) return `<div class="empty" style="padding:40px"><div class="ei">${IC.inbox}</div><p>No records</p></div>`;
-  const ths = cols.map(c=>`<th>${COL_LABELS[c]||c}</th>`).join('');
-  const trs = data.map(r=>`<tr>${cols.map(c=>{
+  const visibleCols = cols.filter(c=>COL_LABELS[c]&&COL_LABELS[c].trim());
+  const ths = visibleCols.map(c=>`<th class="${getColClass(c)}">${COL_LABELS[c]}</th>`).join('');
+  const trs = data.map(r=>{
+    let rowClass = '';
+    if (applyStatusColors) {
+      const st = getStatus(r);
+      if (st === 'Released') rowClass = 'row-status-released';
+      else if (st === 'Ongoing') rowClass = 'row-status-ongoing';
+      else if (st === 'Yet to Start') rowClass = 'row-status-yet';
+    }
+    return `<tr class="${rowClass}">${visibleCols.map(c=>{
     const v = r[c]||'';
-    if (c==='sno')     return `<td>${esc(v)||'—'}</td>`;
-    if (c==='name')    return `<td title="${esc(v)}">${esc(v)||'—'}</td>`;
-    if (c==='gen_id'||c==='and_id') return `<td><span class="col-mono">${esc(v)||'—'}</span></td>`;
-    if (c==='analyst') return `<td>${v?`<span class="analyst-pill">${IC.user} ${esc(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
-    if (c==='assign_date') return `<td class="col-date">${v?fmtDate(v):'<span class="muted-val">—</span>'}</td>`;
-    if (c==='rel_date') return `<td class="col-date">${fmtRelDate(v, r)}</td>`;
-    if (c==='ana_date') return `<td class="col-date">${fmtDate(v)}</td>`;
-    if (c==='tat') return `<td class="muted-val">${fmtDate(v)}</td>`;
-    if (c==='bio_time') return `<td>${esc(v)||'—'}</td>`;
-    return `<td>${esc(v)||'—'}</td>`;
-  }).join('')}</tr>`).join('');
+    const cls = getColClass(c);
+    if (c==='run_text') return `<td class="${cls}">${esc(v)||'—'}</td>`;
+    if (c==='name')    return `<td class="${cls}" style="font-weight:600;color:var(--text)" title="${esc(v)}">${esc(v)||'—'}</td>`;
+    if (c==='gen_id'||c==='and_id') return `<td class="${cls}" title="${esc(v)}"><span class="col-mono">${esc(v)||'—'}</span></td>`;
+    if (c==='analyst') return `<td class="${cls}">${v?`<span class="analyst-pill">${IC.user} ${esc(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
+    if (c==='assign_date') return `<td class="${cls} col-date">${v?fmtDate(v):'<span class="muted-val">—</span>'}</td>`;
+    if (c==='rel_date') return `<td class="${cls} col-date">${fmtRelDate(v, r)}</td>`;
+    if (c==='ana_date') return `<td class="${cls} col-date">${fmtDate(v)}</td>`;
+    if (c==='tat') return `<td class="${cls} muted-val">${fmtDate(v)}</td>`;
+    if (c==='_status') { const st=getStatus(r); return `<td class="${cls}">${badgeHtml(st)}</td>`; }
+    if (c==='_rel') { const st=getStatus(r); return `<td class="${cls} col-date">${st==='Released'?fmtRelDate(r.rel_date,r):'<span class="muted-val">—</span>'}</td>`; }
+    return `<td class="${cls}" title="${esc(v)}">${esc(v)||'—'}</td>`;
+    }).join('')}</tr>`; }).join('');
   return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
 }
+
+// ================================================================
+//  ALL SAMPLES MODAL — with search + filters
+// ================================================================
+const ALL_COLS = ['name','test','gen_id','and_id','run_text', 'client','tat','_status','_rel'];
+let _allModalData = [];
+
+function openAllSamplesModal() {
+  // Sort descending by TAT date
+  _allModalData = rows.slice().sort((a,b) => {
+    const da = parseDate(a.tat), db = parseDate(b.tat);
+    return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
+  });
+
+  // Build unique filter values from sorted data
+  const tests = [...new Set(_allModalData.map(r=>r.test).filter(Boolean))].sort();
+  const statuses = ['Yet to Start','Ongoing','Released'];
+  const analysts = [...new Set(_allModalData.flatMap(r=>extractAnalysts(r.analyst_raw)).filter(Boolean))].sort();
+  const clients = [...new Set(_allModalData.map(r=>r.client).filter(Boolean))].sort();
+
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const tatMonths = [...new Set(_allModalData.map(r=>{ const d=parseDate(r.tat); return d?d.getMonth()+1:null; }).filter(Boolean))].sort((a,b)=>a-b);
+  const tatYears = [...new Set(_allModalData.map(r=>{ const d=parseDate(r.tat); return d?d.getFullYear():null; }).filter(Boolean))].sort((a,b)=>b-a);
+
+  const filterHtml = `
+    <div style="padding:12px 22px 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+      <div class="rel-search-wrap" style="flex:1;min-width:180px;height:36px" onclick="this.querySelector('input').focus()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="all-q" placeholder="Search…" oninput="filterAllSamples()" style="font-size:12px" />
+      </div>
+      <button class="rel-filter-toggle" id="all-filter-btn" onclick="document.getElementById('all-filter-panel').classList.toggle('open');this.classList.toggle('active')" style="height:36px;font-size:11px;padding:0 10px">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        Filters
+      </button>
+      <span style="font-size:12px;font-weight:700;color:var(--pri)" id="all-count-label">${_allModalData.length} samples</span>
+    </div>
+    <div class="rel-panel" id="all-filter-panel" style="margin:8px 22px 0;padding:10px 14px">
+      <div class="rel-panel-grid">
+        <div class="rel-panel-item"><label>Test</label><select class="sel" id="all-f-test" onchange="filterAllSamples()">${'<option value="">All Tests</option>'+tests.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('')}</select></div>
+        <div class="rel-panel-item"><label>Status</label><select class="sel" id="all-f-status" onchange="filterAllSamples()">${'<option value="">All Statuses</option>'+statuses.map(s=>`<option value="${s}">${s}</option>`).join('')}</select></div>
+        <div class="rel-panel-item"><label>Analyst</label><select class="sel" id="all-f-analyst" onchange="filterAllSamples()">${'<option value="">All Analysts</option>'+analysts.map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('')}</select></div>
+        <div class="rel-panel-item"><label>Client</label><select class="sel" id="all-f-client" onchange="filterAllSamples()">${'<option value="">All Clients</option>'+clients.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}</select></div>
+        <div class="rel-panel-item"><label>TAT Month</label><select class="sel" id="all-f-month" onchange="filterAllSamples()">${'<option value="">All Months</option>'+tatMonths.map(m=>`<option value="${m}">${MONTHS[m-1]}</option>`).join('')}</select></div>
+        <div class="rel-panel-item"><label>TAT Year</label><select class="sel" id="all-f-year" onchange="filterAllSamples()">${'<option value="">All Years</option>'+tatYears.map(y=>`<option value="${y}">${y}</option>`).join('')}</select></div>
+      </div>
+      <div class="rel-panel-actions"><button class="rel-clear-btn" onclick="clearAllSamplesFilters()">Clear All</button></div>
+    </div>`;
+
+  document.getElementById('qmodal-title').textContent = 'All Samples';
+  document.getElementById('qmodal-count').textContent = ` · ${_allModalData.length} records`;
+  document.getElementById('qmodal-body').innerHTML = '<div class="modal-filters-wrap">' + filterHtml + '</div><div class="modal-table-wrap" id="all-table-wrap">' + buildModalTable(_allModalData, ALL_COLS, true) + '</div>';
+  document.getElementById('qmodal-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function filterAllSamples() {
+  const q       = (document.getElementById('all-q')?.value||'').toLowerCase();
+  const test    = document.getElementById('all-f-test')?.value||'';
+  const status  = document.getElementById('all-f-status')?.value||'';
+  const analyst = document.getElementById('all-f-analyst')?.value||'';
+  const clientF = document.getElementById('all-f-client')?.value||'';
+  const month   = document.getElementById('all-f-month')?.value||'';
+  const year    = document.getElementById('all-f-year')?.value||'';
+
+  let data = _allModalData;
+  if (test)    data = data.filter(r=>r.test===test);
+  if (status)  data = data.filter(r=>getStatus(r)===status);
+  if (analyst) data = data.filter(r=>extractAnalysts(r.analyst_raw).includes(analyst));
+  if (clientF) data = data.filter(r=>r.client===clientF);
+  if (month)   data = data.filter(r=>{ const d=parseDate(r.tat); return d&&String(d.getMonth()+1)===month; });
+  if (year)    data = data.filter(r=>{ const d=parseDate(r.tat); return d&&String(d.getFullYear())===year; });
+  if (q)       data = data.filter(r=>
+    (r.name||'').toLowerCase().includes(q)||(r.test||'').toLowerCase().includes(q)||
+    (r.gen_id||'').toLowerCase().includes(q)||(r.and_id||'').toLowerCase().includes(q)||
+    (r.client||'').toLowerCase().includes(q)||(r.analyst||'').toLowerCase().includes(q)
+  );
+
+  document.getElementById('qmodal-count').textContent = ` · ${data.length} records`;
+  document.getElementById('all-count-label').textContent = `${data.length} samples`;
+  document.getElementById('all-table-wrap').innerHTML = buildModalTable(data, ALL_COLS, true);
+}
+
+function clearAllSamplesFilters() {
+  ['all-f-test','all-f-status','all-f-analyst','all-f-client','all-f-month','all-f-year'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  const q = document.getElementById('all-q'); if (q) q.value = '';
+  filterAllSamples();
+}
+
+// Global search on dashboard
+const GLOBAL_SEARCH_COLS = ['name','test','run_text','gen_id','and_id','client','_status','rel_date'];
+function performGlobalSearch() {
+  const input = document.getElementById('global-search');
+  const resultsEl = document.getElementById('global-search-results');
+  const q = (input?.value||'').toLowerCase().trim();
+
+  // Hide results if less than 2 characters or empty
+  if (q.length < 2) {
+    resultsEl.style.display = 'none';
+    return;
+  }
+
+  // Filter rows based on search query
+  let data = rows.slice().filter(r=>
+    (r.name||'').toLowerCase().includes(q)||
+    (r.test||'').toLowerCase().includes(q)||
+    (r.gen_id||'').toLowerCase().includes(q)||
+    (r.and_id||'').toLowerCase().includes(q)||
+    (r.client||'').toLowerCase().includes(q)||
+    (r.run_text||'').toLowerCase().includes(q)||
+    getStatus(r).toLowerCase().includes(q)
+  );
+
+  // Sort by TAT date (most recent first)
+  data = data.slice().sort((a,b) => {
+    const da = parseDate(a.tat), db = parseDate(b.tat);
+    return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
+  }).slice(0, 50); // Limit to 50 results
+
+  // Build results table
+  if (data.length) {
+    const visibleCols = GLOBAL_SEARCH_COLS.filter(c=>COL_LABELS[c]&&COL_LABELS[c].trim());
+    const ths = visibleCols.map(c=>`<th class="${getColClass(c)}" style="background:rgba(79,70,229,.04);padding:10px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);border-bottom:1.5px solid var(--pb);text-align:left;white-space:nowrap;border-right:1px solid var(--pb)">${COL_LABELS[c]}</th>`).join('');
+    const trs = data.map(r=>`<tr>${visibleCols.map(c=>{
+      const v = r[c]||'';
+      const cls = getColClass(c);
+      if (c==='name') return `<td class="${cls}" style="font-weight:600;color:var(--text);padding:10px 14px;border-right:1px solid var(--pb)" title="${esc(v)}">${esc(v)||'—'}</td>`;
+      if (c==='test'||c==='client'||c==='run_text') return `<td class="${cls}" style="padding:10px 14px;border-right:1px solid var(--pb)" title="${esc(v)}">${esc(v)||'—'}</td>`;
+      if (c==='gen_id'||c==='and_id') return `<td class="${cls}" style="padding:10px 14px;border-right:1px solid var(--pb)" title="${esc(v)}"><span class="col-mono">${esc(v)||'—'}</span></td>`;
+      if (c==='_status') { const st=getStatus(r); return `<td class="${cls}" style="padding:10px 14px;border-right:1px solid var(--pb)">${badgeHtml(st)}</td>`; }
+      if (c==='rel_date') return `<td class="${cls} col-date" style="padding:10px 14px">${fmtRelDate(v, r)}</td>`;
+      return `<td class="${cls}" style="padding:10px 14px;border-right:1px solid var(--pb)" title="${esc(v)}">${esc(v)||'—'}</td>`;
+    }).join('')}</tr>`).join('');
+
+    const tableHtml = `<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+    document.getElementById('global-search-table-wrap').innerHTML = tableHtml;
+    resultsEl.style.display = 'block';
+  } else {
+    document.getElementById('global-search-table-wrap').innerHTML = `<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">No results found</div>`;
+    resultsEl.style.display = 'block';
+  }
+}
+
+// Close global search on outside click
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#global-search') && !e.target.closest('#global-search-results')) {
+    document.getElementById('global-search-results').style.display = 'none';
+  }
+});
 
 function openQModal(title, data, cols) {
   document.getElementById('qmodal-title').textContent = title;
   document.getElementById('qmodal-count').textContent = ` · ${data.length} record${data.length!==1?'s':''}`;
-  document.getElementById('qmodal-body').innerHTML = buildModalTable(data, cols);
+  document.getElementById('qmodal-body').innerHTML = '<div class="modal-table-wrap">' + buildModalTable(data, cols) + '</div>';
   document.getElementById('qmodal-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -1207,7 +2155,7 @@ function openEmpModal(empName) {
     const da = parseDate(a.tat), db = parseDate(b.tat);
     return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
   });
-  openQModal(`${IC.user} ${empName}'s Reviews`, empRows, MODAL_COLS.assigned);
+  openQModal(`${empName}'s Reviews`, empRows, MODAL_COLS.assigned);
 }
 
 // ================================================================
@@ -1231,19 +2179,20 @@ function renderQuickCards(containerId, data, status) {
 //  TABLE RENDER
 // ================================================================
 const TABLE_CFG = {
-  yet:       { status:'Yet to Start', q:'q-yet',  test:'f-yet-test',  analyst:null,              tat:'f-yet-tat',  relMonth:null,          relYear:null,
-               cols:['sno','name','test','gen_id','and_id','client','tat','bio_time','rep_exp'] },
+  yet:       { status:'Yet to Start', q:'q-yet',  test:'f-yet-test',  analyst:null,              tat:null,  tatMonth:'f-yet-month', tatYear:'f-yet-year', tatDate:'f-yet-date',
+               cols:['name','run_text','test','gen_id','and_id','client','tat','rep_exp'] },
   assigned:  { status:'Ongoing',      q:'q-asgn', test:'f-asgn-test', reviewer:'f-asgn-employee', tat:'f-asgn-tat', relMonth:null,          relYear:null,
-               cols:['sno','pri_rev','analyst','assign_date','name','test','gen_id','and_id','client','tat','ana_date','remark'] },
-  released:  { status:'Released',     q:'q-rel',  test:'f-rel-test',  analyst:'f-rel-analyst',  tat:'f-rel-tat',  relMonth:'f-rel-month', relYear:'f-rel-year', relDate:'f-rel-date',
-               cols:['analyst_txt','name','test','gen_id','and_id','client','tat','final','rel_date','remark'] },
+               cols:['pri_rev','analyst','assign_date','name','run_text','test','gen_id','and_id','client','tat','ana_date','remark'] },
+  released:  { status:'Released',     q:'q-rel',  test:'f-rel-test',  analyst:'f-rel-analyst',  client:'f-rel-client', tat:null,  relMonth:'f-rel-month', relYear:'f-rel-year', relDate:'f-rel-date',
+               cols:['name','test','gen_id','and_id','run_text','analyst_txt','client','tat','rel_date'] },
 };
 
 const COL_LABELS = {
-  sno:'#', name:'Sample Name', test:'Test', gen_id:'Gen ID', and_id:'Anderson ID',
-  client:'Client', tat:'TAT', bio_time:'Bioinfo Time', rep_exp:'Repeat Exp',
+  name:'Sample Name', test:'Test', gen_id:'Gen. ID', and_id:'And. ID', run_text: 'Run',
+  client:'Client', tat:'TAT', rep_exp:'Repeat Exp',
   analyst:'Assigned To', analyst_raw:'Assigned To', analyst_txt:'Analyst', assign_date:'Assigned Date', ana_date:'Analyze Date', pri_rev:'Primary Reviewer',
   final:'Final Review', remark:'Remark', rel_date:'Release Date', history:'History',
+  _status:'Status', _rel:'Release Date',
 };
 
 function renderTable(key) {
@@ -1252,20 +2201,28 @@ function renderTable(key) {
   const q        = (document.getElementById(cfg.q)?.value||'').toLowerCase();
   const test     = document.getElementById(cfg.test)?.value||'';
   const ana      = cfg.analyst   ? (document.getElementById(cfg.analyst)?.value||'')   : '';
+  const clientF  = cfg.client    ? (document.getElementById(cfg.client)?.value||'')    : '';
   const reviewer = cfg.reviewer  ? (document.getElementById(cfg.reviewer)?.value||'') : '';
   const tat      = cfg.tat       ? (document.getElementById(cfg.tat)?.value||'')      : '';
   const relMonth = cfg.relMonth  ? (document.getElementById(cfg.relMonth)?.value||'') : '';
   const relYear  = cfg.relYear   ? (document.getElementById(cfg.relYear)?.value||'')  : '';
   const relDate  = cfg.relDate   ? (document.getElementById(cfg.relDate)?.value||'')  : '';
+  const tatMonth = cfg.tatMonth  ? (document.getElementById(cfg.tatMonth)?.value||'') : '';
+  const tatYear  = cfg.tatYear   ? (document.getElementById(cfg.tatYear)?.value||'')  : '';
+  const tatDate  = cfg.tatDate   ? (document.getElementById(cfg.tatDate)?.value||'')  : '';
 
   let data = rows.filter(r=>getStatus(r)===cfg.status);
   if (test)     data = data.filter(r=>r.test===test);
-  if (ana)      data = data.filter(r=>normalizeAnalystName(r.analyst)===ana);
+  if (ana)      data = data.filter(r=>extractAnalysts(r.analyst_raw).includes(ana));
+  if (clientF)  data = data.filter(r=>r.client===clientF);
   if (reviewer) data = data.filter(r=>r.pri_rev===reviewer);
   if (tat)      data = data.filter(r=>r.tat===tat);
   if (relMonth) data = data.filter(r=>{ const d=parseDate(r.rel_date); return d&&String(d.getMonth()+1)===relMonth; });
   if (relYear)  data = data.filter(r=>{ const d=parseDate(r.rel_date); return d&&String(d.getFullYear())===relYear; });
   if (relDate)  data = data.filter(r=>{ const d=parseDate(r.rel_date); if(!d) return false; const pick=new Date(relDate+'T00:00:00'); return d.getFullYear()===pick.getFullYear()&&d.getMonth()===pick.getMonth()&&d.getDate()===pick.getDate(); });
+  if (tatMonth) data = data.filter(r=>{ const d=parseDate(r.tat); return d&&String(d.getMonth()+1)===tatMonth; });
+  if (tatYear)  data = data.filter(r=>{ const d=parseDate(r.tat); return d&&String(d.getFullYear())===tatYear; });
+  if (tatDate)  data = data.filter(r=>{ const d=parseDate(r.tat); if(!d) return false; const pick=new Date(tatDate+'T00:00:00'); return d.getFullYear()===pick.getFullYear()&&d.getMonth()===pick.getMonth()&&d.getDate()===pick.getDate(); });
   if (q)        data = data.filter(r=>
     (r.name||'').toLowerCase().includes(q) ||
     (r.test||'').toLowerCase().includes(q) ||
@@ -1292,71 +2249,326 @@ function renderTable(key) {
 
   if (!data.length) {
     el.innerHTML=`<div class="empty"><div class="ei">${IC.search}</div><p>${rows.filter(r=>getStatus(r)===cfg.status).length===0?'No reports in this category':'No results match your search'}</p></div>`;
+
     return;
   }
 
-  const ths = cfg.cols.map(c=>`<th>${COL_LABELS[c]||c}</th>`).join('');
-  const trs = data.map(r=>`<tr>${cfg.cols.map(c=>{
+  const visibleCols = cfg.cols.filter(c=>COL_LABELS[c]&&COL_LABELS[c].trim());
+  const ths = visibleCols.map(c=>`<th class="${getColClass(c)}">${COL_LABELS[c]}</th>`).join('');
+  const trs = data.map(r=>`<tr>${visibleCols.map(c=>{
     const v = r[c]||'';
-    if (c==='sno')     return `<td>${esc(v)||'—'}</td>`;
-    if (c==='name')    return `<td class="col-name" title="${esc(v)}">${esc(v)||'—'}</td>`;
-    if (c==='gen_id'||c==='and_id') return `<td><span class="col-mono">${esc(v)||'—'}</span></td>`;
-    if (c==='analyst') return `<td>${v?`<span class="analyst-pill">${IC.user} ${esc(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
-    if (c==='analyst_raw') return `<td>${v?`<span class="analyst-pill">${IC.user} ${esc(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
-    if (c==='analyst_txt') { const av = r.analyst||''; return `<td style="font-size:13px;color:var(--text)">${esc(av)||'<span class="muted-val">—</span>'}</td>`; }
-    if (c==='assign_date') return `<td class="col-date">${v?fmtDate(v):'<span class="muted-val">—</span>'}</td>`;
-    if (c==='remark'||c==='history') return `<td class="long-cell muted-val" title="${esc(v)}">${esc(v)||'—'}</td>`;
-    if (c==='rel_date') return `<td class="col-date">${fmtRelDate(v, r)}</td>`;
-    if (c==='ana_date') return `<td class="col-date">${fmtDate(v)}</td>`;
-    if (c==='pri_rev'||c==='final') return `<td>${v?`<span class="badge b-cmp">${IC.check} ${fmtDate(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
-    if (c==='tat') return `<td class="muted-val">${fmtDate(v)}</td>`;
-    if (c==='bio_time') return `<td>${esc(v)||'—'}</td>`;
-    return `<td>${esc(v)||'—'}</td>`;
+    const cls = getColClass(c);
+    if (c==='run_text') return `<td class="${cls}" title="${esc(v)}">${esc(v)||'—'}</td>`;
+    if (c==='name')    return `<td class="${cls}" style="font-weight:600;color:var(--text)" title="${esc(v)}">${esc(v)||'—'}</td>`;
+    if (c==='gen_id'||c==='and_id') return `<td class="${cls}" title="${esc(v)}"><span class="col-mono">${esc(v)||'—'}</span></td>`;
+    if (c==='analyst') return `<td class="${cls}">${v?`<span class="analyst-pill">${IC.user} ${esc(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
+    if (c==='analyst_raw') return `<td class="${cls}">${v?`<span class="analyst-pill">${IC.user} ${esc(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
+    if (c==='analyst_txt') { const av = r.analyst||''; return `<td class="${cls}" style="font-size:13px;color:var(--text)" title="${esc(av)}">${esc(av)||'<span class="muted-val">—</span>'}</td>`; }
+    if (c==='assign_date') return `<td class="${cls} col-date">${v?fmtDate(v):'<span class="muted-val">—</span>'}</td>`;
+    if (c==='rel_date') return `<td class="${cls} col-date">${fmtRelDate(v, r)}</td>`;
+    if (c==='ana_date') return `<td class="${cls} col-date">${fmtDate(v)}</td>`;
+    if (c==='pri_rev'||c==='final') return `<td class="${cls}">${v?`<span class="badge b-cmp">${IC.check} ${fmtDate(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
+    if (c==='tat') return `<td class="${cls} muted-val">${fmtDate(v)}</td>`;
+    return `<td class="${cls}" title="${esc(v)}">${esc(v)||'—'}</td>`;
   }).join('')}</tr>`).join('');
 
   el.innerHTML=`<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+
 }
 
-function render(key) { renderTable(key); }
+function render(key) {
+  renderTable(key);
+  if (key === 'released') updateRelCount();
+  if (key === 'yet') updateYetCount();
+}
+
+// ================================================================
+//  RELEASED — SMART FILTER BAR
+// ================================================================
+function toggleRelFilters() {
+  const panel = document.getElementById('rel-panel');
+  const btn = document.getElementById('rel-filter-btn');
+  panel.classList.toggle('open');
+  btn.classList.toggle('active');
+}
+
+function clearRelFilters() {
+  ['f-rel-analyst','f-rel-test','f-rel-client','f-rel-month','f-rel-year'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const dateEl = document.getElementById('f-rel-date');
+  if (dateEl) dateEl.value = '';
+  const qEl = document.getElementById('q-rel');
+  if (qEl) qEl.value = '';
+  render('released');
+}
+
+function updateRelCount() {
+  // Count active filters
+  let active = 0;
+  ['f-rel-analyst','f-rel-test','f-rel-client','f-rel-month','f-rel-year'].forEach(id => {
+    if (document.getElementById(id)?.value) active++;
+  });
+  if (document.getElementById('f-rel-date')?.value) active++;
+  if (document.getElementById('q-rel')?.value?.trim()) active++;
+  document.getElementById('rel-active-count').textContent = active;
+
+  // Update the released count number (uses same filter logic as renderTable)
+  const cfg = TABLE_CFG.released;
+  const q        = (document.getElementById(cfg.q)?.value||'').toLowerCase();
+  const test     = document.getElementById(cfg.test)?.value||'';
+  const ana      = cfg.analyst ? (document.getElementById(cfg.analyst)?.value||'') : '';
+  const clientF  = cfg.client ? (document.getElementById(cfg.client)?.value||'') : '';
+  const relMonth = cfg.relMonth ? (document.getElementById(cfg.relMonth)?.value||'') : '';
+  const relYear  = cfg.relYear ? (document.getElementById(cfg.relYear)?.value||'') : '';
+  const relDate  = cfg.relDate ? (document.getElementById(cfg.relDate)?.value||'') : '';
+
+  let data = rows.filter(r=>getStatus(r)==='Released');
+  if (test)     data = data.filter(r=>r.test===test);
+  if (ana)      data = data.filter(r=>extractAnalysts(r.analyst_raw).includes(ana));
+  if (clientF)  data = data.filter(r=>r.client===clientF);
+  if (relMonth) data = data.filter(r=>{ const d=parseDate(r.rel_date); return d&&String(d.getMonth()+1)===relMonth; });
+  if (relYear)  data = data.filter(r=>{ const d=parseDate(r.rel_date); return d&&String(d.getFullYear())===relYear; });
+  if (relDate)  data = data.filter(r=>{ const d=parseDate(r.rel_date); if(!d) return false; const pick=new Date(relDate+'T00:00:00'); return d.getFullYear()===pick.getFullYear()&&d.getMonth()===pick.getMonth()&&d.getDate()===pick.getDate(); });
+  if (q)        data = data.filter(r=>
+    (r.name||'').toLowerCase().includes(q)||(r.test||'').toLowerCase().includes(q)||
+    (r.gen_id||'').toLowerCase().includes(q)||(r.and_id||'').toLowerCase().includes(q)||
+    (r.client||'').toLowerCase().includes(q)||(r.analyst||'').toLowerCase().includes(q)
+  );
+  document.getElementById('rel-count-num').textContent = data.length;
+}
+
+// ================================================================
+//  YET TO START — SMART FILTER BAR
+// ================================================================
+function toggleYetFilters() {
+  const panel = document.getElementById('yet-panel');
+  const btn = document.getElementById('yet-filter-btn');
+  panel.classList.toggle('open');
+  btn.classList.toggle('active');
+}
+
+function clearYetFilters() {
+  ['f-yet-test','f-yet-month','f-yet-year'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const dateEl = document.getElementById('f-yet-date');
+  if (dateEl) dateEl.value = '';
+  const qEl = document.getElementById('q-yet');
+  if (qEl) qEl.value = '';
+  render('yet');
+}
+
+function updateYetCount() {
+  let active = 0;
+  ['f-yet-test','f-yet-month','f-yet-year'].forEach(id => {
+    if (document.getElementById(id)?.value) active++;
+  });
+  if (document.getElementById('f-yet-date')?.value) active++;
+  if (document.getElementById('q-yet')?.value?.trim()) active++;
+  document.getElementById('yet-active-count').textContent = active;
+
+  // Count filtered results
+  const q        = (document.getElementById('q-yet')?.value||'').toLowerCase();
+  const test     = document.getElementById('f-yet-test')?.value||'';
+  const tatMonth = document.getElementById('f-yet-month')?.value||'';
+  const tatYear  = document.getElementById('f-yet-year')?.value||'';
+  const tatDate  = document.getElementById('f-yet-date')?.value||'';
+
+  let data = rows.filter(r=>getStatus(r)==='Yet to Start');
+  if (test)     data = data.filter(r=>r.test===test);
+  if (tatMonth) data = data.filter(r=>{ const d=parseDate(r.tat); return d&&String(d.getMonth()+1)===tatMonth; });
+  if (tatYear)  data = data.filter(r=>{ const d=parseDate(r.tat); return d&&String(d.getFullYear())===tatYear; });
+  if (tatDate)  data = data.filter(r=>{ const d=parseDate(r.tat); if(!d) return false; const pick=new Date(tatDate+'T00:00:00'); return d.getFullYear()===pick.getFullYear()&&d.getMonth()===pick.getMonth()&&d.getDate()===pick.getDate(); });
+  if (q)        data = data.filter(r=>
+    (r.name||'').toLowerCase().includes(q)||(r.test||'').toLowerCase().includes(q)||
+    (r.gen_id||'').toLowerCase().includes(q)||(r.and_id||'').toLowerCase().includes(q)||
+    (r.client||'').toLowerCase().includes(q)
+  );
+  document.getElementById('yet-count-num').textContent = data.length;
+}
+
+// ================================================================
+//  TAT OVERDUE TAB — all overdue samples (no day limit)
+// ================================================================
+const OVERDUE_COLS = ['name','test','gen_id','and_id','run_text', 'client','tat','_status','_overdue_days','pri_rev'];
+
+function getOverdueRows() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  return rows.filter(r => {
+    if (getStatus(r) === 'Released') return false;
+    const td = parseTatDate(r);
+    if (!td) return false;
+    td.setHours(0,0,0,0);
+    return td < today;
+  }).map(r => {
+    const td = parseTatDate(r); td.setHours(0,0,0,0);
+    const today2 = new Date(); today2.setHours(0,0,0,0);
+    const diff = Math.round((today2 - td) / 86400000);
+    return { ...r, _overdue_days: diff };
+  }).sort((a,b) => b._overdue_days - a._overdue_days);
+}
+
+function getFilteredOverdue() {
+  const q        = (document.getElementById('q-overdue')?.value||'').toLowerCase();
+  const test     = document.getElementById('f-overdue-test')?.value||'';
+  const clientF  = document.getElementById('f-overdue-client')?.value||'';
+  const status   = document.getElementById('f-overdue-status')?.value||'';
+  const numDays  = parseInt(document.getElementById('f-overdue-days')?.value||'0',10)||0;
+  const reviewer = document.getElementById('f-overdue-reviewer')?.value||'';
+
+  let data = getOverdueRows();
+  if (test)     data = data.filter(r=>r.test===test);
+  if (clientF)  data = data.filter(r=>r.client===clientF);
+  if (status)   data = data.filter(r=>getStatus(r)===status);
+  if (numDays)  data = data.filter(r=>r._overdue_days===numDays);
+  if (reviewer) data = data.filter(r=>r.pri_rev===reviewer);
+  if (q)        data = data.filter(r=>
+    (r.name||'').toLowerCase().includes(q)||(r.test||'').toLowerCase().includes(q)||
+    (r.gen_id||'').toLowerCase().includes(q)||(r.and_id||'').toLowerCase().includes(q)||
+    (r.client||'').toLowerCase().includes(q)||(r.pri_rev||'').toLowerCase().includes(q)
+  );
+  return data;
+}
+
+function renderOverdue() {
+  const data = getFilteredOverdue();
+
+  // Update count
+  document.getElementById('overdue-count-num').textContent = data.length;
+
+  // Populate reviewer dropdown (preserve selection)
+  const revSel = document.getElementById('f-overdue-reviewer');
+  if (revSel) {
+    const curRev = revSel.value;
+    const revVals = [...new Set(getOverdueRows().map(r=>r.pri_rev).filter(Boolean))].sort();
+    revSel.innerHTML = '<option value="">All Reviewers</option>';
+    revVals.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; revSel.appendChild(o); });
+    if (revVals.includes(curRev)) revSel.value=curRev;
+  }
+
+  // Update active filter badge count
+  let active = 0;
+  ['f-overdue-test','f-overdue-client','f-overdue-status','f-overdue-reviewer'].forEach(id => {
+    if (document.getElementById(id)?.value) active++;
+  });
+  if (document.getElementById('f-overdue-days')?.value) active++;
+  if (document.getElementById('q-overdue')?.value?.trim()) active++;
+  document.getElementById('overdue-active-count').textContent = active;
+
+  const el = document.getElementById('tbl-overdue');
+  if (!data.length) {
+    el.innerHTML = `<div class="empty"><div class="ei">${IC.search}</div><p>${getOverdueRows().length===0?'No overdue samples':'No results match your search'}</p></div>`;
+    return;
+  }
+
+  const colLabels = { ...COL_LABELS, _overdue_days:'Days Overdue' };
+  const ths = OVERDUE_COLS.map(c=>`<th class="${getColClass(c)}">${colLabels[c]||c}</th>`).join('');
+  const trs = data.map(r=>`<tr>${OVERDUE_COLS.map(c=>{
+    const v = r[c]||'';
+    const cls = getColClass(c);
+    if (c==='name')    return `<td class="${cls} col-name" title="${esc(v)}">${esc(v)||'—'}</td>`;
+    if (c==='gen_id'||c==='and_id') return `<td class="${cls}" title="${esc(v)}"><span class="col-mono">${esc(v)||'—'}</span></td>`;
+    if (c==='tat')     return `<td class="${cls} muted-val">${fmtDate(v)}</td>`;
+    if (c==='_status') { const st=getStatus(r); return `<td class="${cls}">${badgeHtml(st)}</td>`; }
+    if (c==='_overdue_days') return `<td class="${cls}"><span style="background:rgba(239,68,68,.15);color:#b91c1c;padding:2px 8px;border-radius:6px;font-weight:600;font-size:12px">${r._overdue_days}d</span></td>`;
+    if (c==='pri_rev') return `<td class="${cls}">${v?`<span class="analyst-pill">${IC.user} ${esc(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
+    if (c==='test') return `<td class="${cls}" title="${esc(v)}">${esc(v)||'—'}</td>`;
+    if (c==='client') return `<td class="${cls}" title="${esc(v)}">${esc(v)||'—'}</td>`;
+    if (c==='run_text') return `<td class="${cls}" title="${esc(v)}">${esc(v)||'—'}</td>`;
+    return `<td class="${cls}" title="${esc(v)}">${esc(v)||'—'}</td>`;
+  }).join('')}</tr>`).join('');
+
+  el.innerHTML = `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+}
+
+function toggleOverdueFilters() {
+  const panel = document.getElementById('overdue-panel');
+  const btn = document.getElementById('overdue-filter-btn');
+  panel.classList.toggle('open');
+  btn.classList.toggle('active');
+}
+
+function clearOverdueFilters() {
+  ['f-overdue-test','f-overdue-client','f-overdue-status','f-overdue-reviewer'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  const daysEl = document.getElementById('f-overdue-days'); if (daysEl) daysEl.value = '';
+  const qEl = document.getElementById('q-overdue'); if (qEl) qEl.value = '';
+  renderOverdue();
+}
+
+function downloadOverdueExcel() {
+  try {
+    if (typeof XLSX === 'undefined') { toast('SheetJS not loaded — refresh the page', 'err'); return; }
+
+    const data = getFilteredOverdue();
+    if (!data.length) { toast('No overdue samples to export', 'warn'); return; }
+
+    const headers = ['Sample Name','Test','Gen ID','Anderson ID','Client','TAT','Status','Days Overdue','Reviewer'];
+    const wsData = [headers];
+    data.forEach(r => {
+      wsData.push([
+        r.name||'', r.test||'', r.gen_id||'', r.and_id||'', r.client||'',
+        fmtDate(r.tat)==='—'?'':fmtDate(r.tat), getStatus(r), r._overdue_days, r.pri_rev||''
+      ]);
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = headers.map((h,i) => {
+      let max = h.length;
+      wsData.forEach(row => { if (row[i] && String(row[i]).length > max) max = String(row[i]).length; });
+      return { wch: Math.min(max + 2, 40) };
+    });
+    XLSX.utils.book_append_sheet(wb, ws, 'TAT Overdue');
+
+    const today    = new Date();
+    const reviewer = document.getElementById('f-overdue-reviewer')?.value || '';
+    const namePart = reviewer ? `_${reviewer.replace(/\s+/g,'_')}` : '';
+    const fname    = `TAT_Overdue${namePart}_${today.getDate().toString().padStart(2,'0')}-${(today.getMonth()+1).toString().padStart(2,'0')}-${today.getFullYear()}.xlsx`;
+
+    // binary string → ArrayBuffer → Blob → anchor download
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
+    const buf = new ArrayBuffer(wbout.length);
+    const view = new Uint8Array(buf);
+    for (let i = 0; i < wbout.length; i++) view[i] = wbout.charCodeAt(i) & 0xFF;
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = fname; a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+    toast('Excel downloaded: ' + fname, 'ok');
+  } catch(e) {
+    toast('Download failed: ' + e.message, 'err');
+    console.error('[downloadOverdueExcel]', e);
+  }
+}
 
 // ================================================================
 //  HELPERS
 // ================================================================
-// ── Exact literal date normalization ──
-// Takes DD/MM/YY, DD.MM.YYYY, 12 Mar 2026, etc. and forces DD-MM-YYYY exactly as seen.
+// ── Date formatter → DD-MM-YYYY ──
+// Just normalizes separators (/ → -) and expands YY → YYYY. No reinterpretation.
 function fmtDate(v) {
   if (!v) return '—';
   const s = String(v).trim();
-  
-  // Format: 12 Mar 2026
-  const mStr = s.match(/^(\d{1,2})[\s\-]+([A-Za-z]{3})[\s\-]+(\d{2,4})$/);
-  if (mStr) {
-    const d = mStr[1].padStart(2, '0');
-    const monthStr = mStr[2].substring(0,3).toLowerCase();
-    const months = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
-    const m = String(months[monthStr] || 1).padStart(2,'0');
-    let y = mStr[3];
-    if (y.length === 2) {
-      const yr = parseInt(y, 10);
-      y = (yr < 100 ? yr + 2000 : yr).toString();
-    }
-    return `${d}-${m}-${y}`;
-  }
+  if (s === '-' || s === '—') return '—';
 
-  // Format: DD-MM-YYYY or DD/MM/YYYY or DD-MM-YY or DD.MM.YYYY
   const parts = s.split(/[\-\/\.]/);
   if (parts.length >= 3) {
     const d = parts[0].padStart(2, '0');
     const m = parts[1].padStart(2, '0');
-    let y = parts[2].substring(0,4);
-    if (y.length === 2) {
-      const yr = parseInt(y, 10);
-      y = (yr < 100 ? yr + 2000 : yr).toString();
-    }
+    let y = parts[2].substring(0, 4);
+    if (y.length === 2) y = String(parseInt(y, 10) + 2000);
     return `${d}-${m}-${y}`;
   }
-  
-  return s; // If it's a completely wacky string, just return it so we don't destroy info.
+
+  return s;
 }
 
 // User requested released dates use the exact same DD-MM-YYYY format
@@ -1403,9 +2615,7 @@ function fmtRelDate(v, r) {
     
     // Avoid printing impossible days like Feb 31 by relying on Date math bounds
     const finalDate = new Date(y, m, d);
-    const dd = String(finalDate.getDate()).padStart(2, '0');
-    const mm = String(finalDate.getMonth() + 1).padStart(2, '0');
-    return `${dd}-${mm}-${finalDate.getFullYear()}`;
+    return `${String(finalDate.getDate()).padStart(2,'0')}-${String(finalDate.getMonth()+1).padStart(2,'0')}-${finalDate.getFullYear()}`;
   }
   return f;
 }
@@ -1439,6 +2649,346 @@ function saveToStorage(data) {
 function loadFromStorage() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); } catch(e) { return null; }
 }
+
+// ================================================================
+//  PRIORITY MODAL — Yet to Start + In Review samples with TAT in next 3 months
+// ================================================================
+let _priorityRows = [];
+const PRIORITY_COLS = ['name','test', 'run_text', 'gen_id','and_id','client','tat','pri_rev'];
+
+function openPriorityModal() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const limit = new Date(today);
+  limit.setMonth(limit.getMonth() + 3);
+
+  _priorityRows = rows.filter(r => {
+    const st = getStatus(r);
+    if (st !== 'Yet to Start' && st !== 'Ongoing') return false;
+    const td = parseTatDate(r);
+    if (!td) return false;
+    td.setHours(0,0,0,0);
+    return td >= today && td <= limit;
+  }).sort((a,b) => {
+    const da = parseTatDate(a), db = parseTatDate(b);
+    return (da ? da.getTime() : 0) - (db ? db.getTime() : 0);
+  });
+
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  
+  // Generate upcoming 3 months starting from current month
+  const displayMonths = [];
+  for (let i=0; i<3; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
+    displayMonths.push(d.getMonth());
+  }
+
+  const filterHtml = `<div class="pm-filters">
+    <button class="pm-fbtn active" onclick="filterPriority('')">All (${_priorityRows.length})</button>
+    ${displayMonths.map(m => {
+      const cnt = _priorityRows.filter(r => { const d = parseTatDate(r); return d && d.getMonth() === m; }).length;
+      return `<button class="pm-fbtn" onclick="filterPriority('${m}')">${MONTHS[m]} (${cnt})</button>`;
+    }).join('')}
+  </div>`;
+
+  document.getElementById('qmodal-title').textContent = 'Priority — TAT in Next 3 Months';
+  document.getElementById('qmodal-count').textContent = ` · ${_priorityRows.length} samples`;
+  document.getElementById('qmodal-body').innerHTML = '<div class="modal-filters-wrap">' + filterHtml + '</div><div class="modal-table-wrap" id="pm-table">' + buildModalTable(_priorityRows, PRIORITY_COLS) + '</div>';
+  document.getElementById('qmodal-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function filterPriority(month) {
+  document.querySelectorAll('.pm-fbtn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+
+  let filtered = _priorityRows;
+  if (month !== '') {
+    const m = parseInt(month);
+    filtered = filtered.filter(r => {
+      const d = parseTatDate(r);
+      return d && d.getMonth() === m;
+    });
+  }
+
+  document.getElementById('qmodal-count').textContent = ` · ${filtered.length} samples`;
+  document.getElementById('pm-table').innerHTML = buildModalTable(filtered, PRIORITY_COLS);
+}
+
+
+
+// ================================================================
+//  ANALYTICS STUDIO
+// ================================================================
+let anChart1 = null;
+let anChart2 = null;
+
+function anToggleAll(chartPrefix, checked) {
+  const list = document.getElementById(`an-${chartPrefix}-${chartPrefix === 'f1' ? 'test' : 'client'}-list`);
+  if (!list) return;
+  list.querySelectorAll('input').forEach(i => i.checked = checked);
+  if (chartPrefix === 'f1') anDrawChart1(); else anDrawChart2();
+}
+
+function anInitFilters() {
+  // 1. Years
+  const years = [...new Set(rows.map(r => {
+    const d = parseDate(r.tat) || parseDate(r.rel_date);
+    return d ? d.getFullYear() : null;
+  }).filter(Boolean))].sort((a, b) => b - a);
+
+  ['an-f1-year', 'an-f2-year'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel || sel.children.length > 1) return;
+    years.forEach(y => {
+      const opt = document.createElement('option');
+      opt.value = y; opt.textContent = y;
+      sel.appendChild(opt);
+    });
+    const currentYear = new Date().getFullYear();
+    if (years.includes(currentYear)) sel.value = currentYear;
+  });
+
+  // 2. Tests Multi-select (Chart 1)
+  const tList = document.getElementById('an-f1-test-list');
+  if (tList && tList.children.length === 0) {
+    const tests = [...new Set(rows.map(r => r.test).filter(Boolean))].sort();
+    tests.forEach(t => {
+      const label = document.createElement('label');
+      label.className = 'an-check-item';
+      label.innerHTML = `<input type="checkbox" value="${t}" checked onchange="anDrawChart1()"> <span>${t}</span>`;
+      tList.appendChild(label);
+    });
+  }
+
+  // 3. Clients Multi-select (Chart 2)
+  const cList = document.getElementById('an-f2-client-list');
+  if (cList && cList.children.length === 0) {
+    const clients = [...new Set(rows.map(r => r.client).filter(Boolean))].sort();
+    clients.forEach(c => {
+      const label = document.createElement('label');
+      label.className = 'an-check-item';
+      label.innerHTML = `<input type="checkbox" value="${c}" checked onchange="anDrawChart2()"> <span>${c}</span>`;
+      cList.appendChild(label);
+    });
+  }
+}
+
+function anDrawAll() {
+  anDrawChart1();
+  anDrawChart2();
+}
+
+function anDrawChart1() {
+  const year = document.getElementById('an-f1-year').value;
+  const month = document.getElementById('an-f1-month').value;
+  const search = document.getElementById('an-f1-search').value.toLowerCase();
+  
+  // Get all checked tests
+  const checkedTests = Array.from(document.querySelectorAll('#an-f1-test-list input:checked')).map(i => i.value);
+
+  const filtered = rows.filter(r => {
+    const d = parseDate(r.tat) || parseDate(r.rel_date);
+    if (!d) return false;
+    const yearMatch = year === 'All' || String(d.getFullYear()) === year;
+    const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
+    const testMatch = checkedTests.includes(r.test);
+    const searchMatch = !search || (r.test && r.test.toLowerCase().includes(search));
+    return yearMatch && monthMatch && testMatch && searchMatch;
+  });
+
+  const testMap = {};
+  filtered.forEach(r => {
+    const t = r.test || 'Unknown';
+    testMap[t] = (testMap[t] || 0) + 1;
+  });
+
+  renderPieChart(testMap);
+}
+
+function anDrawChart2() {
+  const year = document.getElementById('an-f2-year').value;
+  const month = document.getElementById('an-f2-month').value;
+  const search = document.getElementById('an-f2-search').value.toLowerCase();
+  
+  // Get all checked clients
+  const checkedClients = Array.from(document.querySelectorAll('#an-f2-client-list input:checked')).map(i => i.value);
+
+  const filtered = rows.filter(r => {
+    const d = parseDate(r.tat) || parseDate(r.rel_date);
+    if (!d) return false;
+    const yearMatch = year === 'All' || String(d.getFullYear()) === year;
+    const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
+    const clientMatch = checkedClients.includes(r.client);
+    const searchMatch = !search || (r.client && r.client.toLowerCase().includes(search));
+    return yearMatch && monthMatch && clientMatch && searchMatch;
+  });
+
+  const clientMap = {};
+  filtered.forEach(r => {
+    const c = r.client || 'Unknown';
+    clientMap[c] = (clientMap[c] || 0) + 1;
+  });
+
+  renderBarChart(clientMap);
+}
+
+// High-contrast, distinct color palette
+const CHART_COLORS = [
+  '#4f46e5', // indigo
+  '#10b981', // green
+  '#f59e0b', // amber
+  '#ef4444', // red
+  '#06b6d4', // cyan
+  '#ec4899', // pink
+  '#f97316', // orange
+  '#8b5cf6', // purple
+  '#14b8a6', // teal
+  '#84cc16', // lime
+  '#3b82f6', // blue
+  '#d946ef', // fuchsia
+  '#fbbf24', // yellow
+  '#475569'  // slate
+];
+
+// Register ChartDataLabels plugin
+Chart.register(ChartDataLabels);
+
+function renderPieChart(map) {
+  const ctx = document.getElementById('an-chart-1').getContext('2d');
+  const labels = Object.keys(map);
+  const values = Object.values(map);
+  const total = values.reduce((a, b) => a + b, 0);
+
+  document.getElementById('an-total-1').textContent = `Total: ${total}`;
+
+  if (anChart1) anChart1.destroy();
+  anChart1 = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: values,
+        backgroundColor: CHART_COLORS,
+        borderWidth: 2,
+        borderColor: '#ffffff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { 
+          position: 'bottom', 
+          labels: { 
+            boxWidth: 12, 
+            font: { size: 11, weight: '600' },
+            padding: 15,
+            usePointStyle: true
+          } 
+        },
+        tooltip: { 
+          backgroundColor: 'rgba(0,0,0,0.8)',
+          padding: 12,
+          bodyFont: { size: 13 },
+          titleFont: { size: 13, weight: '700' }
+        },
+        datalabels: {
+          color: '#fff',
+          font: { weight: 'bold', size: 12 },
+          formatter: (value) => value > 0 ? value : '',
+          anchor: 'center',
+          align: 'center'
+        }
+      }
+    }
+  });
+}
+
+function renderBarChart(map) {
+  const container = document.getElementById('an-chart-2').parentElement;
+  const ctx = document.getElementById('an-chart-2').getContext('2d');
+  
+  // 1. Sort and Limit to Top 20 for vertical presentation (better space usage)
+  let entries = Object.entries(map).sort((a, b) => b[1] - a[1]);
+  const totalInFilter = entries.reduce((sum, e) => sum + e[1], 0);
+  
+  const limit = 20;
+  const isLimited = entries.length > limit;
+  if (isLimited) entries = entries.slice(0, limit);
+  
+  const labels = entries.map(e => e[0].length > 25 ? e[0].substring(0, 22) + '...' : e[0]);
+  const values = entries.map(e => e[1]);
+
+  document.getElementById('an-total-2').textContent = `Total (Filtered): ${totalInFilter}`;
+
+  // Reset container height for vertical chart
+  container.style.height = `400px`;
+
+  if (anChart2) anChart2.destroy();
+  anChart2 = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Sample Count',
+        data: values,
+        backgroundColor: 'rgba(79, 70, 229, 0.85)',
+        borderRadius: 6,
+        hoverBackgroundColor: '#4f46e5',
+        barThickness: 'flex',
+        maxBarThickness: 40
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'x', // Changed to vertical
+      layout: {
+        padding: { bottom: 20 }
+      },
+      scales: {
+        y: { 
+          beginAtZero: true, 
+          grid: { color: 'rgba(0,0,0,0.05)' },
+          ticks: { font: { size: 11 } }
+        },
+        x: { 
+          grid: { display: false }, 
+          ticks: { 
+            font: { size: 10, weight: '600' },
+            maxRotation: 45,
+            minRotation: 45
+          } 
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { padding: 10 },
+        datalabels: {
+          anchor: 'end',
+          align: 'top',
+          color: 'var(--pri)',
+          font: { weight: 'bold', size: 11 },
+          formatter: (value) => value
+        },
+        title: {
+          display: isLimited,
+          text: `Showing top ${limit} clients`,
+          font: { size: 11, weight: 'normal' },
+          color: '#64748b',
+          padding: { bottom: 10 }
+        }
+      }
+    }
+  });
+}
+
+function anExportPNG() {
+  const container = document.querySelector('.an-charts-scroll');
+  if (!container) return;
+  toast('Right-click on charts to save as image', 'info');
+}
+
 
 // (Auth/idle-logout removed for static GitHub Pages deployment)
 

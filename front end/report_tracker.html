@@ -2722,6 +2722,23 @@ function filterPriority(month) {
 let anChart1 = null;
 let anChart2 = null;
 
+const TEST_NORM_MAP = {
+  "whole exome sequencing": "WES",
+  "clinical exome sequencing": "CES",
+  "whole genome sequencing": "WGS",
+  "preimplantation genetic testing for aneuploidy": "PGT-A",
+  "pgta": "PGT-A"
+};
+
+function normalizeTest(name) {
+  if (!name) return "Unknown";
+  const lower = name.trim().toLowerCase();
+  for (const [key, val] of Object.entries(TEST_NORM_MAP)) {
+    if (lower === key) return val;
+  }
+  return name.trim();
+}
+
 function anToggleAll(chartPrefix, checked) {
   const list = document.getElementById(`an-${chartPrefix}-${chartPrefix === 'f1' ? 'test' : 'client'}-list`);
   if (!list) return;
@@ -2751,7 +2768,7 @@ function anInitFilters() {
   // 2. Tests Multi-select (Chart 1)
   const tList = document.getElementById('an-f1-test-list');
   if (tList && tList.children.length === 0) {
-    const tests = [...new Set(rows.map(r => r.test).filter(Boolean))].sort();
+    const tests = [...new Set(rows.map(r => normalizeTest(r.test)).filter(Boolean))].sort();
     tests.forEach(t => {
       const label = document.createElement('label');
       label.className = 'an-check-item';
@@ -2791,14 +2808,15 @@ function anDrawChart1() {
     if (!d) return false;
     const yearMatch = year === 'All' || String(d.getFullYear()) === year;
     const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
-    const testMatch = checkedTests.includes(r.test);
-    const searchMatch = !search || (r.test && r.test.toLowerCase().includes(search));
+    const normTest = normalizeTest(r.test);
+    const testMatch = checkedTests.includes(normTest);
+    const searchMatch = !search || (normTest.toLowerCase().includes(search));
     return yearMatch && monthMatch && testMatch && searchMatch;
   });
 
   const testMap = {};
   filtered.forEach(r => {
-    const t = r.test || 'Unknown';
+    const t = normalizeTest(r.test);
     testMap[t] = (testMap[t] || 0) + 1;
   });
 

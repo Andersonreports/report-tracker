@@ -7,6 +7,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <!-- SheetJS served through authenticated backend endpoint — not publicly accessible -->
   <script src="xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 
   <style>
     /* ── TOKENS ── */
@@ -136,6 +138,152 @@
     .sc-ong{border-left-color:var(--ong)} .sc-ong .s-val{color:var(--ong)}
     .sc-cmp{border-left-color:var(--cmp)} .sc-cmp .s-val{color:var(--cmp)}
     .sc-rel{border-left-color:var(--rel)} .sc-rel .s-val{color:var(--rel)}
+
+    /* ── ANALYTICS ── */
+    .an-header { display: flex; align-items: flex-start; justify-content: space-between; padding-top: 24px; margin-bottom: 28px; }
+    .an-title { font-size: 22px; font-weight: 800; color: var(--text); letter-spacing: -0.5px; margin-bottom: 4px; }
+    .an-sub { font-size: 13px; color: var(--muted); font-weight: 500; }
+    .an-layout { display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start; }
+    .an-charts-scroll { display: flex; flex-direction: column; gap: 24px; width: 100%; }
+    .an-chart-card { 
+      padding: 24px; min-height: 450px; display: flex; flex-direction: column; 
+      background: #ffffff; border: 1px solid var(--pb); border-radius: var(--r);
+      box-shadow: var(--sh); overflow: hidden;
+    }
+    @media(prefers-color-scheme:dark){ .an-chart-card { background: var(--panel); } }
+    .an-chart-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; gap: 15px; }
+    .an-chart-info { display: flex; flex-direction: column; gap: 4px; }
+    .an-chart-title { font-size: 15px; font-weight: 700; color: var(--text); }
+    .an-chart-sub { font-size: 11px; color: var(--muted); font-weight: 500; }
+    .an-chart-body { flex: 1; position: relative; min-height: 300px; }
+    .an-chart-actions { display: flex; align-items: center; gap: 10px; }
+    .an-total-box { 
+      padding: 6px 14px; border-radius: 20px; background: rgba(79,70,229,.1); 
+      color: var(--pri); font-weight: 700; font-size: 13px; border: 1px solid rgba(79,70,229,.2);
+    }
+    .an-sidebar {
+      position: sticky; top: 100px; padding: 24px;
+      background: var(--panel); border-radius: var(--r);
+      border: 1px solid var(--pb); display: flex; flex-direction: column; gap: 32px;
+      max-height: calc(100vh - 140px); overflow-y: auto;
+    }
+    .an-sidebar-section { display: flex; flex-direction: column; gap: 16px; }
+    .an-section-title { 
+      font-size: 11px; font-weight: 800; text-transform: uppercase; 
+      letter-spacing: 0.8px; color: var(--muted); display: flex; align-items: center; gap: 8px;
+    }
+    .an-section-title::after { content: ''; flex: 1; height: 1px; background: var(--pb); }
+    .an-filter-group { display: flex; flex-direction: column; gap: 12px; }
+    .an-label { font-size: 12px; font-weight: 700; color: var(--text); }
+    .an-check-list-wrap { display: flex; flex-direction: column; gap: 8px; }
+    .an-check-actions { display: flex; gap: 8px; }
+    .an-check-btn { 
+      font-size: 10px; font-weight: 700; color: var(--pri); cursor: pointer; 
+      background: rgba(79,70,229,0.08); padding: 3px 8px; border-radius: 4px; border: none;
+    }
+    .an-check-list { 
+      max-height: 180px; overflow-y: auto; border: 1px solid var(--pb); 
+      border-radius: var(--rs); padding: 8px; display: flex; flex-direction: column; gap: 4px;
+      background: rgba(255,255,255,0.3);
+    }
+    .an-check-item { 
+      display: flex; align-items: center; gap: 8px; font-size: 12px; 
+      cursor: pointer; padding: 4px 6px; border-radius: 4px; transition: var(--tr);
+    }
+    .an-check-item:hover { background: rgba(0,0,0,0.03); }
+    .an-check-item input { cursor: pointer; width: 15px; height: 15px; accent-color: var(--pri); }
+    .an-custom-legend {
+      display: flex; flex-direction: column; gap: 8px;
+      max-height: 150px; overflow-y: auto; padding: 10px 0;
+      scrollbar-width: thin; margin-top: 10px;
+    }
+    .an-leg-item {
+      display: flex; align-items: center; gap: 10px; cursor: pointer;
+      font-size: 11px; font-weight: 600; color: var(--text);
+      transition: var(--tr); padding: 4px 8px; border-radius: 4px;
+      text-align: left;
+    }
+    .an-leg-item:hover { background: rgba(0,0,0,0.04); }
+    .an-leg-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .an-leg-text { flex: 1; }
+    .an-leg-item.hidden { text-decoration: line-through; opacity: 0.5; }
+    @media(max-width:1100px){ 
+      .an-layout { grid-template-columns: 1fr; }
+      .an-sidebar { position: static; order: -1; max-height: none; }
+    }
+
+    /* ── ANALYTICS ── */
+    .an-header { display: flex; align-items: flex-start; justify-content: space-between; padding-top: 24px; margin-bottom: 28px; }
+    .an-title { font-size: 22px; font-weight: 800; color: var(--text); letter-spacing: -0.5px; margin-bottom: 4px; }
+    .an-sub { font-size: 13px; color: var(--muted); font-weight: 500; }
+    .an-layout { display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start; }
+    .an-charts-scroll { display: flex; flex-direction: column; gap: 24px; width: 100%; }
+    .an-chart-card { 
+      padding: 24px; min-height: 450px; display: flex; flex-direction: column; 
+      background: #ffffff; border: 1px solid var(--pb); border-radius: var(--r);
+      box-shadow: var(--sh); overflow: hidden;
+    }
+    @media(prefers-color-scheme:dark){ .an-chart-card { background: var(--panel); } }
+    .an-chart-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; gap: 15px; }
+    .an-chart-info { display: flex; flex-direction: column; gap: 4px; }
+    .an-chart-title { font-size: 15px; font-weight: 700; color: var(--text); }
+    .an-chart-sub { font-size: 11px; color: var(--muted); font-weight: 500; }
+    .an-chart-body { flex: 1; position: relative; min-height: 300px; }
+    .an-chart-actions { display: flex; align-items: center; gap: 10px; }
+    .an-total-box { 
+      padding: 6px 14px; border-radius: 20px; background: rgba(79,70,229,.1); 
+      color: var(--pri); font-weight: 700; font-size: 13px; border: 1px solid rgba(79,70,229,.2);
+    }
+    .an-sidebar {
+      position: sticky; top: 100px; padding: 24px;
+      background: var(--panel); border-radius: var(--r);
+      border: 1px solid var(--pb); display: flex; flex-direction: column; gap: 32px;
+      max-height: calc(100vh - 140px); overflow-y: auto;
+    }
+    .an-sidebar-section { display: flex; flex-direction: column; gap: 16px; }
+    .an-section-title { 
+      font-size: 11px; font-weight: 800; text-transform: uppercase; 
+      letter-spacing: 0.8px; color: var(--muted); display: flex; align-items: center; gap: 8px;
+    }
+    .an-section-title::after { content: ''; flex: 1; height: 1px; background: var(--pb); }
+    .an-filter-group { display: flex; flex-direction: column; gap: 12px; }
+    .an-label { font-size: 12px; font-weight: 700; color: var(--text); }
+    .an-check-list-wrap { display: flex; flex-direction: column; gap: 8px; }
+    .an-check-actions { display: flex; gap: 8px; }
+    .an-check-btn { 
+      font-size: 10px; font-weight: 700; color: var(--pri); cursor: pointer; 
+      background: rgba(79,70,229,0.08); padding: 3px 8px; border-radius: 4px; border: none;
+    }
+    .an-check-list { 
+      max-height: 180px; overflow-y: auto; border: 1px solid var(--pb); 
+      border-radius: var(--rs); padding: 8px; display: flex; flex-direction: column; gap: 4px;
+      background: rgba(255,255,255,0.3);
+    }
+    .an-check-item { 
+      display: flex; align-items: center; gap: 8px; font-size: 12px; 
+      cursor: pointer; padding: 4px 6px; border-radius: 4px; transition: var(--tr);
+    }
+    .an-check-item:hover { background: rgba(0,0,0,0.03); }
+    .an-check-item input { cursor: pointer; width: 15px; height: 15px; accent-color: var(--pri); }
+    .an-custom-legend {
+      display: flex; flex-direction: column; gap: 8px;
+      max-height: 150px; overflow-y: auto; padding: 10px 0;
+      scrollbar-width: thin; margin-top: 10px;
+    }
+    .an-leg-item {
+      display: flex; align-items: center; gap: 10px; cursor: pointer;
+      font-size: 11px; font-weight: 600; color: var(--text);
+      transition: var(--tr); padding: 4px 8px; border-radius: 4px;
+      text-align: left;
+    }
+    .an-leg-item:hover { background: rgba(0,0,0,0.04); }
+    .an-leg-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .an-leg-text { flex: 1; }
+    .an-leg-item.hidden { text-decoration: line-through; opacity: 0.5; }
+    @media(max-width:1100px){ 
+      .an-layout { grid-template-columns: 1fr; }
+      .an-sidebar { position: static; order: -1; max-height: none; }
+    }
 
     /* ── PROGRESS ── */
     .prog-wrap{height:6px;background:var(--bdr);border-radius:3px;overflow:hidden;margin-top:7px}
@@ -639,6 +787,7 @@
   <button class="tab" onclick="switchTab('yet',this)" id="t-yet"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24z"/></svg> Yet to Start <span class="tbadge" id="b-yet">0</span></button>
   <button class="tab" onclick="switchTab('released',this)" id="t-rel"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg> Released <span class="tbadge" id="b-rel">0</span></button>
   <button class="tab" onclick="switchTab('overdue',this)" id="t-overdue"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Overdue <span class="tbadge" id="b-overdue" style="background:rgba(239,68,68,.18);color:#dc2626">0</span></button>
+  <button class="tab" onclick="switchTab('analytics',this)" id="t-an"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Analytics</button>
 </nav>
 
 <!-- ╔═ MAIN ═╗ -->
@@ -823,6 +972,129 @@
     <div class="tbl-wrap glass"><div id="tbl-rel"></div></div>
   </div>
 
+  <!-- ══ ANALYTICS ══ -->
+  <div id="page-analytics" class="page">
+    <div class="an-header">
+      <div>
+        <h2 class="an-title">Analytics Studio</h2>
+        <p class="an-sub">Monthly trend and distribution analysis</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-out btn-sm" onclick="anExportPNG()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export PNG
+        </button>
+      </div>
+    </div>
+
+    <div class="an-layout">
+      <!-- 1. LEFT: Charts -->
+      <div class="an-charts-scroll">
+        <!-- Chart 1: Test Wise Sample Count -->
+        <div class="an-chart-card">
+          <div class="an-chart-header">
+            <div class="an-chart-info">
+              <span class="an-chart-title">Test-wise Sample Count</span>
+              <span class="an-chart-sub">Distribution of samples by test type</span>
+            </div>
+            <div class="an-chart-actions">
+              <span class="badge b-rel">Pie Chart</span>
+              <div id="an-total-1" class="an-total-box">Total: 0</div>
+            </div>
+          </div>
+          <div class="an-chart-body">
+            <canvas id="an-chart-1"></canvas>
+          </div>
+          <div id="an-legend-1" class="an-custom-legend"></div>
+        </div>
+        <!-- Chart 2: Client Wise Volume -->
+        <div class="an-chart-card">
+          <div class="an-chart-header">
+            <div class="an-chart-info">
+              <span class="an-chart-title">Client-wise Analysis</span>
+              <span class="an-chart-sub">Sample volume comparison by client</span>
+            </div>
+            <div class="an-chart-actions">
+              <span class="badge b-ong">Bar Chart</span>
+              <div id="an-total-2" class="an-total-box">Total: 0</div>
+            </div>
+          </div>
+          <div class="an-chart-body" style="min-height:350px">
+            <canvas id="an-chart-2"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. RIGHT: Sidebar Filters -->
+      <div class="an-sidebar">
+        <div class="an-sidebar-section">
+          <div class="an-section-title">Pie Chart Filters</div>
+          <div class="an-filter-group">
+            <label class="an-label">Year</label>
+            <select id="an-f1-year" class="sel" onchange="anDrawChart1()"><option value="All">All Years</option></select>
+          </div>
+          <div class="an-filter-group">
+            <label class="an-label">Month</label>
+            <select id="an-f1-month" class="sel" onchange="anDrawChart1()">
+              <option value="All">All Months</option>
+              <option>Jan</option><option>Feb</option><option>Mar</option><option>Apr</option>
+              <option>May</option><option>Jun</option><option>Jul</option><option>Aug</option>
+              <option>Sep</option><option>Oct</option><option>Nov</option><option>Dec</option>
+            </select>
+          </div>
+          <div class="an-filter-group">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <label class="an-label">Tests</label>
+              <div class="an-check-actions">
+                <button class="an-check-btn" onclick="anToggleAll('f1',true)">Select All</button>
+                <button class="an-check-btn" onclick="anToggleAll('f1',false)">Clear</button>
+              </div>
+            </div>
+            <div id="an-f1-test-list" class="an-check-list"></div>
+          </div>
+          <div class="an-filter-group">
+            <label class="an-label">Manual Search</label>
+            <div class="search" style="min-width:0;height:34px">
+              <input type="text" id="an-f1-search" placeholder="Type test name..." oninput="anDrawChart1()" />
+            </div>
+          </div>
+        </div>
+
+        <div class="an-sidebar-section">
+          <div class="an-section-title">Bar Chart Filters</div>
+          <div class="an-filter-group">
+            <label class="an-label">Year</label>
+            <select id="an-f2-year" class="sel" onchange="anDrawChart2()"><option value="All">All Years</option></select>
+          </div>
+          <div class="an-filter-group">
+            <label class="an-label">Month</label>
+            <select id="an-f2-month" class="sel" onchange="anDrawChart2()">
+              <option value="All">All Months</option>
+              <option>Jan</option><option>Feb</option><option>Mar</option><option>Apr</option>
+              <option>May</option><option>Jun</option><option>Jul</option><option>Aug</option>
+              <option>Sep</option><option>Oct</option><option>Nov</option><option>Dec</option>
+            </select>
+          </div>
+          <div class="an-filter-group">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <label class="an-label">Clients</label>
+              <div class="an-check-actions">
+                <button class="an-check-btn" onclick="anToggleAll('f2',true)">Select All</button>
+                <button class="an-check-btn" onclick="anToggleAll('f2',false)">Clear</button>
+              </div>
+            </div>
+            <div id="an-f2-client-list" class="an-check-list"></div>
+          </div>
+          <div class="an-filter-group">
+            <label class="an-label">Manual Search</label>
+            <div class="search" style="min-width:0;height:34px">
+              <input type="text" id="an-f2-search" placeholder="Type client name..." oninput="anDrawChart2()" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ══ TAT OVERDUE (all) ══ -->
   <div id="page-overdue" class="page">
     <!-- Smart search bar + count + download -->
@@ -873,6 +1145,129 @@
       </div>
     </div>
     <div class="tbl-wrap glass"><div id="tbl-overdue"></div></div>
+  </div>
+
+  <!-- ══ ANALYTICS ══ -->
+  <div id="page-analytics" class="page">
+    <div class="an-header">
+      <div>
+        <h2 class="an-title">Analytics Studio</h2>
+        <p class="an-sub">Monthly trend and distribution analysis</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-out btn-sm" onclick="anExportPNG()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export PNG
+        </button>
+      </div>
+    </div>
+
+    <div class="an-layout">
+      <!-- 1. LEFT: Charts -->
+      <div class="an-charts-scroll">
+        <!-- Chart 1: Test Wise Sample Count -->
+        <div class="an-chart-card">
+          <div class="an-chart-header">
+            <div class="an-chart-info">
+              <span class="an-chart-title">Test-wise Sample Count</span>
+              <span class="an-chart-sub">Distribution of samples by test type</span>
+            </div>
+            <div class="an-chart-actions">
+              <span class="badge b-rel">Pie Chart</span>
+              <div id="an-total-1" class="an-total-box">Total: 0</div>
+            </div>
+          </div>
+          <div class="an-chart-body">
+            <canvas id="an-chart-1"></canvas>
+          </div>
+          <div id="an-legend-1" class="an-custom-legend"></div>
+        </div>
+        <!-- Chart 2: Client Wise Volume -->
+        <div class="an-chart-card">
+          <div class="an-chart-header">
+            <div class="an-chart-info">
+              <span class="an-chart-title">Client-wise Analysis</span>
+              <span class="an-chart-sub">Sample volume comparison by client</span>
+            </div>
+            <div class="an-chart-actions">
+              <span class="badge b-ong">Bar Chart</span>
+              <div id="an-total-2" class="an-total-box">Total: 0</div>
+            </div>
+          </div>
+          <div class="an-chart-body" style="min-height:350px">
+            <canvas id="an-chart-2"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. RIGHT: Sidebar Filters -->
+      <div class="an-sidebar">
+        <div class="an-sidebar-section">
+          <div class="an-section-title">Pie Chart Filters</div>
+          <div class="an-filter-group">
+            <label class="an-label">Year</label>
+            <select id="an-f1-year" class="sel" onchange="anDrawChart1()"><option value="All">All Years</option></select>
+          </div>
+          <div class="an-filter-group">
+            <label class="an-label">Month</label>
+            <select id="an-f1-month" class="sel" onchange="anDrawChart1()">
+              <option value="All">All Months</option>
+              <option>Jan</option><option>Feb</option><option>Mar</option><option>Apr</option>
+              <option>May</option><option>Jun</option><option>Jul</option><option>Aug</option>
+              <option>Sep</option><option>Oct</option><option>Nov</option><option>Dec</option>
+            </select>
+          </div>
+          <div class="an-filter-group">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <label class="an-label">Tests</label>
+              <div class="an-check-actions">
+                <button class="an-check-btn" onclick="anToggleAll('f1',true)">Select All</button>
+                <button class="an-check-btn" onclick="anToggleAll('f1',false)">Clear</button>
+              </div>
+            </div>
+            <div id="an-f1-test-list" class="an-check-list"></div>
+          </div>
+          <div class="an-filter-group">
+            <label class="an-label">Manual Search</label>
+            <div class="search" style="min-width:0;height:34px">
+              <input type="text" id="an-f1-search" placeholder="Type test name..." oninput="anDrawChart1()" />
+            </div>
+          </div>
+        </div>
+
+        <div class="an-sidebar-section">
+          <div class="an-section-title">Bar Chart Filters</div>
+          <div class="an-filter-group">
+            <label class="an-label">Year</label>
+            <select id="an-f2-year" class="sel" onchange="anDrawChart2()"><option value="All">All Years</option></select>
+          </div>
+          <div class="an-filter-group">
+            <label class="an-label">Month</label>
+            <select id="an-f2-month" class="sel" onchange="anDrawChart2()">
+              <option value="All">All Months</option>
+              <option>Jan</option><option>Feb</option><option>Mar</option><option>Apr</option>
+              <option>May</option><option>Jun</option><option>Jul</option><option>Aug</option>
+              <option>Sep</option><option>Oct</option><option>Nov</option><option>Dec</option>
+            </select>
+          </div>
+          <div class="an-filter-group">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <label class="an-label">Clients</label>
+              <div class="an-check-actions">
+                <button class="an-check-btn" onclick="anToggleAll('f2',true)">Select All</button>
+                <button class="an-check-btn" onclick="anToggleAll('f2',false)">Clear</button>
+              </div>
+            </div>
+            <div id="an-f2-client-list" class="an-check-list"></div>
+          </div>
+          <div class="an-filter-group">
+            <label class="an-label">Manual Search</label>
+            <div class="search" style="min-width:0;height:34px">
+              <input type="text" id="an-f2-search" placeholder="Type client name..." oninput="anDrawChart2()" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
 </main>
@@ -1382,7 +1777,7 @@ function dismissWelcome() { document.getElementById('welcome').classList.remove(
 // ================================================================
 //  TAB ROUTING
 // ================================================================
-const PAGE_MAP = { dashboard:'page-dashboard', yet:'page-yet', assigned:'page-assigned', released:'page-released', overdue:'page-overdue' };
+const PAGE_MAP = { dashboard:'page-dashboard', yet:'page-yet', assigned:'page-assigned', released:'page-released', overdue:'page-overdue', analytics:'page-analytics' };
 
 function switchTab(id, btn) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1390,6 +1785,11 @@ function switchTab(id, btn) {
   document.getElementById(PAGE_MAP[id]).classList.add('active');
   btn.classList.add('active');
   if (id==='overdue') renderOverdue();
+  else if (id==='analytics') {
+    anInitFilters();
+    anDrawChart1();
+    anDrawChart2();
+  }
   else if (id!=='dashboard') renderTable(id);
 }
 
@@ -2431,6 +2831,278 @@ function filterPriority(month) {
 // ================================================================
 //  BOOT — auto-fetch from Google Sheet
 // ================================================================
+// ================================================================
+//  ANALYTICS STUDIO
+// ================================================================
+let anChart1 = null;
+let anChart2 = null;
+
+const TEST_NORM_MAP = {
+  "whole exome sequencing": "WES",
+  "clinical exome sequencing": "CES",
+  "whole genome sequencing": "WGS",
+  "preimplantation genetic testing for aneuploidy": "PGT-A",
+  "pgta": "PGT-A"
+};
+
+function normalizeTest(name) {
+  if (!name) return "Unknown";
+  const lower = name.trim().toLowerCase();
+  for (const [key, val] of Object.entries(TEST_NORM_MAP)) {
+    if (lower === key) return val;
+  }
+  return name.trim();
+}
+
+const CHART_COLORS = [
+  '#4f46e5', // indigo
+  '#10b981', // emerald
+  '#f59e0b', // amber
+  '#ef4444', // red
+  '#8b5cf6', // violet
+  '#06b6d4', // cyan
+  '#ec4899', // pink
+  '#f97316', // orange
+  '#14b8a6', // teal
+  '#84cc16', // lime
+  '#3b82f6', // blue
+  '#d946ef', // fuchsia
+  '#fbbf24', // yellow
+  '#475569'  // slate
+];
+
+Chart.register(ChartDataLabels);
+
+function anToggleAll(chartPrefix, checked) {
+  const list = document.getElementById(`an-${chartPrefix}-${chartPrefix === 'f1' ? 'test' : 'client'}-list`);
+  if (!list) return;
+  list.querySelectorAll('input').forEach(i => i.checked = checked);
+  if (chartPrefix === 'f1') anDrawChart1(); else anDrawChart2();
+}
+
+function anInitFilters() {
+  const years = [...new Set(rows.map(r => {
+    const d = parseDate(r.tat) || parseDate(r.rel_date);
+    return d ? d.getFullYear() : null;
+  }).filter(Boolean))].sort((a, b) => b - a);
+
+  ['an-f1-year', 'an-f2-year'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel || sel.children.length > 1) return;
+    years.forEach(y => {
+      const opt = document.createElement('option');
+      opt.value = y; opt.textContent = y;
+      sel.appendChild(opt);
+    });
+    const currentYear = new Date().getFullYear();
+    if (years.includes(currentYear)) sel.value = currentYear;
+  });
+
+  const tList = document.getElementById('an-f1-test-list');
+  if (tList && tList.children.length === 0) {
+    const tests = [...new Set(rows.map(r => normalizeTest(r.test)).filter(Boolean))].sort();
+    tests.forEach(t => {
+      const label = document.createElement('label');
+      label.className = 'an-check-item';
+      label.innerHTML = `<input type="checkbox" value="${t}" checked onchange="anDrawChart1()"> <span>${t}</span>`;
+      tList.appendChild(label);
+    });
+  }
+
+  const cList = document.getElementById('an-f2-client-list');
+  if (cList && cList.children.length === 0) {
+    const clients = [...new Set(rows.map(r => r.client).filter(Boolean))].sort();
+    clients.forEach(c => {
+      const label = document.createElement('label');
+      label.className = 'an-check-item';
+      label.innerHTML = `<input type="checkbox" value="${c}" checked onchange="anDrawChart2()"> <span>${c}</span>`;
+      cList.appendChild(label);
+    });
+  }
+}
+
+function anDrawChart1() {
+  const year = document.getElementById('an-f1-year').value;
+  const month = document.getElementById('an-f1-month').value;
+  const search = document.getElementById('an-f1-search').value.toLowerCase();
+  const checkedTests = Array.from(document.querySelectorAll('#an-f1-test-list input:checked')).map(i => i.value);
+
+  const filtered = rows.filter(r => {
+    const d = parseDate(r.tat) || parseDate(r.rel_date);
+    if (!d) return false;
+    const yearMatch = year === 'All' || String(d.getFullYear()) === year;
+    const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
+    const normTest = normalizeTest(r.test);
+    const testMatch = checkedTests.includes(normTest);
+    const searchMatch = !search || (normTest.toLowerCase().includes(search));
+    return yearMatch && monthMatch && testMatch && searchMatch;
+  });
+
+  const testMap = {};
+  filtered.forEach(r => {
+    const t = normalizeTest(r.test);
+    testMap[t] = (testMap[t] || 0) + 1;
+  });
+
+  renderPieChart(testMap);
+}
+
+function renderPieChart(map) {
+  const ctx = document.getElementById('an-chart-1').getContext('2d');
+  const labels = Object.keys(map);
+  const values = Object.values(map);
+  const total = values.reduce((a, b) => a + b, 0);
+
+  document.getElementById('an-total-1').textContent = `Total: ${total}`;
+
+  if (anChart1) anChart1.destroy();
+  anChart1 = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: values,
+        backgroundColor: CHART_COLORS,
+        borderWidth: 2,
+        borderColor: '#ffffff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { padding: 12 },
+        datalabels: {
+          color: '#fff',
+          font: { weight: 'bold', size: 12 },
+          formatter: (value) => value > 0 ? value : '',
+          anchor: 'center',
+          align: 'center'
+        }
+      }
+    }
+  });
+
+  const legendContainer = document.getElementById('an-legend-1');
+  if (legendContainer) {
+    legendContainer.innerHTML = '';
+    labels.forEach((label, i) => {
+      const item = document.createElement('div');
+      item.className = 'an-leg-item';
+      item.innerHTML = `
+        <span class="an-leg-dot" style="background:${CHART_COLORS[i % CHART_COLORS.length]}"></span>
+        <span class="an-leg-text">${label}</span>
+      `;
+      item.onclick = () => {
+        const isHidden = anChart1.getDataVisibility(i);
+        anChart1.toggleDataVisibility(i);
+        item.classList.toggle('hidden', isHidden);
+        anChart1.update();
+      };
+      legendContainer.appendChild(item);
+    });
+  }
+}
+
+function anDrawChart2() {
+  const year = document.getElementById('an-f2-year').value;
+  const month = document.getElementById('an-f2-month').value;
+  const search = document.getElementById('an-f2-search').value.toLowerCase();
+  const checkedClients = Array.from(document.querySelectorAll('#an-f2-client-list input:checked')).map(i => i.value);
+
+  const filtered = rows.filter(r => {
+    const d = parseDate(r.tat) || parseDate(r.rel_date);
+    if (!d) return false;
+    const yearMatch = year === 'All' || String(d.getFullYear()) === year;
+    const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
+    const clientMatch = checkedClients.includes(r.client);
+    const searchMatch = !search || (r.client && r.client.toLowerCase().includes(search));
+    return yearMatch && monthMatch && clientMatch && searchMatch;
+  });
+
+  const clientMap = {};
+  filtered.forEach(r => {
+    const c = r.client || 'Unknown';
+    clientMap[c] = (clientMap[c] || 0) + 1;
+  });
+
+  renderBarChart(clientMap);
+}
+
+function renderBarChart(map) {
+  const container = document.getElementById('an-chart-2').parentElement;
+  const ctx = document.getElementById('an-chart-2').getContext('2d');
+  
+  let entries = Object.entries(map).sort((a, b) => b[1] - a[1]);
+  const totalInFilter = entries.reduce((sum, e) => sum + e[1], 0);
+  
+  const limit = 20;
+  if (entries.length > limit) entries = entries.slice(0, limit);
+  
+  const labels = entries.map(e => e[0].length > 25 ? e[0].substring(0, 22) + '...' : e[0]);
+  const values = entries.map(e => e[1]);
+
+  document.getElementById('an-total-2').textContent = `Total (Filtered): ${totalInFilter}`;
+
+  if (anChart2) anChart2.destroy();
+  anChart2 = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Sample Count',
+        data: values,
+        backgroundColor: 'rgba(79, 70, 229, 0.85)',
+        borderRadius: 6,
+        hoverBackgroundColor: '#4f46e5',
+        barThickness: 'flex',
+        maxBarThickness: 40
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'x',
+      layout: { padding: { bottom: 20 } },
+      scales: {
+        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+        x: { grid: { display: false }, ticks: { font: { size: 10, weight: '600' }, maxRotation: 45, minRotation: 45 } }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { padding: 10 },
+        datalabels: {
+          anchor: 'end',
+          align: 'top',
+          color: 'var(--pri)',
+          font: { weight: 'bold', size: 11 }
+        }
+      }
+    }
+  });
+}
+
+function anExportPNG() {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  const chart1 = document.getElementById('an-chart-1');
+  const chart2 = document.getElementById('an-chart-2');
+  
+  canvas.width = Math.max(chart1.width, chart2.width) + 40;
+  canvas.height = chart1.height + chart2.height + 100;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  ctx.drawImage(chart1, 20, 20);
+  ctx.drawImage(chart2, 20, chart1.height + 60);
+  
+  const link = document.createElement('a');
+  link.download = `Anderson_Lab_Analytics_${new Date().toISOString().split('T')[0]}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
 (async function boot() {
   // Show loading overlay while first fetch happens
   document.getElementById('welcome').classList.add('show');

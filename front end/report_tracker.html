@@ -618,13 +618,8 @@
     .an-header{display:flex;align-items:center;justify-content:space-between;padding:20px 0 10px}
     .an-title{font-size:18px;font-weight:800;background:linear-gradient(135deg,#4f46e5,#8b5cf6);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
     
-    .an-layout { display: grid; grid-template-columns: 1fr 280px; gap: 20px; align-items: start; }
-    
-    .an-charts-scroll { 
-      display: flex; flex-direction: column; gap: 20px; 
-      max-height: calc(100vh - 200px); overflow-y: auto; padding-right: 8px;
-      scrollbar-width: thin;
-    }
+    .an-layout { display: flex; flex-direction: column; gap: 24px; }
+    .an-charts-scroll { display: flex; flex-direction: column; gap: 24px; width: 100%; }
     
     .an-chart-card { 
       padding: 24px; min-height: 750px; display: flex; flex-direction: column; 
@@ -647,15 +642,24 @@
       color: var(--pri); font-weight: 700; font-size: 13px; border: 1px solid rgba(79,70,229,.2);
     }
     
-    .an-layout { display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start; }
-    .an-charts-scroll { display: flex; flex-direction: column; gap: 24px; width: 100%; }
-    
-    .an-sidebar {
-      position: sticky; top: 100px; padding: 24px;
-      background: var(--panel); border-radius: var(--r);
-      border: 1px solid var(--pb); display: flex; flex-direction: column; gap: 32px;
-      max-height: calc(100vh - 140px); overflow-y: auto;
+    /* per-chart filter panel */
+    .an-chart-content { display: flex; gap: 20px; align-items: flex-start; }
+    .an-chart-content > .an-chart-body { flex: 1; min-width: 0; }
+    .an-fp {
+      width: 280px; flex-shrink: 0; background: var(--panel); border-radius: 12px;
+      border: 1px solid var(--pb); padding: 16px; display: flex; flex-direction: column;
+      gap: 14px; max-height: 480px; overflow-y: auto; scrollbar-width: thin;
+      box-shadow: 0 4px 20px rgba(79,70,229,.10);
     }
+    .an-fp-head { display: flex; align-items: center; justify-content: space-between; }
+    .an-fp-close {
+      width: 24px; height: 24px; border-radius: 50%; background: rgba(239,68,68,.12);
+      color: #ef4444; border: none; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; font-size: 13px; font-weight: 700; transition: var(--tr);
+    }
+    .an-fp-close:hover { background: #ef4444; color: #fff; }
+    .an-filter-btn { display: flex; align-items: center; gap: 5px; font-size: 12px; }
+    .an-sidebar { display: none; }
     
     .an-sidebar-section { display: flex; flex-direction: column; gap: 16px; }
     .an-section-title { 
@@ -1181,9 +1185,8 @@
     </div>
 
     <div class="an-layout">
-      <!-- 1. LEFT: Charts -->
       <div class="an-charts-scroll">
-        
+
         <!-- Chart 0: Month-wise Released Samples by Reviewer -->
         <div class="an-chart-card">
           <div class="an-chart-header">
@@ -1192,15 +1195,41 @@
               <span class="an-chart-sub">Monthly released sample count per team member</span>
             </div>
             <div class="an-chart-actions">
+              <button class="btn btn-sm btn-out an-filter-btn" onclick="anToggleFilter(0)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg> Filters
+              </button>
               <span class="badge b-yet">Stacked Bar</span>
               <div id="an-total-0" class="an-total-box">Total: 0</div>
             </div>
           </div>
-          <div id="an-chart-body-0" class="an-chart-body" style="height:auto;min-height:300px;overflow:visible"></div>
+          <div class="an-chart-content">
+            <div id="an-chart-body-0" class="an-chart-body" style="height:auto;min-height:300px;overflow:visible;flex:1"></div>
+            <div id="an-fp-0" class="an-fp" style="display:none">
+              <div class="an-fp-head">
+                <span class="an-section-title" style="border:none;padding:0;margin:0">Chart Filters</span>
+                <button class="an-fp-close" onclick="anToggleFilter(0)">✕</button>
+              </div>
+              <div class="an-filter-row">
+                <div class="an-filter-group">
+                  <label class="an-filter-label">Year</label>
+                  <select id="an-f0-year" class="sel" onchange="anDrawChart0()"><option value="All">All</option></select>
+                </div>
+                <div class="an-filter-group">
+                  <label class="an-filter-label">Month</label>
+                  <select id="an-f0-month" class="sel" onchange="anDrawChart0()">
+                    <option value="All">All</option>
+                    <option>Jan</option><option>Feb</option><option>Mar</option><option>Apr</option>
+                    <option>May</option><option>Jun</option><option>Jul</option><option>Aug</option>
+                    <option>Sep</option><option>Oct</option><option>Nov</option><option>Dec</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
           <div id="an-legend-0" class="an-custom-legend"></div>
         </div>
 
-        <!-- Chart 1: Test Wise Sample Count -->
+        <!-- Chart 1: Test-wise Sample Count -->
         <div class="an-chart-card">
           <div class="an-chart-header">
             <div class="an-chart-info">
@@ -1208,17 +1237,55 @@
               <span class="an-chart-sub">Distribution of samples by test type</span>
             </div>
             <div class="an-chart-actions">
+              <button class="btn btn-sm btn-out an-filter-btn" onclick="anToggleFilter(1)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg> Filters
+              </button>
               <span class="badge b-rel">Pie Chart</span>
               <div id="an-total-1" class="an-total-box">Total: 0</div>
             </div>
           </div>
-          <div class="an-chart-body">
-            <canvas id="an-chart-1"></canvas>
+          <div class="an-chart-content">
+            <div class="an-chart-body" style="height:350px;min-height:350px;flex:1">
+              <canvas id="an-chart-1"></canvas>
+            </div>
+            <div id="an-fp-1" class="an-fp" style="display:none">
+              <div class="an-fp-head">
+                <span class="an-section-title" style="border:none;padding:0;margin:0">Chart Filters</span>
+                <button class="an-fp-close" onclick="anToggleFilter(1)">✕</button>
+              </div>
+              <div class="an-filter-row">
+                <div class="an-filter-group">
+                  <label class="an-filter-label">Year</label>
+                  <select id="an-f1-year" class="sel" onchange="anDrawChart1()"><option value="All">All</option></select>
+                </div>
+                <div class="an-filter-group">
+                  <label class="an-filter-label">Month</label>
+                  <select id="an-f1-month" class="sel" onchange="anDrawChart1()">
+                    <option value="All">All</option>
+                    <option>Jan</option><option>Feb</option><option>Mar</option><option>Apr</option>
+                    <option>May</option><option>Jun</option><option>Jul</option><option>Aug</option>
+                    <option>Sep</option><option>Oct</option><option>Nov</option><option>Dec</option>
+                  </select>
+                </div>
+              </div>
+              <div class="an-filter-group">
+                <label class="an-filter-label">Search &amp; Select Tests</label>
+                <div class="an-sidebar-search" style="margin-bottom:8px">
+                  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                  <input type="text" id="an-f1-search" placeholder="Filter test list..." oninput="anDrawChart1()">
+                </div>
+                <div style="display:flex;gap:8px;margin-bottom:8px">
+                  <button class="pm-fbtn" style="padding:2px 10px;font-size:10px" onclick="anToggleAll('f1',true)">Select All</button>
+                  <button class="pm-fbtn" style="padding:2px 10px;font-size:10px" onclick="anToggleAll('f1',false)">Clear All</button>
+                </div>
+                <div id="an-f1-test-list" class="an-check-list"></div>
+              </div>
+            </div>
           </div>
           <div id="an-legend-1" class="an-custom-legend"></div>
         </div>
 
-        <!-- Chart 2: Client Wise Volume -->
+        <!-- Chart 2: Client-wise Analysis -->
         <div class="an-chart-card">
           <div class="an-chart-header">
             <div class="an-chart-info">
@@ -1226,123 +1293,49 @@
               <span class="an-chart-sub">Sample volume comparison by client</span>
             </div>
             <div class="an-chart-actions">
+              <button class="btn btn-sm btn-out an-filter-btn" onclick="anToggleFilter(2)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg> Filters
+              </button>
               <span class="badge b-ong">Bar Chart</span>
               <div id="an-total-2" class="an-total-box">Total: 0</div>
             </div>
           </div>
-          <div class="an-chart-body" style="height:400px;min-height:350px">
-            <canvas id="an-chart-2"></canvas>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- 2. RIGHT: Sidebar Filters (Split) -->
-      <div class="an-sidebar">
-        
-        <!-- SECTION 0: CHART 0 FILTERS -->
-        <div class="an-sidebar-section">
-          <div class="an-section-title">Reviewer Chart Filters</div>
-          <div class="an-filter-row">
-            <div class="an-filter-group">
-              <label class="an-filter-label">Year</label>
-              <select id="an-f0-year" class="sel" onchange="anDrawChart0()"><option value="All">All</option></select>
+          <div class="an-chart-content">
+            <div class="an-chart-body" style="height:400px;min-height:350px;flex:1">
+              <canvas id="an-chart-2"></canvas>
             </div>
-            <div class="an-filter-group">
-              <label class="an-filter-label">Month</label>
-              <select id="an-f0-month" class="sel" onchange="anDrawChart0()">
-                <option value="All">All</option>
-                <option value="Jan">Jan</option><option value="Feb">Feb</option><option value="Mar">Mar</option>
-                <option value="Apr">Apr</option><option value="May">May</option><option value="Jun">Jun</option>
-                <option value="Jul">Jul</option><option value="Aug">Aug</option><option value="Sep">Sep</option>
-                <option value="Oct">Oct</option><option value="Nov">Nov</option><option value="Dec">Dec</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <!-- SECTION 1: CHART 1 FILTERS -->
-        <div class="an-sidebar-section">
-          <div class="an-section-title">Test-wise Filters</div>
-          
-          <div class="an-filter-row">
-            <div class="an-filter-group">
-              <label class="an-filter-label">Year</label>
-              <select id="an-f1-year" class="sel" onchange="anDrawChart1()">
-                <option value="All">All</option>
-              </select>
-            </div>
-            <div class="an-filter-group">
-              <label class="an-filter-label">Month</label>
-              <select id="an-f1-month" class="sel" onchange="anDrawChart1()">
-                <option value="All">All</option>
-                <option value="Jan">Jan</option><option value="Feb">Feb</option><option value="Mar">Mar</option>
-                <option value="Apr">Apr</option><option value="May">May</option><option value="Jun">Jun</option>
-                <option value="Jul">Jul</option><option value="Aug">Aug</option><option value="Sep">Sep</option>
-                <option value="Oct">Oct</option><option value="Nov">Nov</option><option value="Dec">Dec</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="an-filter-group">
-            <label class="an-filter-label">Select Tests</label>
-            <div style="display:flex; gap:8px; margin-bottom:8px">
-              <button class="pm-fbtn" style="padding:2px 8px; font-size:10px" onclick="anToggleAll('f1',true)">Select All</button>
-              <button class="pm-fbtn" style="padding:2px 8px; font-size:10px" onclick="anToggleAll('f1',false)">Clear All</button>
-            </div>
-            <div id="an-f1-test-list" class="an-check-list">
-              <!-- Dynamically populated -->
-            </div>
-          </div>
-
-          <div class="an-filter-group">
-            <label class="an-filter-label">Manual Search</label>
-            <div class="an-sidebar-search">
-              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-              <input type="text" id="an-f1-search" placeholder="Type to search..." oninput="anDrawChart1()">
-            </div>
-          </div>
-        </div>
-
-        <!-- SECTION 2: CHART 2 FILTERS -->
-        <div class="an-sidebar-section">
-          <div class="an-section-title">Client-wise Filters</div>
-          
-          <div class="an-filter-row">
-            <div class="an-filter-group">
-              <label class="an-filter-label">Year</label>
-              <select id="an-f2-year" class="sel" onchange="anDrawChart2()">
-                <option value="All">All</option>
-              </select>
-            </div>
-            <div class="an-filter-group">
-              <label class="an-filter-label">Month</label>
-              <select id="an-f2-month" class="sel" onchange="anDrawChart2()">
-                <option value="All">All</option>
-                <option value="Jan">Jan</option><option value="Feb">Feb</option><option value="Mar">Mar</option>
-                <option value="Apr">Apr</option><option value="May">May</option><option value="Jun">Jun</option>
-                <option value="Jul">Jul</option><option value="Aug">Aug</option><option value="Sep">Sep</option>
-                <option value="Oct">Oct</option><option value="Nov">Nov</option><option value="Dec">Dec</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="an-filter-group">
-            <label class="an-filter-label">Select Clients</label>
-            <div style="display:flex; gap:8px; margin-bottom:8px">
-              <button class="pm-fbtn" style="padding:2px 8px; font-size:10px" onclick="anToggleAll('f2',true)">Select All</button>
-              <button class="pm-fbtn" style="padding:2px 8px; font-size:10px" onclick="anToggleAll('f2',false)">Clear All</button>
-            </div>
-            <div id="an-f2-client-list" class="an-check-list">
-              <!-- Dynamically populated -->
-            </div>
-          </div>
-
-          <div class="an-filter-group">
-            <label class="an-filter-label">Manual Search</label>
-            <div class="an-sidebar-search">
-              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-              <input type="text" id="an-f2-search" placeholder="Type to search..." oninput="anDrawChart2()">
+            <div id="an-fp-2" class="an-fp" style="display:none">
+              <div class="an-fp-head">
+                <span class="an-section-title" style="border:none;padding:0;margin:0">Chart Filters</span>
+                <button class="an-fp-close" onclick="anToggleFilter(2)">✕</button>
+              </div>
+              <div class="an-filter-row">
+                <div class="an-filter-group">
+                  <label class="an-filter-label">Year</label>
+                  <select id="an-f2-year" class="sel" onchange="anDrawChart2()"><option value="All">All</option></select>
+                </div>
+                <div class="an-filter-group">
+                  <label class="an-filter-label">Month</label>
+                  <select id="an-f2-month" class="sel" onchange="anDrawChart2()">
+                    <option value="All">All</option>
+                    <option>Jan</option><option>Feb</option><option>Mar</option><option>Apr</option>
+                    <option>May</option><option>Jun</option><option>Jul</option><option>Aug</option>
+                    <option>Sep</option><option>Oct</option><option>Nov</option><option>Dec</option>
+                  </select>
+                </div>
+              </div>
+              <div class="an-filter-group">
+                <label class="an-filter-label">Search &amp; Select Clients</label>
+                <div class="an-sidebar-search" style="margin-bottom:8px">
+                  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                  <input type="text" id="an-f2-search" placeholder="Filter client list..." oninput="anDrawChart2()">
+                </div>
+                <div style="display:flex;gap:8px;margin-bottom:8px">
+                  <button class="pm-fbtn" style="padding:2px 10px;font-size:10px" onclick="anToggleAll('f2',true)">Select All</button>
+                  <button class="pm-fbtn" style="padding:2px 10px;font-size:10px" onclick="anToggleAll('f2',false)">Clear All</button>
+                </div>
+                <div id="an-f2-client-list" class="an-check-list"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -3154,6 +3147,19 @@ function anWaitAndDraw() {
   });
   ro.observe(target);
   setTimeout(() => { if (!done) { done = true; ro.disconnect(); anDrawAll(); } }, 400);
+}
+
+function anToggleFilter(n) {
+  const fp = document.getElementById('an-fp-' + n);
+  if (!fp) return;
+  const opening = fp.style.display === 'none';
+  fp.style.display = opening ? 'flex' : 'none';
+  if (opening) {
+    setTimeout(() => {
+      if (n === 1) anDrawChart1();
+      else if (n === 2) anDrawChart2();
+    }, 50);
+  }
 }
 
 function anDrawAll() {

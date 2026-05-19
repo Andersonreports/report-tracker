@@ -52,6 +52,16 @@
     .w-logo svg{width:50px;height:50px;stroke:var(--pri)}
     .glass{background:var(--panel);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--pb);box-shadow:var(--sh);border-radius:var(--r)}
 
+    /* ── Back button ── */
+    .back-to-home{
+      display:inline-flex;align-items:center;justify-content:center;
+      width:32px;height:32px;border-radius:50%;
+      background:rgba(79,70,229,.1);border:1.5px solid rgba(79,70,229,.2);
+      color:var(--pri);text-decoration:none;flex-shrink:0;
+      transition:all .2s ease;margin-right:10px;
+    }
+    .back-to-home:hover{background:var(--pri);color:#fff;border-color:var(--pri);transform:translateX(-2px);}
+
     /* ── HEADER ── */
     .hdr{
       display:flex;align-items:center;justify-content:space-between;
@@ -138,80 +148,6 @@
     .sc-ong{border-left-color:var(--ong)} .sc-ong .s-val{color:var(--ong)}
     .sc-cmp{border-left-color:var(--cmp)} .sc-cmp .s-val{color:var(--cmp)}
     .sc-rel{border-left-color:var(--rel)} .sc-rel .s-val{color:var(--rel)}
-
-    /* ── ANALYTICS ── */
-    .an-header { display: flex; align-items: flex-start; justify-content: space-between; padding-top: 24px; margin-bottom: 28px; }
-    .an-title { font-size: 22px; font-weight: 800; color: var(--text); letter-spacing: -0.5px; margin-bottom: 4px; }
-    .an-sub { font-size: 13px; color: var(--muted); font-weight: 500; }
-    .an-layout { display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start; }
-    .an-charts-scroll { display: flex; flex-direction: column; gap: 24px; width: 100%; }
-    .an-chart-card { 
-      padding: 24px; min-height: 550px; display: flex; flex-direction: column; 
-      background: #ffffff; border: 1px solid var(--pb); border-radius: var(--r);
-      box-shadow: var(--sh); overflow: hidden;
-    }
-    @media(prefers-color-scheme:dark){ .an-chart-card { background: var(--panel); } }
-    .an-chart-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; gap: 15px; }
-    .an-chart-info { display: flex; flex-direction: column; gap: 4px; }
-    .an-chart-title { font-size: 15px; font-weight: 700; color: var(--text); }
-    .an-chart-sub { font-size: 11px; color: var(--muted); font-weight: 500; }
-    .an-chart-body { flex: 1; position: relative; min-height: 300px; }
-    .an-chart-actions { display: flex; align-items: center; gap: 10px; }
-    .an-total-box { 
-      padding: 6px 14px; border-radius: 20px; background: rgba(79,70,229,.1); 
-      color: var(--pri); font-weight: 700; font-size: 13px; border: 1px solid rgba(79,70,229,.2);
-    }
-    .an-sidebar {
-      position: sticky; top: 100px; padding: 24px;
-      background: var(--panel); border-radius: var(--r);
-      border: 1px solid var(--pb); display: flex; flex-direction: column; gap: 32px;
-      max-height: calc(100vh - 140px); overflow-y: auto;
-    }
-    .an-sidebar-section { display: flex; flex-direction: column; gap: 16px; }
-    .an-section-title { 
-      font-size: 11px; font-weight: 800; text-transform: uppercase; 
-      letter-spacing: 0.8px; color: var(--muted); display: flex; align-items: center; gap: 8px;
-    }
-    .an-section-title::after { content: ''; flex: 1; height: 1px; background: var(--pb); }
-    .an-filter-group { display: flex; flex-direction: column; gap: 12px; }
-    .an-label { font-size: 12px; font-weight: 700; color: var(--text); }
-    .an-check-list-wrap { display: flex; flex-direction: column; gap: 8px; }
-    .an-check-actions { display: flex; gap: 8px; }
-    .an-check-btn { 
-      font-size: 10px; font-weight: 700; color: var(--pri); cursor: pointer; 
-      background: rgba(79,70,229,0.08); padding: 3px 8px; border-radius: 4px; border: none;
-    }
-    .an-check-list { 
-      max-height: 180px; overflow-y: auto; border: 1px solid var(--pb); 
-      border-radius: var(--rs); padding: 8px; display: flex; flex-direction: column; gap: 4px;
-      background: rgba(255,255,255,0.3);
-    }
-    .an-check-item { 
-      display: flex; align-items: center; gap: 8px; font-size: 12px; 
-      cursor: pointer; padding: 4px 6px; border-radius: 4px; transition: var(--tr);
-    }
-    .an-check-item:hover { background: rgba(0,0,0,0.03); }
-    .an-check-item input { cursor: pointer; width: 15px; height: 15px; accent-color: var(--pri); }
-    .an-custom-legend {
-      display: flex; flex-direction: column; gap: 4px;
-      max-height: 280px; min-height: 200px; overflow-y: auto; padding: 10px 0;
-      scrollbar-width: thin; margin-top: 10px;
-      border-top: 1px solid var(--pb);
-    }
-    .an-leg-item {
-      display: flex; align-items: center; gap: 10px; cursor: pointer;
-      font-size: 11px; font-weight: 600; color: var(--text);
-      transition: var(--tr); padding: 4px 8px; border-radius: 4px;
-      text-align: left;
-    }
-    .an-leg-item:hover { background: rgba(0,0,0,0.04); }
-    .an-leg-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-    .an-leg-text { flex: 1; }
-    .an-leg-item.hidden { text-decoration: line-through; opacity: 0.5; }
-    @media(max-width:1100px){ 
-      .an-layout { grid-template-columns: 1fr; }
-      .an-sidebar { position: static; order: -1; max-height: none; }
-    }
 
     /* ── PROGRESS ── */
     .prog-wrap{height:6px;background:var(--bdr);border-radius:3px;overflow:hidden;margin-top:7px}
@@ -361,13 +297,13 @@
 
     /* ── TAT ALERT BLOCKS ── */
     .tat-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:22px}
-    .tat-card{padding:20px 22px;border-radius:var(--r);border-left:4px solid transparent;transition:var(--tr)}
+    .tat-card{padding:20px 22px;border-radius:var(--r);border-left:4px solid transparent;transition:var(--tr);min-width:0;overflow:hidden}
     .tat-card:hover{transform:translateY(-2px);box-shadow:var(--sh-lg)}
     .tat-soon{border-left-color:#f59e0b;background:rgba(245,158,11,.07)}
     .tat-over{border-left-color:#ef4444;background:rgba(239,68,68,.07)}
-    .tat-card .tc-hdr{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-    .tat-card .tc-icon{font-size:22px}
-    .tat-card .tc-title{font-size:13px;font-weight:700;color:var(--text)}
+    .tat-card .tc-hdr{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:nowrap;overflow:hidden}
+    .tat-card .tc-icon{font-size:22px;flex-shrink:0}
+    .tat-card .tc-title{font-size:13px;font-weight:700;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .tat-card .tc-count{
       margin-left:auto;min-width:28px;height:28px;padding:0 8px;border-radius:14px;
       display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;
@@ -678,18 +614,296 @@
       .emp-grid{grid-template-columns:1fr}
       .tab{padding:6px 8px;font-size:10px}
     }
+    /* ── ANALYTICS TAB ── */
+    .an-header{display:flex;align-items:center;justify-content:space-between;padding:20px 0 10px}
+    .an-title{font-size:18px;font-weight:800;background:linear-gradient(135deg,#4f46e5,#8b5cf6);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+    
+    .an-layout { display: grid; grid-template-columns: 1fr 280px; gap: 20px; align-items: start; }
+    
+    .an-charts-scroll { 
+      display: flex; flex-direction: column; gap: 20px; 
+      max-height: calc(100vh - 200px); overflow-y: auto; padding-right: 8px;
+      scrollbar-width: thin;
+    }
+    
+    .an-chart-card { 
+      padding: 24px; min-height: 750px; display: flex; flex-direction: column; 
+      background: #ffffff; border: 1px solid var(--pb); border-radius: var(--r);
+      box-shadow: var(--sh); overflow: hidden;
+    }
+    @media(prefers-color-scheme:dark){ .an-chart-card { background: var(--panel); } }
+    
+    .an-chart-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; gap: 15px; }
+    .an-chart-info { display: flex; flex-direction: column; gap: 4px; }
+    .an-chart-title { font-size: 15px; font-weight: 700; color: var(--text); }
+    .an-chart-sub { font-size: 11px; color: var(--muted); font-weight: 500; }
+    
+    .an-chart-body { flex: 0 0 350px; position: relative; min-height: 350px; }
+    
+    .an-chart-actions { display: flex; align-items: center; gap: 10px; }
+    
+    .an-total-box { 
+      padding: 6px 14px; border-radius: 20px; background: rgba(79,70,229,.1); 
+      color: var(--pri); font-weight: 700; font-size: 13px; border: 1px solid rgba(79,70,229,.2);
+    }
+    
+    .an-layout { display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start; }
+    .an-charts-scroll { display: flex; flex-direction: column; gap: 24px; width: 100%; }
+    
+    .an-sidebar {
+      position: sticky; top: 100px; padding: 24px;
+      background: var(--panel); border-radius: var(--r);
+      border: 1px solid var(--pb); display: flex; flex-direction: column; gap: 32px;
+      max-height: calc(100vh - 140px); overflow-y: auto;
+    }
+    
+    .an-sidebar-section { display: flex; flex-direction: column; gap: 16px; }
+    .an-section-title { 
+      font-size: 11px; font-weight: 800; text-transform: uppercase; 
+      letter-spacing: 1px; color: var(--pri); border-bottom: 1px solid var(--pb); 
+      padding-bottom: 8px; margin-bottom: 4px;
+    }
+    
+    .an-filter-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .an-filter-group { display: flex; flex-direction: column; gap: 6px; }
+    .an-filter-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); }
+    
+    .an-sidebar-search {
+      display: flex; align-items: center; gap: 8px;
+      padding: 0 12px; height: 38px; border: 1.5px solid var(--bdr);
+      border-radius: 8px; background: var(--ib);
+    }
+    .an-sidebar-search input { border: none; background: transparent; outline: none; font-size: 13px; color: var(--text); width: 100%; }
+    .an-sidebar-search svg { color: var(--muted); }
+
+    .an-check-list {
+      display: flex; flex-direction: column; gap: 8px; 
+      max-height: 350px; overflow-y: auto; padding: 12px;
+      border: 1.5px solid var(--bdr); border-radius: 8px;
+      background: var(--ib);
+    }
+    .an-check-item {
+      display: flex; align-items: center; gap: 10px; cursor: pointer;
+      font-size: 12px; font-weight: 500; color: var(--text);
+      transition: var(--tr); padding: 4px 6px; border-radius: 4px;
+    }
+    .an-check-item:hover { background: rgba(79,70,229,0.06); }
+    .an-check-item input { 
+      cursor: pointer; width: 15px; height: 15px; 
+      accent-color: var(--pri); 
+    }
+
+    .an-custom-legend {
+      display: flex; flex-flow: row wrap; gap: 8px 20px;
+      margin-top: 12px; padding: 16px 0;
+      border-top: 1px solid var(--pb);
+    }
+    .an-leg-item {
+      display: flex; align-items: center; gap: 8px; cursor: pointer;
+      font-size: 11.5px; font-weight: 600; color: var(--text);
+      transition: var(--tr); padding: 4px 0;
+      text-align: left; min-width: 120px;
+    }
+    .an-leg-item:hover { background: rgba(0,0,0,0.04); }
+    .an-leg-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .an-leg-text { flex: 1; }
+    .an-leg-item.hidden { text-decoration: line-through; opacity: 0.5; }
+
+    @media(max-width:1100px){
+      .an-layout { grid-template-columns: 1fr; }
+      .an-sidebar { position: static; order: -1; max-height: none; }
+    }
+
+    /* ── Recent Releases Popover ── */
+    .recent-rel-panel {
+      display: none; position: absolute; top: calc(100% + 10px); right: 0;
+      width: 380px; background: #fff; border-radius: 14px;
+      border: 1px solid var(--pb);
+      box-shadow: 0 16px 48px rgba(79,70,229,.18), 0 2px 8px rgba(0,0,0,.08);
+      z-index: 600; overflow: hidden;
+      animation: rrpIn .18s cubic-bezier(.4,0,.2,1);
+    }
+    @media(prefers-color-scheme:dark){ .recent-rel-panel { background: #1a2235; } }
+    .recent-rel-panel.open { display: block; }
+    @keyframes rrpIn { from { opacity:0; transform:translateY(-8px) scale(.97); } to { opacity:1; transform:none; } }
+    .rrp-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px 10px; border-bottom: 1px solid var(--pb);
+    }
+    .rrp-title {
+      font-size: 13px; font-weight: 700; color: var(--text);
+      display: flex; align-items: center; gap: 7px;
+    }
+    .rrp-title svg { color: var(--rel); }
+    .rrp-list { padding: 8px 0; max-height: 420px; overflow-y: auto; }
+    .rrp-item {
+      display: flex; align-items: flex-start; gap: 11px;
+      padding: 10px 16px; cursor: pointer; transition: background .15s;
+      border-left: 3px solid transparent;
+    }
+    .rrp-item:hover { background: rgba(139,92,246,.06); border-left-color: var(--rel); }
+    .rrp-num {
+      width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; margin-top: 1px;
+      background: linear-gradient(135deg, rgba(139,92,246,.15), rgba(79,70,229,.1));
+      color: var(--rel); font-size: 10px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .rrp-body { flex: 1; min-width: 0; }
+    .rrp-name { font-size: 13px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+    .rrp-meta { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .rrp-date { font-size: 11px; font-weight: 600; color: var(--rel); white-space: nowrap; }
+    .rrp-empty { padding: 28px; text-align: center; color: var(--muted); font-size: 13px; }
+
+    /* ══ UI ENHANCEMENTS ══ */
+
+    /* Richer tri-color background */
+    body {
+      background: linear-gradient(135deg, #eef2ff 0%, #fdf4ff 45%, #ecfdf5 100%);
+      background-attachment: fixed;
+    }
+
+    /* Animated gradient title */
+    .hdr-title {
+      background: linear-gradient(90deg, #4f46e5, #8b5cf6, #06b6d4, #4f46e5);
+      background-size: 300% auto;
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: titleShimmer 5s linear infinite;
+      display: flex; align-items: center;
+    }
+    @keyframes titleShimmer { to { background-position: -300% center; } }
+
+    /* Gradient underline on header */
+    .hdr {
+      border-bottom: 2px solid transparent;
+      background: linear-gradient(rgba(255,255,255,.87), rgba(255,255,255,.87)) padding-box,
+                  linear-gradient(90deg, #4f46e5 0%, #8b5cf6 50%, #06b6d4 100%) border-box;
+    }
+    @media(prefers-color-scheme:dark) {
+      .hdr {
+        background: linear-gradient(rgba(13,17,23,.87), rgba(13,17,23,.87)) padding-box,
+                    linear-gradient(90deg, #4f46e5 0%, #8b5cf6 50%, #06b6d4 100%) border-box;
+      }
+    }
+
+    /* Card hover lift */
+    .glass { transition: box-shadow 0.22s ease, transform 0.22s ease; }
+    .glass:hover { box-shadow: 0 8px 36px rgba(79,70,229,.13), 0 2px 8px rgba(0,0,0,.05); transform: translateY(-1px); }
+
+    /* Analytics chart cards — colored left accent + hover */
+    .an-chart-card {
+      border-left: 4px solid transparent;
+      transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+    }
+    .an-chart-card:first-child { border-left-color: #6366f1; }
+    .an-chart-card:nth-child(2) { border-left-color: #8b5cf6; }
+    .an-chart-card:nth-child(3) { border-left-color: #06b6d4; }
+    .an-chart-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 40px rgba(79,70,229,.14), 0 2px 8px rgba(0,0,0,.06);
+    }
+
+    /* Sidebar section title — colored gradient */
+    .an-section-title {
+      background: linear-gradient(90deg, var(--pri), #8b5cf6);
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+      border-bottom-color: rgba(79,70,229,.2);
+    }
+
+    /* Total box — gradient background */
+    .an-total-box {
+      background: linear-gradient(135deg, rgba(79,70,229,.12), rgba(139,92,246,.1));
+      border-color: rgba(99,102,241,.25);
+    }
+
+    /* Active tab — vibrant gradient */
+    .tab.active {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
+      color: #fff !important;
+      box-shadow: 0 4px 18px rgba(79,70,229,.35) !important;
+      border-color: transparent !important;
+    }
+    .tab { transition: all 0.2s ease; }
+    .tab:hover:not(.active) { background: rgba(79,70,229,.08); color: var(--pri); }
+
+    /* Status tile hover */
+    .si-card { transition: transform 0.2s ease, box-shadow 0.2s ease; cursor: pointer; }
+    .si-card:hover { transform: translateY(-3px); box-shadow: 0 10px 32px rgba(0,0,0,.12); }
+
+    /* Badges — more vibrant */
+    .badge { font-weight: 700; letter-spacing: 0.3px; }
+    .b-yet { background: linear-gradient(135deg, rgba(99,102,241,.15), rgba(139,92,246,.1)); color: #4f46e5; border: 1px solid rgba(99,102,241,.3); }
+    .b-ong { background: linear-gradient(135deg, rgba(245,158,11,.15), rgba(251,191,36,.1)); color: #b45309; border: 1px solid rgba(245,158,11,.3); }
+    .b-cmp { background: linear-gradient(135deg, rgba(16,185,129,.15), rgba(52,211,153,.1)); color: #065f46; border: 1px solid rgba(16,185,129,.3); }
+    .b-rel { background: linear-gradient(135deg, rgba(139,92,246,.15), rgba(167,139,250,.1)); color: #6d28d9; border: 1px solid rgba(139,92,246,.3); }
+
+    /* Checklist items — accent on hover */
+    .an-check-item:hover { background: linear-gradient(90deg, rgba(79,70,229,.06), rgba(139,92,246,.04)); border-radius: 6px; }
+
+    /* Primary button — gradient */
+    .btn-pri {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
+      box-shadow: 0 3px 12px rgba(79,70,229,.3) !important;
+      border: none !important;
+    }
+    .btn-pri:hover { background: linear-gradient(135deg, #4338ca, #6d28d9) !important; box-shadow: 0 5px 20px rgba(79,70,229,.4) !important; }
+
+    /* Page header title gradient */
+    .an-title {
+      background: linear-gradient(135deg, #4f46e5, #8b5cf6, #06b6d4);
+      background-size: 200% auto;
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+      animation: titleShimmer 5s linear infinite;
+    }
+
+    /* Sidebar sticky panel — glass tint */
+    .an-sidebar {
+      background: rgba(255,255,255,0.82);
+      border: 1px solid rgba(139,92,246,.18);
+      box-shadow: 0 4px 24px rgba(79,70,229,.08);
+    }
+    @media(prefers-color-scheme:dark) { .an-sidebar { background: rgba(22,30,46,.82); } }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(99,102,241,.25); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,.45); }
+
   </style>
 </head>
 <body>
 
 <!-- ╔═ HEADER ═╗ -->
 <header class="hdr">
-  <span class="hdr-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:6px"><path d="M2 15c6.667-6 13.333 0 20-6"/><path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/><path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993"/><path d="M17 6l-2.5-2.5"/><path d="M14 8l-1-1"/><path d="M7 18l2.5 2.5"/><path d="M3.5 14.5l.5.5"/><path d="M20 9l.5.5"/><path d="M6.5 12.5l1 1"/><path d="M16.5 10.5l1 1"/><path d="M10 16l1.5 1.5"/></svg> Anderson Lab Report Tracker</span>
+  <div style="display:flex;align-items:center;gap:10px">
+    <a href="/?section=trackers&amp;team=bioinfo" onclick="event.preventDefault();history.back()" class="back-to-home" title="Back to Bioinfo Team">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </a>
+    <span class="hdr-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:6px"><path d="M2 15c6.667-6 13.333 0 20-6"/><path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/><path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993"/><path d="M17 6l-2.5-2.5"/><path d="M14 8l-1-1"/><path d="M7 18l2.5 2.5"/><path d="M3.5 14.5l.5.5"/><path d="M20 9l.5.5"/><path d="M6.5 12.5l1 1"/><path d="M16.5 10.5l1 1"/><path d="M10 16l1.5 1.5"/></svg> Anderson Lab Report Tracker</span>
+  </div>
   <div class="hdr-actions">
     <!-- Live-sync indicator -->
     <div class="live-pill" id="live-pill">
       <span class="live-dot"></span>
       <span id="live-label">Connecting…</span>
+    </div>
+    <!-- Recent Releases button + popover -->
+    <div style="position:relative">
+      <button class="btn btn-out btn-sm" id="recent-rel-btn" onclick="toggleRecentReleases()" style="gap:6px;height:36px;padding:0 14px;font-weight:600;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
+        Recent Releases
+      </button>
+      <div id="recent-rel-panel" class="recent-rel-panel">
+        <div class="rrp-header">
+          <span class="rrp-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
+            Top 7 Recent Releases
+          </span>
+          <button class="btn btn-sm btn-out" style="font-size:11px;padding:3px 10px" onclick="switchTab('released',document.getElementById('t-rel'));closeRecentReleases()">See all →</button>
+        </div>
+        <div id="rrp-list" class="rrp-list"></div>
+      </div>
     </div>
     <!-- Manual refresh -->
     <button class="btn btn-pri" id="refresh-btn" onclick="fetchGoogleSheet()">
@@ -715,7 +929,7 @@
   <button class="tab" onclick="switchTab('yet',this)" id="t-yet"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24z"/></svg> Yet to Start <span class="tbadge" id="b-yet">0</span></button>
   <button class="tab" onclick="switchTab('released',this)" id="t-rel"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg> Released <span class="tbadge" id="b-rel">0</span></button>
   <button class="tab" onclick="switchTab('overdue',this)" id="t-overdue"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Overdue <span class="tbadge" id="b-overdue" style="background:rgba(239,68,68,.18);color:#dc2626">0</span></button>
-  <button class="tab" onclick="switchTab('analytics',this)" id="t-an"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Analytics</button>
+  <button class="tab" onclick="switchTab('analytics',this)" id="t-analytics"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Analytics</button>
 </nav>
 
 <!-- ╔═ MAIN ═╗ -->
@@ -768,6 +982,10 @@
           <span class="tc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
           <span class="tc-title">TAT Overdue — Not Released</span>
           <span class="tc-count" id="tat-over-count">0</span>
+          <button class="btn btn-sm btn-out" onclick="downloadOverdueExcel()" style="margin-left:auto;border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.08);color:#059669;flex-shrink:0;padding:4px 8px" title="Download overdue list as Excel">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download
+          </button>
         </div>
         <div class="tat-list" id="tat-over-list"><div class="empty" style="padding:16px 0;font-size:13px">All good!</div></div>
       </div>
@@ -781,14 +999,6 @@
       <div class="emp-grid" id="q-active"></div>
     </div>
 
-    <!-- Recent releases -->
-    <div class="glass" style="padding:20px 22px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <span style="font-size:14px;font-weight:700"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg> Recent Releases</span>
-        <button class="btn btn-sm btn-out" onclick="switchTab('released',document.getElementById('t-rel'))">See all →</button>
-      </div>
-      <div class="qgrid" id="q-released"></div>
-    </div>
   </div>
 
   <!-- ══ YET TO START ══ -->
@@ -900,129 +1110,6 @@
     <div class="tbl-wrap glass"><div id="tbl-rel"></div></div>
   </div>
 
-  <!-- ══ ANALYTICS ══ -->
-  <div id="page-analytics" class="page">
-    <div class="an-header">
-      <div>
-        <h2 class="an-title">Analytics Studio</h2>
-        <p class="an-sub">Monthly trend and distribution analysis</p>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button class="btn btn-out btn-sm" onclick="anExportPNG()">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export PNG
-        </button>
-      </div>
-    </div>
-
-    <div class="an-layout">
-      <!-- 1. LEFT: Charts -->
-      <div class="an-charts-scroll">
-        <!-- Chart 1: Test Wise Sample Count -->
-        <div class="an-chart-card">
-          <div class="an-chart-header">
-            <div class="an-chart-info">
-              <span class="an-chart-title">Test-wise Sample Count</span>
-              <span class="an-chart-sub">Distribution of samples by test type</span>
-            </div>
-            <div class="an-chart-actions">
-              <span class="badge b-rel">Pie Chart</span>
-              <div id="an-total-1" class="an-total-box">Total: 0</div>
-            </div>
-          </div>
-          <div class="an-chart-body">
-            <canvas id="an-chart-1"></canvas>
-          </div>
-          <div id="an-legend-1" class="an-custom-legend"></div>
-        </div>
-        <!-- Chart 2: Client Wise Volume -->
-        <div class="an-chart-card">
-          <div class="an-chart-header">
-            <div class="an-chart-info">
-              <span class="an-chart-title">Client-wise Analysis</span>
-              <span class="an-chart-sub">Sample volume comparison by client</span>
-            </div>
-            <div class="an-chart-actions">
-              <span class="badge b-ong">Bar Chart</span>
-              <div id="an-total-2" class="an-total-box">Total: 0</div>
-            </div>
-          </div>
-          <div class="an-chart-body" style="min-height:350px">
-            <canvas id="an-chart-2"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- 2. RIGHT: Sidebar Filters -->
-      <div class="an-sidebar">
-        <div class="an-sidebar-section">
-          <div class="an-section-title">Pie Chart Filters</div>
-          <div class="an-filter-group">
-            <label class="an-label">Year</label>
-            <select id="an-f1-year" class="sel" onchange="anDrawChart1()"><option value="All">All Years</option></select>
-          </div>
-          <div class="an-filter-group">
-            <label class="an-label">Month</label>
-            <select id="an-f1-month" class="sel" onchange="anDrawChart1()">
-              <option value="All">All Months</option>
-              <option>Jan</option><option>Feb</option><option>Mar</option><option>Apr</option>
-              <option>May</option><option>Jun</option><option>Jul</option><option>Aug</option>
-              <option>Sep</option><option>Oct</option><option>Nov</option><option>Dec</option>
-            </select>
-          </div>
-          <div class="an-filter-group">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <label class="an-label">Tests</label>
-              <div class="an-check-actions">
-                <button class="an-check-btn" onclick="anToggleAll('f1',true)">Select All</button>
-                <button class="an-check-btn" onclick="anToggleAll('f1',false)">Clear</button>
-              </div>
-            </div>
-            <div id="an-f1-test-list" class="an-check-list"></div>
-          </div>
-          <div class="an-filter-group">
-            <label class="an-label">Manual Search</label>
-            <div class="search" style="min-width:0;height:34px">
-              <input type="text" id="an-f1-search" placeholder="Type test name..." oninput="anDrawChart1()" />
-            </div>
-          </div>
-        </div>
-
-        <div class="an-sidebar-section">
-          <div class="an-section-title">Bar Chart Filters</div>
-          <div class="an-filter-group">
-            <label class="an-label">Year</label>
-            <select id="an-f2-year" class="sel" onchange="anDrawChart2()"><option value="All">All Years</option></select>
-          </div>
-          <div class="an-filter-group">
-            <label class="an-label">Month</label>
-            <select id="an-f2-month" class="sel" onchange="anDrawChart2()">
-              <option value="All">All Months</option>
-              <option>Jan</option><option>Feb</option><option>Mar</option><option>Apr</option>
-              <option>May</option><option>Jun</option><option>Jul</option><option>Aug</option>
-              <option>Sep</option><option>Oct</option><option>Nov</option><option>Dec</option>
-            </select>
-          </div>
-          <div class="an-filter-group">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <label class="an-label">Clients</label>
-              <div class="an-check-actions">
-                <button class="an-check-btn" onclick="anToggleAll('f2',true)">Select All</button>
-                <button class="an-check-btn" onclick="anToggleAll('f2',false)">Clear</button>
-              </div>
-            </div>
-            <div id="an-f2-client-list" class="an-check-list"></div>
-          </div>
-          <div class="an-filter-group">
-            <label class="an-label">Manual Search</label>
-            <div class="search" style="min-width:0;height:34px">
-              <input type="text" id="an-f2-search" placeholder="Type client name..." oninput="anDrawChart2()" />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- ══ TAT OVERDUE (all) ══ -->
   <div id="page-overdue" class="page">
     <!-- Smart search bar + count + download -->
@@ -1067,12 +1154,203 @@
           <label>No of days</label>
           <input type="number" class="sel" id="f-overdue-days" min="1" placeholder="Days…" oninput="renderOverdue()" />
         </div>
+        <div class="rel-panel-item">
+          <label>Reviewer</label>
+          <select class="sel" id="f-overdue-reviewer" onchange="renderOverdue()"><option value="">All Reviewers</option></select>
+        </div>
       </div>
       <div class="rel-panel-actions">
         <button class="rel-clear-btn" onclick="clearOverdueFilters()">Clear All Filters</button>
       </div>
     </div>
     <div class="tbl-wrap glass"><div id="tbl-overdue"></div></div>
+  </div>
+
+  <!-- ══ ANALYTICS ══ -->
+  <div id="page-analytics" class="page">
+    <div class="an-header">
+      <div>
+        <h2 class="an-title">Analytics Studio</h2>
+        <p class="an-sub">Monthly trend and distribution analysis</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-out btn-sm" onclick="anExportPNG()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export PNG
+        </button>
+      </div>
+    </div>
+
+    <div class="an-layout">
+      <!-- 1. LEFT: Charts -->
+      <div class="an-charts-scroll">
+        
+        <!-- Chart 0: Month-wise Released Samples by Reviewer -->
+        <div class="an-chart-card">
+          <div class="an-chart-header">
+            <div class="an-chart-info">
+              <span class="an-chart-title">Month-wise Released Samples by Reviewer</span>
+              <span class="an-chart-sub">Monthly released sample count per team member</span>
+            </div>
+            <div class="an-chart-actions">
+              <span class="badge b-yet">Stacked Bar</span>
+              <div id="an-total-0" class="an-total-box">Total: 0</div>
+            </div>
+          </div>
+          <div class="an-chart-body" style="min-height:420px">
+            <canvas id="an-chart-0"></canvas>
+          </div>
+          <div id="an-legend-0" class="an-custom-legend"></div>
+        </div>
+
+        <!-- Chart 1: Test Wise Sample Count -->
+        <div class="an-chart-card">
+          <div class="an-chart-header">
+            <div class="an-chart-info">
+              <span class="an-chart-title">Test-wise Sample Count</span>
+              <span class="an-chart-sub">Distribution of samples by test type</span>
+            </div>
+            <div class="an-chart-actions">
+              <span class="badge b-rel">Pie Chart</span>
+              <div id="an-total-1" class="an-total-box">Total: 0</div>
+            </div>
+          </div>
+          <div class="an-chart-body">
+            <canvas id="an-chart-1"></canvas>
+          </div>
+          <div id="an-legend-1" class="an-custom-legend"></div>
+        </div>
+
+        <!-- Chart 2: Client Wise Volume -->
+        <div class="an-chart-card">
+          <div class="an-chart-header">
+            <div class="an-chart-info">
+              <span class="an-chart-title">Client-wise Analysis</span>
+              <span class="an-chart-sub">Sample volume comparison by client</span>
+            </div>
+            <div class="an-chart-actions">
+              <span class="badge b-ong">Bar Chart</span>
+              <div id="an-total-2" class="an-total-box">Total: 0</div>
+            </div>
+          </div>
+          <div class="an-chart-body" style="min-height:350px">
+            <canvas id="an-chart-2"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 2. RIGHT: Sidebar Filters (Split) -->
+      <div class="an-sidebar">
+        
+        <!-- SECTION 0: CHART 0 FILTERS -->
+        <div class="an-sidebar-section">
+          <div class="an-section-title">Reviewer Chart Filters</div>
+          <div class="an-filter-row">
+            <div class="an-filter-group">
+              <label class="an-filter-label">Year</label>
+              <select id="an-f0-year" class="sel" onchange="anDrawChart0()"><option value="All">All</option></select>
+            </div>
+            <div class="an-filter-group">
+              <label class="an-filter-label">Month</label>
+              <select id="an-f0-month" class="sel" onchange="anDrawChart0()">
+                <option value="All">All</option>
+                <option value="Jan">Jan</option><option value="Feb">Feb</option><option value="Mar">Mar</option>
+                <option value="Apr">Apr</option><option value="May">May</option><option value="Jun">Jun</option>
+                <option value="Jul">Jul</option><option value="Aug">Aug</option><option value="Sep">Sep</option>
+                <option value="Oct">Oct</option><option value="Nov">Nov</option><option value="Dec">Dec</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION 1: CHART 1 FILTERS -->
+        <div class="an-sidebar-section">
+          <div class="an-section-title">Test-wise Filters</div>
+          
+          <div class="an-filter-row">
+            <div class="an-filter-group">
+              <label class="an-filter-label">Year</label>
+              <select id="an-f1-year" class="sel" onchange="anDrawChart1()">
+                <option value="All">All</option>
+              </select>
+            </div>
+            <div class="an-filter-group">
+              <label class="an-filter-label">Month</label>
+              <select id="an-f1-month" class="sel" onchange="anDrawChart1()">
+                <option value="All">All</option>
+                <option value="Jan">Jan</option><option value="Feb">Feb</option><option value="Mar">Mar</option>
+                <option value="Apr">Apr</option><option value="May">May</option><option value="Jun">Jun</option>
+                <option value="Jul">Jul</option><option value="Aug">Aug</option><option value="Sep">Sep</option>
+                <option value="Oct">Oct</option><option value="Nov">Nov</option><option value="Dec">Dec</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="an-filter-group">
+            <label class="an-filter-label">Select Tests</label>
+            <div style="display:flex; gap:8px; margin-bottom:8px">
+              <button class="pm-fbtn" style="padding:2px 8px; font-size:10px" onclick="anToggleAll('f1',true)">Select All</button>
+              <button class="pm-fbtn" style="padding:2px 8px; font-size:10px" onclick="anToggleAll('f1',false)">Clear All</button>
+            </div>
+            <div id="an-f1-test-list" class="an-check-list">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <div class="an-filter-group">
+            <label class="an-filter-label">Manual Search</label>
+            <div class="an-sidebar-search">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              <input type="text" id="an-f1-search" placeholder="Type to search..." oninput="anDrawChart1()">
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION 2: CHART 2 FILTERS -->
+        <div class="an-sidebar-section">
+          <div class="an-section-title">Client-wise Filters</div>
+          
+          <div class="an-filter-row">
+            <div class="an-filter-group">
+              <label class="an-filter-label">Year</label>
+              <select id="an-f2-year" class="sel" onchange="anDrawChart2()">
+                <option value="All">All</option>
+              </select>
+            </div>
+            <div class="an-filter-group">
+              <label class="an-filter-label">Month</label>
+              <select id="an-f2-month" class="sel" onchange="anDrawChart2()">
+                <option value="All">All</option>
+                <option value="Jan">Jan</option><option value="Feb">Feb</option><option value="Mar">Mar</option>
+                <option value="Apr">Apr</option><option value="May">May</option><option value="Jun">Jun</option>
+                <option value="Jul">Jul</option><option value="Aug">Aug</option><option value="Sep">Sep</option>
+                <option value="Oct">Oct</option><option value="Nov">Nov</option><option value="Dec">Dec</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="an-filter-group">
+            <label class="an-filter-label">Select Clients</label>
+            <div style="display:flex; gap:8px; margin-bottom:8px">
+              <button class="pm-fbtn" style="padding:2px 8px; font-size:10px" onclick="anToggleAll('f2',true)">Select All</button>
+              <button class="pm-fbtn" style="padding:2px 8px; font-size:10px" onclick="anToggleAll('f2',false)">Clear All</button>
+            </div>
+            <div id="an-f2-client-list" class="an-check-list">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <div class="an-filter-group">
+            <label class="an-filter-label">Manual Search</label>
+            <div class="an-sidebar-search">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              <input type="text" id="an-f2-search" placeholder="Type to search..." oninput="anDrawChart2()">
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
   </div>
 
 
@@ -1591,11 +1869,7 @@ function switchTab(id, btn) {
   document.getElementById(PAGE_MAP[id]).classList.add('active');
   btn.classList.add('active');
   if (id==='overdue') renderOverdue();
-  else if (id==='analytics') {
-    anInitFilters();
-    anDrawChart1();
-    anDrawChart2();
-  }
+  else if (id==='analytics') { anInitFilters(); anDrawAll(); }
   else if (id!=='dashboard') renderTable(id);
 }
 
@@ -1663,7 +1937,6 @@ function refreshAll() {
     empNames.length ? empNames.slice(0,3).join(', ') + (empNames.length>3?` +${empNames.length-3} more`:'') : 'Assigned to reviewers';
 
   renderTeamWorkload('q-active', ong);
-  renderQuickCards('q-released', rel.slice(-6).reverse(), 'Released');
   renderTatAlerts();
   updateRelCount();
   updateYetCount();
@@ -2359,18 +2632,20 @@ function getOverdueRows() {
 }
 
 function getFilteredOverdue() {
-  const q       = (document.getElementById('q-overdue')?.value||'').toLowerCase();
-  const test    = document.getElementById('f-overdue-test')?.value||'';
-  const clientF = document.getElementById('f-overdue-client')?.value||'';
-  const status  = document.getElementById('f-overdue-status')?.value||'';
-  const numDays = parseInt(document.getElementById('f-overdue-days')?.value||'0',10)||0;
+  const q        = (document.getElementById('q-overdue')?.value||'').toLowerCase();
+  const test     = document.getElementById('f-overdue-test')?.value||'';
+  const clientF  = document.getElementById('f-overdue-client')?.value||'';
+  const status   = document.getElementById('f-overdue-status')?.value||'';
+  const numDays  = parseInt(document.getElementById('f-overdue-days')?.value||'0',10)||0;
+  const reviewer = document.getElementById('f-overdue-reviewer')?.value||'';
 
   let data = getOverdueRows();
-  if (test)    data = data.filter(r=>r.test===test);
-  if (clientF) data = data.filter(r=>r.client===clientF);
-  if (status)  data = data.filter(r=>getStatus(r)===status);
-  if (numDays) data = data.filter(r=>r._overdue_days===numDays);
-  if (q)       data = data.filter(r=>
+  if (test)     data = data.filter(r=>r.test===test);
+  if (clientF)  data = data.filter(r=>r.client===clientF);
+  if (status)   data = data.filter(r=>getStatus(r)===status);
+  if (numDays)  data = data.filter(r=>r._overdue_days===numDays);
+  if (reviewer) data = data.filter(r=>r.pri_rev===reviewer);
+  if (q)        data = data.filter(r=>
     (r.name||'').toLowerCase().includes(q)||(r.test||'').toLowerCase().includes(q)||
     (r.gen_id||'').toLowerCase().includes(q)||(r.and_id||'').toLowerCase().includes(q)||
     (r.client||'').toLowerCase().includes(q)||(r.pri_rev||'').toLowerCase().includes(q)
@@ -2384,9 +2659,19 @@ function renderOverdue() {
   // Update count
   document.getElementById('overdue-count-num').textContent = data.length;
 
+  // Populate reviewer dropdown (preserve selection)
+  const revSel = document.getElementById('f-overdue-reviewer');
+  if (revSel) {
+    const curRev = revSel.value;
+    const revVals = [...new Set(getOverdueRows().map(r=>r.pri_rev).filter(Boolean))].sort();
+    revSel.innerHTML = '<option value="">All Reviewers</option>';
+    revVals.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; revSel.appendChild(o); });
+    if (revVals.includes(curRev)) revSel.value=curRev;
+  }
+
   // Update active filter badge count
   let active = 0;
-  ['f-overdue-test','f-overdue-client','f-overdue-status'].forEach(id => {
+  ['f-overdue-test','f-overdue-client','f-overdue-status','f-overdue-reviewer'].forEach(id => {
     if (document.getElementById(id)?.value) active++;
   });
   if (document.getElementById('f-overdue-days')?.value) active++;
@@ -2427,7 +2712,7 @@ function toggleOverdueFilters() {
 }
 
 function clearOverdueFilters() {
-  ['f-overdue-test','f-overdue-client','f-overdue-status'].forEach(id => {
+  ['f-overdue-test','f-overdue-client','f-overdue-status','f-overdue-reviewer'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   const daysEl = document.getElementById('f-overdue-days'); if (daysEl) daysEl.value = '';
@@ -2436,34 +2721,52 @@ function clearOverdueFilters() {
 }
 
 function downloadOverdueExcel() {
-  const data = getFilteredOverdue();
-  if (!data.length) { toast('No overdue data to export','error'); return; }
+  try {
+    if (typeof XLSX === 'undefined') { toast('SheetJS not loaded — refresh the page', 'err'); return; }
 
-  const headers = ['Sample Name','Test','Gen ID','Anderson ID','Client','TAT','Status','Days Overdue','Reviewer'];
-  const wsData = [headers];
-  data.forEach(r => {
-    wsData.push([
-      r.name||'', r.test||'', r.gen_id||'', r.and_id||'', r.client||'',
-      fmtDate(r.tat)==='—'?'':fmtDate(r.tat), getStatus(r), r._overdue_days, r.pri_rev||''
-    ]);
-  });
+    const data = getFilteredOverdue();
+    if (!data.length) { toast('No overdue samples to export', 'warn'); return; }
 
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const headers = ['Sample Name','Test','Gen ID','Anderson ID','Client','TAT','Status','Days Overdue','Reviewer'];
+    const wsData = [headers];
+    data.forEach(r => {
+      wsData.push([
+        r.name||'', r.test||'', r.gen_id||'', r.and_id||'', r.client||'',
+        fmtDate(r.tat)==='—'?'':fmtDate(r.tat), getStatus(r), r._overdue_days, r.pri_rev||''
+      ]);
+    });
 
-  // Auto-fit column widths
-  ws['!cols'] = headers.map((h,i) => {
-    let max = h.length;
-    wsData.forEach(row => { if (row[i] && String(row[i]).length > max) max = String(row[i]).length; });
-    return { wch: Math.min(max + 2, 40) };
-  });
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = headers.map((h,i) => {
+      let max = h.length;
+      wsData.forEach(row => { if (row[i] && String(row[i]).length > max) max = String(row[i]).length; });
+      return { wch: Math.min(max + 2, 40) };
+    });
+    XLSX.utils.book_append_sheet(wb, ws, 'TAT Overdue');
 
-  XLSX.utils.book_append_sheet(wb, ws, 'TAT Overdue');
+    const today    = new Date();
+    const reviewer = document.getElementById('f-overdue-reviewer')?.value || '';
+    const namePart = reviewer ? `_${reviewer.replace(/\s+/g,'_')}` : '';
+    const fname    = `TAT_Overdue${namePart}_${today.getDate().toString().padStart(2,'0')}-${(today.getMonth()+1).toString().padStart(2,'0')}-${today.getFullYear()}.xlsx`;
 
-  const today = new Date();
-  const fname = `TAT_Overdue_${today.getDate().toString().padStart(2,'0')}-${(today.getMonth()+1).toString().padStart(2,'0')}-${today.getFullYear()}.xlsx`;
-  XLSX.writeFile(wb, fname);
-  toast('Excel downloaded: ' + fname, 'ok');
+    // binary string → ArrayBuffer → Blob → anchor download
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
+    const buf = new ArrayBuffer(wbout.length);
+    const view = new Uint8Array(buf);
+    for (let i = 0; i < wbout.length; i++) view[i] = wbout.charCodeAt(i) & 0xFF;
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = fname; a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+    toast('Excel downloaded: ' + fname, 'ok');
+  } catch(e) {
+    toast('Download failed: ' + e.message, 'err');
+    console.error('[downloadOverdueExcel]', e);
+  }
 }
 
 // ================================================================
@@ -2471,6 +2774,72 @@ function downloadOverdueExcel() {
 // ================================================================
 // ── Date formatter → DD-MM-YYYY ──
 // Just normalizes separators (/ → -) and expands YY → YYYY. No reinterpretation.
+// ── Recent Releases Popover ──────────────────────────────────────────────────
+function toggleRecentReleases() {
+  const panel = document.getElementById('recent-rel-panel');
+  if (panel.classList.contains('open')) {
+    panel.classList.remove('open');
+  } else {
+    buildRecentReleasesPanel();
+    panel.classList.add('open');
+  }
+}
+
+function closeRecentReleases() {
+  document.getElementById('recent-rel-panel').classList.remove('open');
+}
+
+function buildRecentReleasesPanel() {
+  const list = document.getElementById('rrp-list');
+  const released = rows.filter(r => getStatus(r) === 'Released');
+
+  // Sort by effective date (skips future rel_dates caused by 2-digit year typos)
+  released.sort((a, b) => {
+    const da = _relOrTat(a);
+    const db = _relOrTat(b);
+    if (!da && !db) return 0;
+    if (!da) return 1;
+    if (!db) return -1;
+    return db - da;
+  });
+
+  const top7 = released.slice(0, 7);
+  if (!top7.length) {
+    list.innerHTML = `<div class="rrp-empty">No released reports yet.</div>`;
+    return;
+  }
+
+  list.innerHTML = top7.map((r, i) => {
+    const relD  = _relOrTat(r);
+    const dateStr = relD
+      ? relD.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
+      : '—';
+    const reviewer = r.pri_rev || r.analyst || '—';
+    return `<div class="rrp-item" onclick="closeRecentReleases()">
+      <div class="rrp-num">${i + 1}</div>
+      <div class="rrp-body">
+        <div class="rrp-name">${esc(r.name || r.gen_id || '—')}</div>
+        <div class="rrp-meta">
+          <span>${esc(r.test || '—')}</span>
+          <span>·</span>
+          <span>${esc(r.gen_id || '—')}</span>
+          ${reviewer !== '—' ? `<span>·</span><span>${esc(reviewer)}</span>` : ''}
+        </div>
+      </div>
+      <div class="rrp-date">${dateStr}</div>
+    </div>`;
+  }).join('');
+}
+
+// Close panel when clicking outside
+document.addEventListener('click', e => {
+  const panel = document.getElementById('recent-rel-panel');
+  const btn   = document.getElementById('recent-rel-btn');
+  if (panel && btn && !panel.contains(e.target) && !btn.contains(e.target)) {
+    panel.classList.remove('open');
+  }
+});
+
 function fmtDate(v) {
   if (!v) return '—';
   const s = String(v).trim();
@@ -2632,52 +3001,99 @@ function filterPriority(month) {
 }
 
 
-// (Auth/idle-logout removed for static GitHub Pages deployment)
 
-// ================================================================
-//  BOOT — auto-fetch from Google Sheet
-// ================================================================
 // ================================================================
 //  ANALYTICS STUDIO
 // ================================================================
+let anChart0 = null;
 let anChart1 = null;
 let anChart2 = null;
 
-const TEST_NORM_MAP = {
-  "whole exome sequencing": "WES",
-  "clinical exome sequencing": "CES",
-  "whole genome sequencing": "WGS",
-  "preimplantation genetic testing for aneuploidy": "PGT-A",
-  "pgta": "PGT-A"
-};
+const TEAM_MEMBERS = [
+  { key: 'naveen',   label: 'Naveen',    color: '#4f46e5' },
+  { key: 'vignesh',  label: 'Vignesh',   color: '#10b981' },
+  { key: 'vikram',   label: 'Vikram',    color: '#f59e0b' },
+  { key: 'sudha',    label: 'Dr. Sudha', color: '#ef4444' },
+  { key: 'diwakar',  label: 'Diwakar',   color: '#06b6d4' },
+];
+const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
 
 function normalizeTest(name) {
-  if (!name) return "Unknown";
-  const lower = name.trim().toLowerCase();
-  for (const [key, val] of Object.entries(TEST_NORM_MAP)) {
-    if (lower === key) return val;
+  if (!name) return null;
+  const n = name.trim();
+  const lower = n.toLowerCase();
+
+  // 1. Exclude Noise (System labels, person names, empty/unknown, gen_ patterns)
+  const noise = ['unknown', 'not billed', 'genolab', 'surfseq', 'run-', 'lane-', 's.no', 'sample_name', 'test', 'gen_id'];
+  if (noise.some(word => lower.includes(word))) return null;
+  if (lower.startsWith('gen_') || lower.startsWith('gen.')) return null;
+  
+  // Person name prefixes often found in "TEST" column due to shift/parsing errors
+  const personPrefixes = ['mr.', 'mrs.', 'ms.', 'master.', 'miss.', 'baby.'];
+  if (personPrefixes.some(p => lower.startsWith(p))) return null;
+
+  // 2. Grouping Logic (Higher priority first)
+  
+  // WES + Mito (Separate category)
+  if (lower.includes('mito')) {
+    if (lower.includes('wes') || lower.includes('exome')) return "WES + Mito";
+    return n; 
   }
-  return name.trim();
+
+  // WES Grouping (Includes variations of Whole Exome / WES)
+  if (lower.includes('whole exome') || lower.includes('wes')) {
+    return "WES";
+  }
+
+  // CES Grouping
+  if (lower.includes('clinical exome') || lower.includes('ces')) {
+    return "CES";
+  }
+
+  // WGS Grouping
+  if (lower.includes('whole genome') || lower.includes('wgs')) {
+    return "WGS";
+  }
+
+  // PGT-A Grouping
+  if (lower.includes('pgta') || lower.includes('pgt-a') || lower.includes('preimplantation')) {
+    return "PGT-A";
+  }
+
+  // 3. Special Case: Infertility Panels
+  if (lower.includes('female infertility')) return "Female Infertility NGS panel";
+  if (lower.includes('male infertility')) return "Male Infertility NGS panel";
+
+  return n;
 }
 
-const CHART_COLORS = [
-  '#4f46e5', // indigo
-  '#10b981', // emerald
-  '#f59e0b', // amber
-  '#ef4444', // red
-  '#8b5cf6', // violet
-  '#06b6d4', // cyan
-  '#ec4899', // pink
-  '#f97316', // orange
-  '#14b8a6', // teal
-  '#84cc16', // lime
-  '#3b82f6', // blue
-  '#d946ef', // fuchsia
-  '#fbbf24', // yellow
-  '#475569'  // slate
-];
+function normalizeClient(name) {
+  if (!name) return null;
+  const n = name.trim();
+  const lower = n.toLowerCase();
 
-Chart.register(ChartDataLabels);
+  // 1. Exclude Noise
+  const noise = ['unknown', 'not billed', 'genolab', 'surfseq', 'run-', 'lane-', 's.no', 'sample_name', 'test', 'gen_id'];
+  if (noise.some(word => lower.includes(word))) return null;
+  if (lower.startsWith('gen_') || lower.startsWith('gen.')) return null;
+
+  // 2. Common Groupings & Shortening
+  if (lower.includes('chief minister') || lower.includes('cmchis')) return "CMCHIS";
+  if (lower.includes('a4 fertility')) return "A4 Fertility Centre";
+  if (lower.includes('aikya fertility')) return "Aikya Fertility";
+  if (lower.includes('hegde healthcare')) return "Hegde Healthcare";
+  if (lower.includes('christian medical college') || lower.includes('cmc vellore')) return "CMC Vellore";
+  if (lower.includes('meitra hospital')) return "Meitra Hospital";
+  if (lower.includes('ankura hospital') || lower.includes('9m fertility')) return "Ankura / 9M Fertility";
+  if (lower.includes('sudha rathna prabhu')) return "Dr. Sudha Rathna Prabhu";
+  if (lower.includes('lakshminarasimhan')) return "Dr. Lakshminarasimhan";
+  if (lower.includes('doppler scan')) return "Doppler Scan Madurai";
+  if (lower.includes('akshara fertility')) return "Akshara Fertility";
+  if (lower.includes('guru scan')) return "Guru Scan Centre";
+
+  return n;
+}
 
 function anToggleAll(chartPrefix, checked) {
   const list = document.getElementById(`an-${chartPrefix}-${chartPrefix === 'f1' ? 'test' : 'client'}-list`);
@@ -2687,12 +3103,13 @@ function anToggleAll(chartPrefix, checked) {
 }
 
 function anInitFilters() {
+  // 1. Years
   const years = [...new Set(rows.map(r => {
     const d = parseDate(r.tat) || parseDate(r.rel_date);
     return d ? d.getFullYear() : null;
   }).filter(Boolean))].sort((a, b) => b - a);
 
-  ['an-f1-year', 'an-f2-year'].forEach(id => {
+  ['an-f0-year', 'an-f1-year', 'an-f2-year'].forEach(id => {
     const sel = document.getElementById(id);
     if (!sel || sel.children.length > 1) return;
     years.forEach(y => {
@@ -2704,6 +3121,7 @@ function anInitFilters() {
     if (years.includes(currentYear)) sel.value = currentYear;
   });
 
+  // 2. Tests Multi-select (Chart 1)
   const tList = document.getElementById('an-f1-test-list');
   if (tList && tList.children.length === 0) {
     const tests = [...new Set(rows.map(r => normalizeTest(r.test)).filter(Boolean))].sort();
@@ -2715,9 +3133,10 @@ function anInitFilters() {
     });
   }
 
+  // 3. Clients Multi-select (Chart 2)
   const cList = document.getElementById('an-f2-client-list');
   if (cList && cList.children.length === 0) {
-    const clients = [...new Set(rows.map(r => r.client).filter(Boolean))].sort();
+    const clients = [...new Set(rows.map(r => normalizeClient(r.client)).filter(Boolean))].sort();
     clients.forEach(c => {
       const label = document.createElement('label');
       label.className = 'an-check-item';
@@ -2727,10 +3146,18 @@ function anInitFilters() {
   }
 }
 
+function anDrawAll() {
+  anDrawChart0();
+  anDrawChart1();
+  anDrawChart2();
+}
+
 function anDrawChart1() {
   const year = document.getElementById('an-f1-year').value;
   const month = document.getElementById('an-f1-month').value;
   const search = document.getElementById('an-f1-search').value.toLowerCase();
+  
+  // Get all checked tests
   const checkedTests = Array.from(document.querySelectorAll('#an-f1-test-list input:checked')).map(i => i.value);
 
   const filtered = rows.filter(r => {
@@ -2738,7 +3165,10 @@ function anDrawChart1() {
     if (!d) return false;
     const yearMatch = year === 'All' || String(d.getFullYear()) === year;
     const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
+    
     const normTest = normalizeTest(r.test);
+    if (!normTest) return false; // Filter out noise
+    
     const testMatch = checkedTests.includes(normTest);
     const searchMatch = !search || (normTest.toLowerCase().includes(search));
     return yearMatch && monthMatch && testMatch && searchMatch;
@@ -2752,6 +3182,164 @@ function anDrawChart1() {
 
   renderPieChart(testMap);
 }
+
+function anDrawChart2() {
+  const year = document.getElementById('an-f2-year').value;
+  const month = document.getElementById('an-f2-month').value;
+  const search = document.getElementById('an-f2-search').value.toLowerCase();
+  
+  // Get all checked clients
+  const checkedClients = Array.from(document.querySelectorAll('#an-f2-client-list input:checked')).map(i => i.value);
+
+  const filtered = rows.filter(r => {
+    const d = parseDate(r.tat) || parseDate(r.rel_date);
+    if (!d) return false;
+    const yearMatch = year === 'All' || String(d.getFullYear()) === year;
+    const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
+    
+    const normClient = normalizeClient(r.client);
+    if (!normClient) return false; // Filter out noise
+    
+    const clientMatch = checkedClients.includes(normClient);
+    const searchMatch = !search || (normClient.toLowerCase().includes(search));
+    return yearMatch && monthMatch && clientMatch && searchMatch;
+  });
+
+  const clientMap = {};
+  filtered.forEach(r => {
+    const c = normalizeClient(r.client) || 'Unknown';
+    clientMap[c] = (clientMap[c] || 0) + 1;
+  });
+
+  renderBarChart(clientMap);
+}
+
+// Returns a valid (non-future) release date, falling back to TAT.
+// Fixes 2-digit year typos in rel_date (e.g. "17/07/27" → 2027 instead of 2026).
+function _relOrTat(r) {
+  const today = new Date();
+  const rd = parseDate(r.rel_date);
+  if (rd && rd <= today) return rd;
+  return parseDate(r.tat);
+}
+
+function anDrawChart0() {
+  const year  = document.getElementById('an-f0-year').value;
+  const month = document.getElementById('an-f0-month').value;
+
+  const filtered = rows.filter(r => {
+    if (getStatus(r) !== 'Released') return false;
+    const d = _relOrTat(r);
+    if (!d) return false;
+    const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
+    const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
+    return yearMatch && monthMatch;
+  });
+
+  const labels = month === 'All' ? MONTH_LABELS : [month];
+
+  const teamData = {};
+  TEAM_MEMBERS.forEach(t => { teamData[t.key] = {}; });
+
+  filtered.forEach(r => {
+    const rv = String(r.pri_rev || '').toLowerCase().trim();
+    const d  = _relOrTat(r);
+    if (!d) return;
+    const m = d.toLocaleString('default', { month: 'short' });
+    TEAM_MEMBERS.forEach(t => {
+      if (rv.includes(t.key)) {
+        teamData[t.key][m] = (teamData[t.key][m] || 0) + 1;
+      }
+    });
+  });
+
+  const datasets = TEAM_MEMBERS.map(t => ({
+    label: t.label,
+    data: labels.map(m => teamData[t.key][m] || 0),
+    backgroundColor: t.color + 'cc',
+    borderColor: t.color,
+    borderWidth: 1,
+    borderRadius: 4,
+    hoverBackgroundColor: t.color,
+  }));
+
+  const total = filtered.length;
+  const totalEl = document.getElementById('an-total-0');
+  if (totalEl) totalEl.textContent = `Total: ${total}`;
+
+  const ctx = document.getElementById('an-chart-0').getContext('2d');
+  if (anChart0) {
+    anChart0.data.labels   = labels;
+    anChart0.data.datasets = datasets;
+    anChart0.update();
+  } else {
+    anChart0 = new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            padding: 12,
+            bodyFont: { size: 13 },
+            titleFont: { size: 13, weight: '600' },
+            callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.x}` }
+          },
+          datalabels: {
+            display: ctx => ctx.parsed.x > 0,
+            anchor: 'center',
+            align: 'center',
+            font: { size: 10, weight: 'bold' },
+            color: '#fff',
+            formatter: v => v > 0 ? v : ''
+          }
+        },
+        scales: {
+          x: { stacked: true, beginAtZero: true, ticks: { precision: 0, font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.06)' } },
+          y: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 } } }
+        }
+      },
+      plugins: [ChartDataLabels]
+    });
+  }
+
+  const legendEl = document.getElementById('an-legend-0');
+  if (legendEl) {
+    legendEl.innerHTML = TEAM_MEMBERS.map(t => {
+      const cnt = Object.values(teamData[t.key]).reduce((a, b) => a + b, 0);
+      return `<div class="an-leg-item">
+        <span class="an-leg-dot" style="background:${t.color}"></span>
+        <span class="an-leg-text">${t.label}</span>
+        <span style="margin-left:auto;font-size:11px;font-weight:700;color:${t.color}">${cnt}</span>
+      </div>`;
+    }).join('');
+  }
+}
+
+// High-contrast, distinct color palette
+const CHART_COLORS = [
+  '#4f46e5', // indigo
+  '#10b981', // green
+  '#f59e0b', // amber
+  '#ef4444', // red
+  '#06b6d4', // cyan
+  '#ec4899', // pink
+  '#f97316', // orange
+  '#8b5cf6', // purple
+  '#14b8a6', // teal
+  '#84cc16', // lime
+  '#3b82f6', // blue
+  '#d946ef', // fuchsia
+  '#fbbf24', // yellow
+  '#475569'  // slate
+];
+
+// Register ChartDataLabels plugin
+Chart.register(ChartDataLabels);
 
 function renderPieChart(map) {
   const ctx = document.getElementById('an-chart-1').getContext('2d');
@@ -2778,7 +3366,12 @@ function renderPieChart(map) {
       maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: { padding: 12 },
+        tooltip: { 
+          backgroundColor: 'rgba(0,0,0,0.8)',
+          padding: 12,
+          bodyFont: { size: 13 },
+          titleFont: { size: 13, weight: '700' }
+        },
         datalabels: {
           color: '#fff',
           font: { weight: 'bold', size: 12 },
@@ -2790,6 +3383,7 @@ function renderPieChart(map) {
     }
   });
 
+  // Generate Custom Legend
   const legendContainer = document.getElementById('an-legend-1');
   if (legendContainer) {
     legendContainer.innerHTML = '';
@@ -2811,45 +3405,25 @@ function renderPieChart(map) {
   }
 }
 
-function anDrawChart2() {
-  const year = document.getElementById('an-f2-year').value;
-  const month = document.getElementById('an-f2-month').value;
-  const search = document.getElementById('an-f2-search').value.toLowerCase();
-  const checkedClients = Array.from(document.querySelectorAll('#an-f2-client-list input:checked')).map(i => i.value);
-
-  const filtered = rows.filter(r => {
-    const d = parseDate(r.tat) || parseDate(r.rel_date);
-    if (!d) return false;
-    const yearMatch = year === 'All' || String(d.getFullYear()) === year;
-    const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
-    const clientMatch = checkedClients.includes(r.client);
-    const searchMatch = !search || (r.client && r.client.toLowerCase().includes(search));
-    return yearMatch && monthMatch && clientMatch && searchMatch;
-  });
-
-  const clientMap = {};
-  filtered.forEach(r => {
-    const c = r.client || 'Unknown';
-    clientMap[c] = (clientMap[c] || 0) + 1;
-  });
-
-  renderBarChart(clientMap);
-}
-
 function renderBarChart(map) {
   const container = document.getElementById('an-chart-2').parentElement;
   const ctx = document.getElementById('an-chart-2').getContext('2d');
   
+  // 1. Sort and Limit to Top 20 for vertical presentation (better space usage)
   let entries = Object.entries(map).sort((a, b) => b[1] - a[1]);
   const totalInFilter = entries.reduce((sum, e) => sum + e[1], 0);
   
   const limit = 20;
-  if (entries.length > limit) entries = entries.slice(0, limit);
+  const isLimited = entries.length > limit;
+  if (isLimited) entries = entries.slice(0, limit);
   
   const labels = entries.map(e => e[0].length > 25 ? e[0].substring(0, 22) + '...' : e[0]);
   const values = entries.map(e => e[1]);
 
   document.getElementById('an-total-2').textContent = `Total (Filtered): ${totalInFilter}`;
+
+  // Reset container height for vertical chart
+  container.style.height = `400px`;
 
   if (anChart2) anChart2.destroy();
   anChart2 = new Chart(ctx, {
@@ -2869,11 +3443,24 @@ function renderBarChart(map) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      indexAxis: 'x',
-      layout: { padding: { bottom: 20 } },
+      indexAxis: 'x', // Changed to vertical
+      layout: {
+        padding: { bottom: 20 }
+      },
       scales: {
-        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
-        x: { grid: { display: false }, ticks: { font: { size: 10, weight: '600' }, maxRotation: 45, minRotation: 45 } }
+        y: { 
+          beginAtZero: true, 
+          grid: { color: 'rgba(0,0,0,0.05)' },
+          ticks: { font: { size: 11 } }
+        },
+        x: { 
+          grid: { display: false }, 
+          ticks: { 
+            font: { size: 10, weight: '600' },
+            maxRotation: 45,
+            minRotation: 45
+          } 
+        }
       },
       plugins: {
         legend: { display: false },
@@ -2882,7 +3469,15 @@ function renderBarChart(map) {
           anchor: 'end',
           align: 'top',
           color: 'var(--pri)',
-          font: { weight: 'bold', size: 11 }
+          font: { weight: 'bold', size: 11 },
+          formatter: (value) => value
+        },
+        title: {
+          display: isLimited,
+          text: `Showing top ${limit} clients`,
+          font: { size: 11, weight: 'normal' },
+          color: '#64748b',
+          padding: { bottom: 10 }
         }
       }
     }
@@ -2890,25 +3485,17 @@ function renderBarChart(map) {
 }
 
 function anExportPNG() {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  const chart1 = document.getElementById('an-chart-1');
-  const chart2 = document.getElementById('an-chart-2');
-  
-  canvas.width = Math.max(chart1.width, chart2.width) + 40;
-  canvas.height = chart1.height + chart2.height + 100;
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  
-  ctx.drawImage(chart1, 20, 20);
-  ctx.drawImage(chart2, 20, chart1.height + 60);
-  
-  const link = document.createElement('a');
-  link.download = `Anderson_Lab_Analytics_${new Date().toISOString().split('T')[0]}.png`;
-  link.href = canvas.toDataURL('image/png');
-  link.click();
+  const container = document.querySelector('.an-charts-scroll');
+  if (!container) return;
+  toast('Right-click on charts to save as image', 'info');
 }
 
+
+// (Auth/idle-logout removed for static GitHub Pages deployment)
+
+// ================================================================
+//  BOOT — auto-fetch from Google Sheet
+// ================================================================
 (async function boot() {
   // Show loading overlay while first fetch happens
   document.getElementById('welcome').classList.add('show');

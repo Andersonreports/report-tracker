@@ -622,7 +622,7 @@
     .an-charts-scroll { display: flex; flex-direction: column; gap: 24px; width: 100%; }
     
     .an-chart-card { 
-      padding: 24px; min-height: 750px; display: flex; flex-direction: column; 
+      padding: 24px; display: flex; flex-direction: column; 
       background: #ffffff; border: 1px solid var(--pb); border-radius: var(--r);
       box-shadow: var(--sh); overflow: hidden;
     }
@@ -3274,36 +3274,34 @@ function anDrawChart0() {
   if (!chartBody) return;
 
   const donuts = TEAM_MEMBERS.map(t => {
-    const cnt   = teamCount[t.key] || 0;
-    const pct   = total > 0 ? cnt / total : 0;
+    const cnt    = teamCount[t.key] || 0;
+    const pct    = total > 0 ? cnt / total : 0;
     const pctTxt = total > 0 ? Math.round(pct * 100) + '%' : '0%';
-    const dash  = C;
     const offset = C * (1 - pct);
     return `
-    <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
-      <div style="position:relative;width:140px;height:140px">
-        <svg viewBox="0 0 100 100" width="140" height="140">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:14px;flex:1;min-width:150px">
+      <div style="position:relative;width:220px;height:220px">
+        <svg viewBox="0 0 100 100" width="220" height="220">
           <circle cx="50" cy="50" r="${R}" fill="none" stroke="#e2e8f0" stroke-width="${SW}"/>
           <circle cx="50" cy="50" r="${R}" fill="none" stroke="${t.color}" stroke-width="${SW}"
-            stroke-dasharray="${dash.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}"
-            stroke-linecap="round"
-            transform="rotate(-90 50 50)"
+            stroke-dasharray="${C.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}"
+            stroke-linecap="round" transform="rotate(-90 50 50)"
             style="transition:stroke-dashoffset .6s ease"/>
         </svg>
         <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
-          <div style="font-size:22px;font-weight:900;color:#1e293b;line-height:1.1">${cnt}</div>
-          <div style="font-size:12px;font-weight:700;color:#94a3b8;margin-top:2px">${pctTxt}</div>
+          <div style="font-size:30px;font-weight:900;color:#1e293b;line-height:1.1">${cnt}</div>
+          <div style="font-size:13px;font-weight:700;color:#94a3b8;margin-top:3px">${pctTxt}</div>
         </div>
       </div>
       <div style="text-align:center">
-        <div style="font-size:12px;font-weight:800;color:${t.color};text-transform:uppercase;letter-spacing:0.8px">${t.label}</div>
-        <div style="font-size:11px;color:#94a3b8;margin-top:4px">${cnt} sample${cnt !== 1 ? 's' : ''} released</div>
+        <div style="font-size:13px;font-weight:800;color:${t.color};text-transform:uppercase;letter-spacing:1px">${t.label}</div>
+        <div style="font-size:12px;color:#94a3b8;margin-top:5px">${cnt} sample${cnt !== 1 ? 's' : ''} released</div>
       </div>
     </div>`;
   }).join('');
 
   chartBody.innerHTML = `
-    <div style="display:flex;flex-wrap:wrap;gap:28px;justify-content:center;align-items:flex-start;padding:20px 8px">
+    <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:space-evenly;align-items:flex-start;padding:24px 16px">
       ${donuts}
     </div>`;
 

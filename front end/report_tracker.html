@@ -638,8 +638,7 @@
     .an-chart-title { font-size: 15px; font-weight: 700; color: var(--text); }
     .an-chart-sub { font-size: 11px; color: var(--muted); font-weight: 500; }
     
-    .an-chart-body { height: 350px; min-height: 350px; position: relative; flex-shrink: 0; }
-    .an-chart-body canvas { display: block; width: 100% !important; height: 100% !important; }
+    .an-chart-body { height: 350px; min-height: 350px; position: relative; overflow: hidden; }
     
     .an-chart-actions { display: flex; align-items: center; gap: 10px; }
     
@@ -1870,7 +1869,7 @@ function switchTab(id, btn) {
   document.getElementById(PAGE_MAP[id]).classList.add('active');
   btn.classList.add('active');
   if (id==='overdue') renderOverdue();
-  else if (id==='analytics') { anInitFilters(); setTimeout(() => { anDrawAll(); window.dispatchEvent(new Event('resize')); }, 50); }
+  else if (id==='analytics') { anInitFilters(); anWaitAndDraw(); }
   else if (id!=='dashboard') renderTable(id);
 }
 
@@ -3147,6 +3146,22 @@ function anInitFilters() {
   }
 }
 
+function anWaitAndDraw() {
+  const target = document.getElementById('an-chart-0').parentElement;
+  if (target.offsetWidth > 0 && target.offsetHeight > 0) {
+    anDrawAll();
+    return;
+  }
+  let done = false;
+  const ro = new ResizeObserver(() => {
+    if (target.offsetWidth > 0 && target.offsetHeight > 0 && !done) {
+      done = true; ro.disconnect(); anDrawAll();
+    }
+  });
+  ro.observe(target);
+  setTimeout(() => { if (!done) { done = true; ro.disconnect(); anDrawAll(); } }, 400);
+}
+
 function anDrawAll() {
   anDrawChart0();
   anDrawChart1();
@@ -3268,43 +3283,47 @@ function anDrawChart0() {
   const totalEl = document.getElementById('an-total-0');
   if (totalEl) totalEl.textContent = `Total: ${total}`;
 
-  const ctx = document.getElementById('an-chart-0').getContext('2d');
   if (anChart0) { anChart0.destroy(); anChart0 = null; }
-  {
-    anChart0 = new Chart(ctx, {
-      type: 'bar',
-      data: { labels, datasets },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: 'rgba(0,0,0,0.8)',
-            padding: 12,
-            bodyFont: { size: 13 },
-            titleFont: { size: 13, weight: '600' },
-            callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.x}` }
-          },
-          datalabels: {
-            display: ctx => ctx.parsed.x > 0,
-            anchor: 'center',
-            align: 'center',
-            font: { size: 10, weight: 'bold' },
-            color: '#fff',
-            formatter: v => v > 0 ? v : ''
-          }
+  const canvas0 = document.getElementById('an-chart-0');
+  const body0   = canvas0.parentElement;
+  const w0 = body0.offsetWidth  || 700;
+  const h0 = body0.offsetHeight || 420;
+  canvas0.width  = w0;
+  canvas0.height = h0;
+  const ctx = canvas0.getContext('2d');
+  anChart0 = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(0,0,0,0.8)',
+          padding: 12,
+          bodyFont: { size: 13 },
+          titleFont: { size: 13, weight: '600' },
+          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.x}` }
         },
-        scales: {
-          x: { stacked: true, beginAtZero: true, ticks: { precision: 0, font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.06)' } },
-          y: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 } } }
+        datalabels: {
+          display: ctx => ctx.parsed.x > 0,
+          anchor: 'center',
+          align: 'center',
+          font: { size: 10, weight: 'bold' },
+          color: '#fff',
+          formatter: v => v > 0 ? v : ''
         }
       },
-      plugins: [ChartDataLabels]
-    });
-    anChart0.resize();
-  }
+      scales: {
+        x: { stacked: true, beginAtZero: true, ticks: { precision: 0, font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.06)' } },
+        y: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 } } }
+      }
+    },
+    plugins: [ChartDataLabels]
+  });
+  anChart0.resize(w0, h0);
 
   const legendEl = document.getElementById('an-legend-0');
   if (legendEl) {
@@ -3341,14 +3360,18 @@ const CHART_COLORS = [
 Chart.register(ChartDataLabels);
 
 function renderPieChart(map) {
-  const ctx = document.getElementById('an-chart-1').getContext('2d');
   const labels = Object.keys(map);
   const values = Object.values(map);
   const total = values.reduce((a, b) => a + b, 0);
 
   document.getElementById('an-total-1').textContent = `Total: ${total}`;
 
-  if (anChart1) anChart1.destroy();
+  if (anChart1) { anChart1.destroy(); anChart1 = null; }
+  const canvas1 = document.getElementById('an-chart-1');
+  const body1   = canvas1.parentElement;
+  canvas1.width  = body1.offsetWidth  || 600;
+  canvas1.height = body1.offsetHeight || 350;
+  const ctx = canvas1.getContext('2d');
   anChart1 = new Chart(ctx, {
     type: 'pie',
     data: {
@@ -3381,7 +3404,7 @@ function renderPieChart(map) {
       }
     }
   });
-  anChart1.resize();
+  anChart1.resize(body1.offsetWidth || 600, body1.offsetHeight || 350);
 
   // Generate Custom Legend
   const legendContainer = document.getElementById('an-legend-1');
@@ -3406,26 +3429,28 @@ function renderPieChart(map) {
 }
 
 function renderBarChart(map) {
-  const container = document.getElementById('an-chart-2').parentElement;
-  const ctx = document.getElementById('an-chart-2').getContext('2d');
-  
+  const canvas2 = document.getElementById('an-chart-2');
+  const container = canvas2.parentElement;
+
   // 1. Sort and Limit to Top 20 for vertical presentation (better space usage)
   let entries = Object.entries(map).sort((a, b) => b[1] - a[1]);
   const totalInFilter = entries.reduce((sum, e) => sum + e[1], 0);
-  
+
   const limit = 20;
   const isLimited = entries.length > limit;
   if (isLimited) entries = entries.slice(0, limit);
-  
+
   const labels = entries.map(e => e[0].length > 25 ? e[0].substring(0, 22) + '...' : e[0]);
   const values = entries.map(e => e[1]);
 
   document.getElementById('an-total-2').textContent = `Total (Filtered): ${totalInFilter}`;
 
-  // Reset container height for vertical chart
   container.style.height = `400px`;
 
-  if (anChart2) anChart2.destroy();
+  if (anChart2) { anChart2.destroy(); anChart2 = null; }
+  canvas2.width  = container.offsetWidth  || 700;
+  canvas2.height = container.offsetHeight || 400;
+  const ctx = canvas2.getContext('2d');
   anChart2 = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -3482,7 +3507,7 @@ function renderBarChart(map) {
       }
     }
   });
-  anChart2.resize();
+  anChart2.resize(container.offsetWidth || 700, container.offsetHeight || 400);
 }
 
 function anExportPNG() {

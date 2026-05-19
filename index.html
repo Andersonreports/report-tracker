@@ -1869,7 +1869,7 @@ function switchTab(id, btn) {
   document.getElementById(PAGE_MAP[id]).classList.add('active');
   btn.classList.add('active');
   if (id==='overdue') renderOverdue();
-  else if (id==='analytics') { anInitFilters(); anDrawAll(); }
+  else if (id==='analytics') { anInitFilters(); requestAnimationFrame(() => requestAnimationFrame(anDrawAll)); }
   else if (id!=='dashboard') renderTable(id);
 }
 
@@ -3268,11 +3268,8 @@ function anDrawChart0() {
   if (totalEl) totalEl.textContent = `Total: ${total}`;
 
   const ctx = document.getElementById('an-chart-0').getContext('2d');
-  if (anChart0) {
-    anChart0.data.labels   = labels;
-    anChart0.data.datasets = datasets;
-    anChart0.update();
-  } else {
+  if (anChart0) { anChart0.destroy(); anChart0 = null; }
+  {
     anChart0 = new Chart(ctx, {
       type: 'bar',
       data: { labels, datasets },

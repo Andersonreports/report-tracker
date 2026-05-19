@@ -709,10 +709,126 @@
     .an-leg-text { flex: 1; }
     .an-leg-item.hidden { text-decoration: line-through; opacity: 0.5; }
 
-    @media(max-width:1100px){ 
+    @media(max-width:1100px){
       .an-layout { grid-template-columns: 1fr; }
       .an-sidebar { position: static; order: -1; max-height: none; }
     }
+
+    /* ══ UI ENHANCEMENTS ══ */
+
+    /* Richer tri-color background */
+    body {
+      background: linear-gradient(135deg, #eef2ff 0%, #fdf4ff 45%, #ecfdf5 100%);
+      background-attachment: fixed;
+    }
+
+    /* Animated gradient title */
+    .hdr-title {
+      background: linear-gradient(90deg, #4f46e5, #8b5cf6, #06b6d4, #4f46e5);
+      background-size: 300% auto;
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: titleShimmer 5s linear infinite;
+      display: flex; align-items: center;
+    }
+    @keyframes titleShimmer { to { background-position: -300% center; } }
+
+    /* Gradient underline on header */
+    .hdr {
+      border-bottom: 2px solid transparent;
+      background: linear-gradient(rgba(255,255,255,.87), rgba(255,255,255,.87)) padding-box,
+                  linear-gradient(90deg, #4f46e5 0%, #8b5cf6 50%, #06b6d4 100%) border-box;
+    }
+    @media(prefers-color-scheme:dark) {
+      .hdr {
+        background: linear-gradient(rgba(13,17,23,.87), rgba(13,17,23,.87)) padding-box,
+                    linear-gradient(90deg, #4f46e5 0%, #8b5cf6 50%, #06b6d4 100%) border-box;
+      }
+    }
+
+    /* Card hover lift */
+    .glass { transition: box-shadow 0.22s ease, transform 0.22s ease; }
+    .glass:hover { box-shadow: 0 8px 36px rgba(79,70,229,.13), 0 2px 8px rgba(0,0,0,.05); transform: translateY(-1px); }
+
+    /* Analytics chart cards — colored left accent + hover */
+    .an-chart-card {
+      border-left: 4px solid transparent;
+      transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+    }
+    .an-chart-card:first-child { border-left-color: #6366f1; }
+    .an-chart-card:nth-child(2) { border-left-color: #8b5cf6; }
+    .an-chart-card:nth-child(3) { border-left-color: #06b6d4; }
+    .an-chart-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 40px rgba(79,70,229,.14), 0 2px 8px rgba(0,0,0,.06);
+    }
+
+    /* Sidebar section title — colored gradient */
+    .an-section-title {
+      background: linear-gradient(90deg, var(--pri), #8b5cf6);
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+      border-bottom-color: rgba(79,70,229,.2);
+    }
+
+    /* Total box — gradient background */
+    .an-total-box {
+      background: linear-gradient(135deg, rgba(79,70,229,.12), rgba(139,92,246,.1));
+      border-color: rgba(99,102,241,.25);
+    }
+
+    /* Active tab — vibrant gradient */
+    .tab.active {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
+      color: #fff !important;
+      box-shadow: 0 4px 18px rgba(79,70,229,.35) !important;
+      border-color: transparent !important;
+    }
+    .tab { transition: all 0.2s ease; }
+    .tab:hover:not(.active) { background: rgba(79,70,229,.08); color: var(--pri); }
+
+    /* Status tile hover */
+    .si-card { transition: transform 0.2s ease, box-shadow 0.2s ease; cursor: pointer; }
+    .si-card:hover { transform: translateY(-3px); box-shadow: 0 10px 32px rgba(0,0,0,.12); }
+
+    /* Badges — more vibrant */
+    .badge { font-weight: 700; letter-spacing: 0.3px; }
+    .b-yet { background: linear-gradient(135deg, rgba(99,102,241,.15), rgba(139,92,246,.1)); color: #4f46e5; border: 1px solid rgba(99,102,241,.3); }
+    .b-ong { background: linear-gradient(135deg, rgba(245,158,11,.15), rgba(251,191,36,.1)); color: #b45309; border: 1px solid rgba(245,158,11,.3); }
+    .b-cmp { background: linear-gradient(135deg, rgba(16,185,129,.15), rgba(52,211,153,.1)); color: #065f46; border: 1px solid rgba(16,185,129,.3); }
+    .b-rel { background: linear-gradient(135deg, rgba(139,92,246,.15), rgba(167,139,250,.1)); color: #6d28d9; border: 1px solid rgba(139,92,246,.3); }
+
+    /* Checklist items — accent on hover */
+    .an-check-item:hover { background: linear-gradient(90deg, rgba(79,70,229,.06), rgba(139,92,246,.04)); border-radius: 6px; }
+
+    /* Primary button — gradient */
+    .btn-pri {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
+      box-shadow: 0 3px 12px rgba(79,70,229,.3) !important;
+      border: none !important;
+    }
+    .btn-pri:hover { background: linear-gradient(135deg, #4338ca, #6d28d9) !important; box-shadow: 0 5px 20px rgba(79,70,229,.4) !important; }
+
+    /* Page header title gradient */
+    .an-title {
+      background: linear-gradient(135deg, #4f46e5, #8b5cf6, #06b6d4);
+      background-size: 200% auto;
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+      animation: titleShimmer 5s linear infinite;
+    }
+
+    /* Sidebar sticky panel — glass tint */
+    .an-sidebar {
+      background: rgba(255,255,255,0.82);
+      border: 1px solid rgba(139,92,246,.18);
+      box-shadow: 0 4px 24px rgba(79,70,229,.08);
+    }
+    @media(prefers-color-scheme:dark) { .an-sidebar { background: rgba(22,30,46,.82); } }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(99,102,241,.25); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,.45); }
 
   </style>
 </head>
@@ -1019,6 +1135,24 @@
       <!-- 1. LEFT: Charts -->
       <div class="an-charts-scroll">
         
+        <!-- Chart 0: Month-wise Released Samples by Reviewer -->
+        <div class="an-chart-card">
+          <div class="an-chart-header">
+            <div class="an-chart-info">
+              <span class="an-chart-title">Month-wise Released Samples by Reviewer</span>
+              <span class="an-chart-sub">Monthly released sample count per team member</span>
+            </div>
+            <div class="an-chart-actions">
+              <span class="badge b-yet">Stacked Bar</span>
+              <div id="an-total-0" class="an-total-box">Total: 0</div>
+            </div>
+          </div>
+          <div class="an-chart-body" style="min-height:350px">
+            <canvas id="an-chart-0"></canvas>
+          </div>
+          <div id="an-legend-0" class="an-custom-legend"></div>
+        </div>
+
         <!-- Chart 1: Test Wise Sample Count -->
         <div class="an-chart-card">
           <div class="an-chart-header">
@@ -1059,6 +1193,27 @@
       <!-- 2. RIGHT: Sidebar Filters (Split) -->
       <div class="an-sidebar">
         
+        <!-- SECTION 0: CHART 0 FILTERS -->
+        <div class="an-sidebar-section">
+          <div class="an-section-title">Reviewer Chart Filters</div>
+          <div class="an-filter-row">
+            <div class="an-filter-group">
+              <label class="an-filter-label">Year</label>
+              <select id="an-f0-year" class="sel" onchange="anDrawChart0()"><option value="All">All</option></select>
+            </div>
+            <div class="an-filter-group">
+              <label class="an-filter-label">Month</label>
+              <select id="an-f0-month" class="sel" onchange="anDrawChart0()">
+                <option value="All">All</option>
+                <option value="Jan">Jan</option><option value="Feb">Feb</option><option value="Mar">Mar</option>
+                <option value="Apr">Apr</option><option value="May">May</option><option value="Jun">Jun</option>
+                <option value="Jul">Jul</option><option value="Aug">Aug</option><option value="Sep">Sep</option>
+                <option value="Oct">Oct</option><option value="Nov">Nov</option><option value="Dec">Dec</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
         <!-- SECTION 1: CHART 1 FILTERS -->
         <div class="an-sidebar-section">
           <div class="an-section-title">Test-wise Filters</div>
@@ -2736,8 +2891,18 @@ function filterPriority(month) {
 // ================================================================
 //  ANALYTICS STUDIO
 // ================================================================
+let anChart0 = null;
 let anChart1 = null;
 let anChart2 = null;
+
+const TEAM_MEMBERS = [
+  { key: 'naveen',   label: 'Naveen',    color: '#4f46e5' },
+  { key: 'vignesh',  label: 'Vignesh',   color: '#10b981' },
+  { key: 'vikram',   label: 'Vikram',    color: '#f59e0b' },
+  { key: 'sudha',    label: 'Dr. Sudha', color: '#ef4444' },
+  { key: 'diwakar',  label: 'Diwakar',   color: '#06b6d4' },
+];
+const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 
 function normalizeTest(name) {
@@ -2830,7 +2995,7 @@ function anInitFilters() {
     return d ? d.getFullYear() : null;
   }).filter(Boolean))].sort((a, b) => b - a);
 
-  ['an-f1-year', 'an-f2-year'].forEach(id => {
+  ['an-f0-year', 'an-f1-year', 'an-f2-year'].forEach(id => {
     const sel = document.getElementById(id);
     if (!sel || sel.children.length > 1) return;
     years.forEach(y => {
@@ -2868,6 +3033,7 @@ function anInitFilters() {
 }
 
 function anDrawAll() {
+  anDrawChart0();
   anDrawChart1();
   anDrawChart2();
 }
@@ -2932,6 +3098,102 @@ function anDrawChart2() {
   });
 
   renderBarChart(clientMap);
+}
+
+function anDrawChart0() {
+  const year  = document.getElementById('an-f0-year').value;
+  const month = document.getElementById('an-f0-month').value;
+
+  const filtered = rows.filter(r => {
+    if (getStatus(r) !== 'Released') return false;
+    const d = parseDate(r.rel_date) || parseDate(r.tat);
+    if (!d) return false;
+    const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
+    const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
+    return yearMatch && monthMatch;
+  });
+
+  const labels = month === 'All' ? MONTH_LABELS : [month];
+
+  const teamData = {};
+  TEAM_MEMBERS.forEach(t => { teamData[t.key] = {}; });
+
+  filtered.forEach(r => {
+    const rv = String(r.pri_rev || '').toLowerCase().trim();
+    const d  = parseDate(r.rel_date) || parseDate(r.tat);
+    if (!d) return;
+    const m = d.toLocaleString('default', { month: 'short' });
+    TEAM_MEMBERS.forEach(t => {
+      if (rv.includes(t.key)) {
+        teamData[t.key][m] = (teamData[t.key][m] || 0) + 1;
+      }
+    });
+  });
+
+  const datasets = TEAM_MEMBERS.map(t => ({
+    label: t.label,
+    data: labels.map(m => teamData[t.key][m] || 0),
+    backgroundColor: t.color + 'cc',
+    borderColor: t.color,
+    borderWidth: 1,
+    borderRadius: month === 'All' ? 0 : 6,
+    hoverBackgroundColor: t.color,
+  }));
+
+  const total = filtered.length;
+  const totalEl = document.getElementById('an-total-0');
+  if (totalEl) totalEl.textContent = `Total: ${total}`;
+
+  const ctx = document.getElementById('an-chart-0').getContext('2d');
+  if (anChart0) {
+    anChart0.data.labels   = labels;
+    anChart0.data.datasets = datasets;
+    anChart0.update();
+  } else {
+    anChart0 = new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            padding: 12,
+            bodyFont: { size: 13 },
+            titleFont: { size: 13, weight: '600' },
+            callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y}` }
+          },
+          datalabels: {
+            display: ctx => ctx.parsed.y > 0,
+            anchor: 'center',
+            align: 'center',
+            font: { size: 10, weight: 'bold' },
+            color: '#fff',
+            formatter: v => v > 0 ? v : ''
+          }
+        },
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 } } },
+          y: { stacked: true, beginAtZero: true, ticks: { precision: 0, font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.06)' } }
+        }
+      },
+      plugins: [ChartDataLabels]
+    });
+  }
+
+  const legendEl = document.getElementById('an-legend-0');
+  if (legendEl) {
+    legendEl.innerHTML = TEAM_MEMBERS.map(t => {
+      const cnt = Object.values(teamData[t.key]).reduce((a, b) => a + b, 0);
+      return `<div class="an-leg-item">
+        <span class="an-leg-dot" style="background:${t.color}"></span>
+        <span class="an-leg-text">${t.label}</span>
+        <span style="margin-left:auto;font-size:11px;font-weight:700;color:${t.color}">${cnt}</span>
+      </div>`;
+    }).join('');
+  }
 }
 
 // High-contrast, distinct color palette

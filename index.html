@@ -638,7 +638,8 @@
     .an-chart-title { font-size: 15px; font-weight: 700; color: var(--text); }
     .an-chart-sub { font-size: 11px; color: var(--muted); font-weight: 500; }
     
-    .an-chart-body { flex: 0 0 350px; height: 350px; position: relative; min-height: 350px; }
+    .an-chart-body { height: 350px; min-height: 350px; position: relative; flex-shrink: 0; }
+    .an-chart-body canvas { display: block; width: 100% !important; height: 100% !important; }
     
     .an-chart-actions { display: flex; align-items: center; gap: 10px; }
     
@@ -1869,7 +1870,7 @@ function switchTab(id, btn) {
   document.getElementById(PAGE_MAP[id]).classList.add('active');
   btn.classList.add('active');
   if (id==='overdue') renderOverdue();
-  else if (id==='analytics') { anInitFilters(); requestAnimationFrame(() => requestAnimationFrame(anDrawAll)); }
+  else if (id==='analytics') { anInitFilters(); setTimeout(() => { anDrawAll(); window.dispatchEvent(new Event('resize')); }, 50); }
   else if (id!=='dashboard') renderTable(id);
 }
 
@@ -3302,6 +3303,7 @@ function anDrawChart0() {
       },
       plugins: [ChartDataLabels]
     });
+    anChart0.resize();
   }
 
   const legendEl = document.getElementById('an-legend-0');
@@ -3379,6 +3381,7 @@ function renderPieChart(map) {
       }
     }
   });
+  anChart1.resize();
 
   // Generate Custom Legend
   const legendContainer = document.getElementById('an-legend-1');
@@ -3479,6 +3482,7 @@ function renderBarChart(map) {
       }
     }
   });
+  anChart2.resize();
 }
 
 function anExportPNG() {

@@ -714,6 +714,46 @@
       .an-sidebar { position: static; order: -1; max-height: none; }
     }
 
+    /* ── Recent Releases Popover ── */
+    .recent-rel-panel {
+      display: none; position: absolute; top: calc(100% + 10px); right: 0;
+      width: 380px; background: #fff; border-radius: 14px;
+      border: 1px solid var(--pb);
+      box-shadow: 0 16px 48px rgba(79,70,229,.18), 0 2px 8px rgba(0,0,0,.08);
+      z-index: 600; overflow: hidden;
+      animation: rrpIn .18s cubic-bezier(.4,0,.2,1);
+    }
+    @media(prefers-color-scheme:dark){ .recent-rel-panel { background: #1a2235; } }
+    .recent-rel-panel.open { display: block; }
+    @keyframes rrpIn { from { opacity:0; transform:translateY(-8px) scale(.97); } to { opacity:1; transform:none; } }
+    .rrp-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px 10px; border-bottom: 1px solid var(--pb);
+    }
+    .rrp-title {
+      font-size: 13px; font-weight: 700; color: var(--text);
+      display: flex; align-items: center; gap: 7px;
+    }
+    .rrp-title svg { color: var(--rel); }
+    .rrp-list { padding: 8px 0; max-height: 420px; overflow-y: auto; }
+    .rrp-item {
+      display: flex; align-items: flex-start; gap: 11px;
+      padding: 10px 16px; cursor: pointer; transition: background .15s;
+      border-left: 3px solid transparent;
+    }
+    .rrp-item:hover { background: rgba(139,92,246,.06); border-left-color: var(--rel); }
+    .rrp-num {
+      width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; margin-top: 1px;
+      background: linear-gradient(135deg, rgba(139,92,246,.15), rgba(79,70,229,.1));
+      color: var(--rel); font-size: 10px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .rrp-body { flex: 1; min-width: 0; }
+    .rrp-name { font-size: 13px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+    .rrp-meta { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .rrp-date { font-size: 11px; font-weight: 600; color: var(--rel); white-space: nowrap; }
+    .rrp-empty { padding: 28px; text-align: center; color: var(--muted); font-size: 13px; }
+
     /* ══ UI ENHANCEMENTS ══ */
 
     /* Richer tri-color background */
@@ -848,6 +888,23 @@
       <span class="live-dot"></span>
       <span id="live-label">Connecting…</span>
     </div>
+    <!-- Recent Releases button + popover -->
+    <div style="position:relative">
+      <button class="btn btn-out btn-sm" id="recent-rel-btn" onclick="toggleRecentReleases()" style="gap:6px;height:36px;padding:0 14px;font-weight:600;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
+        Recent Releases
+      </button>
+      <div id="recent-rel-panel" class="recent-rel-panel">
+        <div class="rrp-header">
+          <span class="rrp-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
+            Top 7 Recent Releases
+          </span>
+          <button class="btn btn-sm btn-out" style="font-size:11px;padding:3px 10px" onclick="switchTab('released',document.getElementById('t-rel'));closeRecentReleases()">See all →</button>
+        </div>
+        <div id="rrp-list" class="rrp-list"></div>
+      </div>
+    </div>
     <!-- Manual refresh -->
     <button class="btn btn-pri" id="refresh-btn" onclick="fetchGoogleSheet()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> Refresh Now
@@ -942,14 +999,6 @@
       <div class="emp-grid" id="q-active"></div>
     </div>
 
-    <!-- Recent releases -->
-    <div class="glass" style="padding:20px 22px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <span style="font-size:14px;font-weight:700"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg> Recent Releases</span>
-        <button class="btn btn-sm btn-out" onclick="switchTab('released',document.getElementById('t-rel'))">See all →</button>
-      </div>
-      <div class="qgrid" id="q-released"></div>
-    </div>
   </div>
 
   <!-- ══ YET TO START ══ -->
@@ -1888,7 +1937,6 @@ function refreshAll() {
     empNames.length ? empNames.slice(0,3).join(', ') + (empNames.length>3?` +${empNames.length-3} more`:'') : 'Assigned to reviewers';
 
   renderTeamWorkload('q-active', ong);
-  renderQuickCards('q-released', rel.slice(-6).reverse(), 'Released');
   renderTatAlerts();
   updateRelCount();
   updateYetCount();
@@ -2726,6 +2774,72 @@ function downloadOverdueExcel() {
 // ================================================================
 // ── Date formatter → DD-MM-YYYY ──
 // Just normalizes separators (/ → -) and expands YY → YYYY. No reinterpretation.
+// ── Recent Releases Popover ──────────────────────────────────────────────────
+function toggleRecentReleases() {
+  const panel = document.getElementById('recent-rel-panel');
+  if (panel.classList.contains('open')) {
+    panel.classList.remove('open');
+  } else {
+    buildRecentReleasesPanel();
+    panel.classList.add('open');
+  }
+}
+
+function closeRecentReleases() {
+  document.getElementById('recent-rel-panel').classList.remove('open');
+}
+
+function buildRecentReleasesPanel() {
+  const list = document.getElementById('rrp-list');
+  const released = rows.filter(r => getStatus(r) === 'Released');
+
+  // Sort by rel_date descending — most recently released first
+  released.sort((a, b) => {
+    const da = parseDate(a.rel_date);
+    const db = parseDate(b.rel_date);
+    if (!da && !db) return 0;
+    if (!da) return 1;
+    if (!db) return -1;
+    return db - da;
+  });
+
+  const top7 = released.slice(0, 7);
+  if (!top7.length) {
+    list.innerHTML = `<div class="rrp-empty">No released reports yet.</div>`;
+    return;
+  }
+
+  list.innerHTML = top7.map((r, i) => {
+    const relD  = parseDate(r.rel_date);
+    const dateStr = relD
+      ? relD.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
+      : '—';
+    const reviewer = r.pri_rev || r.analyst || '—';
+    return `<div class="rrp-item" onclick="closeRecentReleases()">
+      <div class="rrp-num">${i + 1}</div>
+      <div class="rrp-body">
+        <div class="rrp-name">${esc(r.name || r.gen_id || '—')}</div>
+        <div class="rrp-meta">
+          <span>${esc(r.test || '—')}</span>
+          <span>·</span>
+          <span>${esc(r.gen_id || '—')}</span>
+          ${reviewer !== '—' ? `<span>·</span><span>${esc(reviewer)}</span>` : ''}
+        </div>
+      </div>
+      <div class="rrp-date">${dateStr}</div>
+    </div>`;
+  }).join('');
+}
+
+// Close panel when clicking outside
+document.addEventListener('click', e => {
+  const panel = document.getElementById('recent-rel-panel');
+  const btn   = document.getElementById('recent-rel-btn');
+  if (panel && btn && !panel.contains(e.target) && !btn.contains(e.target)) {
+    panel.classList.remove('open');
+  }
+});
+
 function fmtDate(v) {
   if (!v) return '—';
   const s = String(v).trim();

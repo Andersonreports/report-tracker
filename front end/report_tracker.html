@@ -2146,7 +2146,7 @@ function renderTeamWorkload(containerId, data) {
     byEmp[emp].push(r);
   });
   el.innerHTML = Object.entries(byEmp).sort((a,b)=>b[1].length-a[1].length).map(([emp, reports])=>{
-    const teamTitle = TEAM_MAP[emp] || 'Other Team';
+    const teamTitle = TEAM_MAP[emp] || 'Team 6';
     return `
     <div class="emp-card glass" onclick="openEmpModal('${emp.replace(/'/g,"\\'")}')">
       <div class="emp-avatar">${esc(emp.charAt(0).toUpperCase())}</div>

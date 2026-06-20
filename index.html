@@ -619,11 +619,28 @@
     
     .an-chart-actions { display: flex; align-items: center; gap: 10px; }
     
-    .an-total-box { 
-      padding: 6px 14px; border-radius: 20px; background: rgba(79,70,229,.1); 
+    .an-total-box {
+      padding: 6px 14px; border-radius: 20px; background: rgba(79,70,229,.1);
       color: var(--pri); font-weight: 700; font-size: 13px; border: 1px solid rgba(79,70,229,.2);
     }
-    
+
+    /* ── Reviewer threshold alert (Chart 0) ── */
+    .an-threshold-alert {
+      display: flex; align-items: center; gap: 10px;
+      background: linear-gradient(135deg, rgba(245,158,11,.12), rgba(239,68,68,.08));
+      border: 1px solid rgba(245,158,11,.35); border-radius: 12px;
+      padding: 12px 16px; margin: 0 16px 18px; font-size: 13px;
+      color: #92400e; font-weight: 600; animation: ataIn .25s ease-out;
+    }
+    @keyframes ataIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+    .an-threshold-alert .ata-icon { font-size: 18px; flex-shrink: 0; }
+    .an-threshold-alert .ata-text strong { color: #7c2d12; }
+    .an-threshold-alert .ata-close {
+      margin-left: auto; background: none; border: none; cursor: pointer;
+      color: #92400e; font-size: 16px; padding: 2px 6px; border-radius: 6px; line-height: 1;
+    }
+    .an-threshold-alert .ata-close:hover { background: rgba(245,158,11,.18); }
+
     /* per-chart filter panel */
     .an-chart-content { display: flex; gap: 20px; align-items: flex-start; }
     .an-chart-content > .an-chart-body { flex: 1; min-width: 0; }
@@ -3356,6 +3373,21 @@ function anDrawChart0() {
   const total = filtered.length;
   document.getElementById('an-total-0').textContent = `Total: ${total}`;
 
+  // Reviewer overload alert — month-wise, effective Jun 2026 onward
+  const THRESHOLD_YEAR = 2026, THRESHOLD_MONTH_IDX = MONTH_LABELS.indexOf('Jun');
+  const yearNum = parseInt(year, 10);
+  const monthIdx = MONTH_LABELS.indexOf(month);
+  const inThresholdWindow = year !== 'All' && month !== 'All' &&
+    (yearNum > THRESHOLD_YEAR || (yearNum === THRESHOLD_YEAR && monthIdx >= THRESHOLD_MONTH_IDX));
+  const overLimit = TEAM_MEMBERS.filter(t => (teamCount[t.key] || 0) > 40);
+  const alertHtml = (inThresholdWindow && overLimit.length) ? `
+    <div class="an-threshold-alert">
+      <span class="ata-icon">⚠️</span>
+      <span class="ata-text">${overLimit.map(t => `<strong>${t.label} (${teamCount[t.key]})</strong>`).join(', ')}
+        crossed 40 released samples in ${month} ${year}.</span>
+      <button class="ata-close" onclick="this.closest('.an-threshold-alert').remove()">✕</button>
+    </div>` : '';
+
   // SVG donut chart per reviewer
   const R = 40, SW = 10;                        // radius, stroke-width
   const C = 2 * Math.PI * R;                    // circumference ≈ 251.3
@@ -3389,6 +3421,7 @@ function anDrawChart0() {
   }).join('');
 
   chartBody.innerHTML = `
+    ${alertHtml}
     <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:space-evenly;align-items:flex-start;padding:24px 16px">
       ${donuts}
     </div>`;

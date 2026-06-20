@@ -365,11 +365,18 @@
     }
     #qmodal-title{font-size:15px;font-weight:700;color:var(--text)}
     #qmodal-count{font-size:12px;color:var(--muted);margin-left:8px}
-    #qmodal-close{
+    #qmodal-close,#qmodal-max{
       background:none;border:none;cursor:pointer;font-size:20px;
       color:var(--muted);padding:4px 8px;border-radius:8px;line-height:1;
+      display:flex;align-items:center;justify-content:center;
     }
-    #qmodal-close:hover{background:var(--pb);color:var(--text)}
+    #qmodal-close:hover,#qmodal-max:hover{background:var(--pb);color:var(--text)}
+    #qmodal-hdr-actions{display:flex;align-items:center;gap:4px}
+    #qmodal-backdrop.maximized{align-items:stretch;justify-content:stretch}
+    #qmodal.maximized{
+      max-width:100vw;max-height:100vh;width:100vw;height:100vh;
+      margin:0;border-radius:0;
+    }
     #qmodal-body{display:flex;flex-direction:column;overflow:hidden;flex:1;padding:0}
     .modal-filters-wrap{flex-shrink:0;padding-bottom:12px;border-bottom:1px solid var(--pb);background:var(--panel);position:sticky;top:0;z-index:20}
     .modal-table-wrap{overflow:auto;flex:1;width:max-content;max-width:100%}
@@ -983,7 +990,12 @@
   <div id="qmodal">
     <div id="qmodal-hdr">
       <div><span id="qmodal-title"></span><span id="qmodal-count"></span></div>
-      <button id="qmodal-close" onclick="closeQModal(null)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      <div id="qmodal-hdr-actions">
+        <button id="qmodal-max" onclick="toggleQModalMaximize()" title="Maximize">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+        </button>
+        <button id="qmodal-close" onclick="closeQModal(null)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
     </div>
     <div id="qmodal-body"></div>
   </div>
@@ -2414,6 +2426,20 @@ function closeQModal(e) {
   if (e && e.target !== document.getElementById('qmodal-backdrop')) return;
   document.getElementById('qmodal-backdrop').classList.remove('open');
   document.body.style.overflow = '';
+  setQModalMaximized(false);
+}
+
+function setQModalMaximized(on) {
+  document.getElementById('qmodal-backdrop').classList.toggle('maximized', on);
+  document.getElementById('qmodal').classList.toggle('maximized', on);
+  document.getElementById('qmodal-max').title = on ? 'Restore' : 'Maximize';
+  document.getElementById('qmodal-max').innerHTML = on
+    ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>'
+    : '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+}
+
+function toggleQModalMaximize() {
+  setQModalMaximized(!document.getElementById('qmodal').classList.contains('maximized'));
 }
 
 document.addEventListener('keydown', e => { if (e.key==='Escape') closeQModal(null); });

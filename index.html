@@ -624,23 +624,26 @@
       color: var(--pri); font-weight: 700; font-size: 13px; border: 1px solid rgba(79,70,229,.2);
     }
 
-    /* ── Reviewer milestone celebration (Chart 0) ── */
-    .an-threshold-alert {
-      display: flex; align-items: center; gap: 12px;
-      background: linear-gradient(135deg, #6366f1, #a855f7 55%, #ec4899);
-      border: none; border-radius: 14px;
-      padding: 14px 18px; margin: 0 16px 18px; font-size: 13px;
-      color: #fff; font-weight: 600; box-shadow: 0 6px 20px rgba(139,92,246,.35);
-      animation: ataIn .35s cubic-bezier(.34,1.56,.64,1);
+    /* ── Reviewer milestone celebration (Chart 0) — confetti burst per donut ── */
+    .ata-confetti {
+      position: absolute; top: 6px; left: 50%; width: 0; height: 0;
+      pointer-events: none; z-index: 6;
     }
-    @keyframes ataIn { from{opacity:0;transform:translateY(-10px) scale(.96)} to{opacity:1;transform:translateY(0) scale(1)} }
-    .an-threshold-alert .ata-icon { font-size: 22px; flex-shrink: 0; }
-    .an-threshold-alert .ata-text strong { color: #fff; font-weight: 800; }
-    .an-threshold-alert .ata-close {
-      margin-left: auto; background: rgba(255,255,255,.18); border: none; cursor: pointer;
-      color: #fff; font-size: 14px; padding: 3px 8px; border-radius: 8px; line-height: 1;
+    .ata-confetti span {
+      position: absolute; left: 0; top: 0; font-size: 19px; opacity: 0;
+      animation: ataBurst 1.8s ease-out infinite;
     }
-    .an-threshold-alert .ata-close:hover { background: rgba(255,255,255,.3); }
+    .ata-confetti span:nth-child(1){ --tx:-38px; --ty:-58px; --rot:-25deg; animation-delay:0s; }
+    .ata-confetti span:nth-child(2){ --tx:-10px; --ty:-70px; --rot:10deg;  animation-delay:.25s; }
+    .ata-confetti span:nth-child(3){ --tx:32px;  --ty:-56px; --rot:22deg; animation-delay:.5s; }
+    .ata-confetti span:nth-child(4){ --tx:4px;   --ty:-48px; --rot:-12deg; animation-delay:.75s; }
+    .ata-confetti span:nth-child(5){ --tx:18px;  --ty:-62px; --rot:16deg; animation-delay:1s; }
+    @keyframes ataBurst {
+      0%   { opacity: 0; transform: translate(-50%,-50%) scale(.3) rotate(0); }
+      20%  { opacity: 1; transform: translate(calc(-50% + var(--tx)*.4), calc(-50% + var(--ty)*.4)) scale(1.1) rotate(var(--rot)); }
+      75%  { opacity: 1; }
+      100% { opacity: 0; transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(.7) rotate(var(--rot)); }
+    }
 
     /* per-chart filter panel */
     .an-chart-content { display: flex; gap: 20px; align-items: flex-start; }
@@ -3374,20 +3377,13 @@ function anDrawChart0() {
   const total = filtered.length;
   document.getElementById('an-total-0').textContent = `Total: ${total}`;
 
-  // Reviewer overload alert — month-wise, effective Jun 2026 onward
+  // Reviewer milestone — month-wise, effective Jun 2026 onward
   const THRESHOLD_YEAR = 2026, THRESHOLD_MONTH_IDX = MONTH_LABELS.indexOf('Jun');
   const yearNum = parseInt(year, 10);
   const monthIdx = MONTH_LABELS.indexOf(month);
   const inThresholdWindow = year !== 'All' && month !== 'All' &&
     (yearNum > THRESHOLD_YEAR || (yearNum === THRESHOLD_YEAR && monthIdx >= THRESHOLD_MONTH_IDX));
-  const overLimit = TEAM_MEMBERS.filter(t => (teamCount[t.key] || 0) > 40);
-  const alertHtml = (inThresholdWindow && overLimit.length) ? `
-    <div class="an-threshold-alert">
-      <span class="ata-icon">🎉</span>
-      <span class="ata-text">🏆 ${overLimit.map(t => `<strong>${t.label} (${teamCount[t.key]})</strong>`).join(', ')}
-        smashed 40 released samples in ${month} ${year} — great work!</span>
-      <button class="ata-close" onclick="this.closest('.an-threshold-alert').remove()">✕</button>
-    </div>` : '';
+  const CONFETTI = `<div class="ata-confetti"><span>🎉</span><span>✨</span><span>🎊</span><span>⭐</span><span>🥳</span></div>`;
 
   // SVG donut chart per reviewer
   const R = 40, SW = 10;                        // radius, stroke-width
@@ -3400,9 +3396,11 @@ function anDrawChart0() {
     const pct    = total > 0 ? cnt / total : 0;
     const pctTxt = total > 0 ? Math.round(pct * 100) + '%' : '0%';
     const offset = C * (1 - pct);
+    const celebrate = inThresholdWindow && cnt > 40;
     return `
     <div style="display:flex;flex-direction:column;align-items:center;gap:14px;flex:1;min-width:150px">
       <div style="position:relative;width:220px;height:220px">
+        ${celebrate ? CONFETTI : ''}
         <svg viewBox="0 0 100 100" width="220" height="220">
           <circle cx="50" cy="50" r="${R}" fill="none" stroke="#e2e8f0" stroke-width="${SW}"/>
           <circle cx="50" cy="50" r="${R}" fill="none" stroke="${t.color}" stroke-width="${SW}"
@@ -3422,7 +3420,6 @@ function anDrawChart0() {
   }).join('');
 
   chartBody.innerHTML = `
-    ${alertHtml}
     <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:space-evenly;align-items:flex-start;padding:24px 16px">
       ${donuts}
     </div>`;

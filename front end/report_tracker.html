@@ -3300,6 +3300,66 @@ function _relOrTat(r) {
   return parseDate(r.tat);
 }
 
+// Builds a twisted DNA double-helix progress ring: two interleaved strands with
+// cross "rungs" (like base pairs), a grey track for the full circle, colored
+// strand/rungs up to `pct`, and a glossy 3D bead at the leading edge.
+function buildHelixRing(color, pct, uid) {
+  const cx = 50, cy = 50, R = 34, WAVE = 6, TWISTS = 16, SEGS = 360;
+  const thetaP = pct * 2 * Math.PI;
+  const pt = (theta, sign) => {
+    const a = theta - Math.PI / 2;
+    const r = R + sign * WAVE * Math.sin(TWISTS * theta);
+    return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  };
+  const fmt = ([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`;
+
+  function strandPaths(sign) {
+    let colored = [], grey = [];
+    for (let i = 0; i <= SEGS; i++) {
+      const theta = (i / SEGS) * 2 * Math.PI;
+      const p = pt(theta, sign);
+      if (theta <= thetaP) colored.push(p); else grey.push(p);
+    }
+    return { colored, grey };
+  }
+  const toPath = pts => pts.length ? 'M' + pts.map(fmt).join(' L') : '';
+  const s1 = strandPaths(1), s2 = strandPaths(-1);
+
+  // Ladder rungs (base pairs) connecting the two strands
+  const RUNGS = TWISTS * 2;
+  let rungs = '';
+  for (let i = 0; i < RUNGS; i++) {
+    const theta = (i / RUNGS) * 2 * Math.PI;
+    const [x1, y1] = pt(theta, 1);
+    const [x2, y2] = pt(theta, -1);
+    const isColored = theta <= thetaP;
+    rungs += `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="${isColored ? color : '#dde4ee'}" stroke-width="${isColored ? 1 : 0.6}" opacity="${isColored ? .85 : .6}"/>`;
+  }
+
+  const gradId = `helixGrad-${uid}`;
+  const [sx, sy] = pt(0, 1);
+  let head = `<circle cx="${sx.toFixed(2)}" cy="${sy.toFixed(2)}" r="3" fill="url(#${gradId})"/>`;
+  if (pct > 0) {
+    const [hx, hy] = pt(thetaP, 1);
+    head += `<circle cx="${hx.toFixed(2)}" cy="${hy.toFixed(2)}" r="5" fill="url(#${gradId})"/>`;
+  }
+
+  return `
+    <defs>
+      <radialGradient id="${gradId}" cx="35%" cy="30%" r="65%">
+        <stop offset="0%" stop-color="#ffffff"/>
+        <stop offset="35%" stop-color="${color}"/>
+        <stop offset="100%" stop-color="${color}"/>
+      </radialGradient>
+    </defs>
+    <path d="${toPath(s1.grey)}" fill="none" stroke="#dde4ee" stroke-width="1.4" opacity=".75" stroke-linecap="round"/>
+    <path d="${toPath(s2.grey)}" fill="none" stroke="#dde4ee" stroke-width="1.1" opacity=".55" stroke-linecap="round"/>
+    ${rungs}
+    <path d="${toPath(s1.colored)}" fill="none" stroke="${color}" stroke-width="1.8" opacity="1" stroke-linecap="round"/>
+    <path d="${toPath(s2.colored)}" fill="none" stroke="${color}" stroke-width="1.3" opacity=".7" stroke-linecap="round"/>
+    ${head}`;
+}
+
 function anDrawChart0() {
   const year  = document.getElementById('an-f0-year').value;
   const month = document.getElementById('an-f0-month').value;
@@ -3335,9 +3395,7 @@ function anDrawChart0() {
     (yearNum > THRESHOLD_YEAR || (yearNum === THRESHOLD_YEAR && monthIdx >= THRESHOLD_MONTH_IDX));
   const TARGET_BADGE = `<div class="ata-badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>TARGET ACHIEVED</div>`;
 
-  // SVG donut chart per reviewer
-  const R = 40, SW = 10;
-  const C = 2 * Math.PI * R;
+  // DNA helix progress ring per reviewer
   const chartBody = document.getElementById('an-chart-body-0');
   if (!chartBody) return;
 
@@ -3345,18 +3403,13 @@ function anDrawChart0() {
     const cnt    = teamCount[t.key] || 0;
     const pct    = total > 0 ? cnt / total : 0;
     const pctTxt = total > 0 ? Math.round(pct * 100) + '%' : '0%';
-    const offset = C * (1 - pct);
     const celebrate = inThresholdWindow && cnt > 40;
     return `
     <div style="display:flex;flex-direction:column;align-items:center;gap:14px;flex:1;min-width:150px">
       <div style="position:relative;width:220px;height:220px">
         ${celebrate ? TARGET_BADGE : ''}
         <svg viewBox="0 0 100 100" width="220" height="220">
-          <circle cx="50" cy="50" r="${R}" fill="none" stroke="#e2e8f0" stroke-width="${SW}"/>
-          <circle cx="50" cy="50" r="${R}" fill="none" stroke="${t.color}" stroke-width="${SW}"
-            stroke-dasharray="${C.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}"
-            stroke-linecap="round" transform="rotate(-90 50 50)"
-            style="transition:stroke-dashoffset .6s ease"/>
+          ${buildHelixRing(t.color, pct, t.key)}
         </svg>
         <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
           <div style="font-size:30px;font-weight:900;color:#1e293b;line-height:1.1">${cnt}</div>

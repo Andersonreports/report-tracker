@@ -3400,11 +3400,11 @@ function anDrawChart0() {
 
   const donuts = TEAM_MEMBERS.map(t => {
     const cnt    = teamCount[t.key] || 0;
-    const pct    = total > 0 ? cnt / total : 0;
-    const pctTxt = total > 0 ? Math.round(pct * 100) + '%' : '0%';
+    const pct    = Math.min(cnt / 100, 1); // ring is always out of a 100-sample target
+    const pctTxt = Math.round(pct * 100) + '%';
     const celebrate = inThresholdWindow && cnt > 40;
     return `
-    <div style="display:flex;flex-direction:column;align-items:center;gap:14px;flex:1;min-width:150px">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:14px;flex:1;min-width:150px;cursor:pointer" onclick="openReviewerRingModal('${t.key}','${t.label.replace(/'/g, "\\'")}')">
       <div style="position:relative;width:220px;height:220px">
         ${celebrate ? TARGET_BADGE : ''}
         <svg viewBox="0 0 100 100" width="220" height="220">
@@ -3428,6 +3428,28 @@ function anDrawChart0() {
 
   const legendEl = document.getElementById('an-legend-0');
   if (legendEl) legendEl.innerHTML = '';
+}
+
+const REVIEWER_RING_COLS = ['name', 'test', 'gen_id', 'and_id', 'run_text', 'client', 'rel_date'];
+
+// Clicking a reviewer's helix ring shows that reviewer's own released samples
+// for the currently selected month/year — same filter the ring's count uses.
+function openReviewerRingModal(key, label) {
+  const year  = document.getElementById('an-f0-year').value;
+  const month = document.getElementById('an-f0-month').value;
+
+  const reviewerRows = rows.filter(r => {
+    if (getStatus(r) !== 'Released') return false;
+    if (!String(r.pri_rev || '').toLowerCase().trim().includes(key)) return false;
+    const d = _relOrTat(r);
+    if (!d) return false;
+    const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
+    const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
+    return yearMatch && monthMatch;
+  });
+
+  const period = (year === 'All' && month === 'All') ? 'All time' : `${month === 'All' ? '' : month + ' '}${year === 'All' ? '' : year}`.trim();
+  openQModal(`${label}'s Released Samples — ${period}`, reviewerRows, REVIEWER_RING_COLS);
 }
 
 // High-contrast, distinct color palette

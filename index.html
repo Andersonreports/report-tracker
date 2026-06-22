@@ -3342,62 +3342,55 @@ function _relOrTat(r) {
   return parseDate(r.tat);
 }
 
-// Builds a twisted DNA double-helix progress ring: two interleaved strands with
-// cross "rungs" (like base pairs) forming a clear ladder/chain texture, a thin
-// grey track for the inactive remainder, and a small glossy bead at the tip.
+// Builds a glossy 3D-bead DNA double-helix progress ring: two interleaved
+// chains of shaded spheres (front strand brighter/bigger, back strand dimmer)
+// that trace the circle exactly, a faint grey bead chain for the inactive
+// remainder, and a larger glossy bead with a soft glow at the tip.
 function buildHelixRing(color, pct, uid) {
-  const cx = 50, cy = 50, R = 35, WAVE = 2.3, TWISTS = 16, SEGS = 360;
+  const cx = 50, cy = 50, R = 36, WAVE = 3.4, TWISTS = 14;
+  const TRACK_GAP_DEG = 9, COLOR_GAP_DEG = 7;
   const thetaP = Math.max(0, Math.min(1, pct)) * 2 * Math.PI;
   const pt = (theta, sign) => {
     const a = theta - Math.PI / 2;
     const r = R + sign * WAVE * Math.sin(TWISTS * theta);
     return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
   };
-  const fmt = ([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`;
 
-  function strandPaths(sign) {
-    let colored = [], grey = [];
-    for (let i = 0; i <= SEGS; i++) {
-      const theta = (i / SEGS) * 2 * Math.PI;
-      const p = pt(theta, sign);
-      if (theta <= thetaP) colored.push(p); else grey.push(p);
-    }
-    return { colored, grey };
-  }
-  const toPath = pts => pts.length ? 'M' + pts.map(fmt).join(' L') : '';
-  const s1 = strandPaths(1), s2 = strandPaths(-1);
+  const gradId = `helix3d-${uid}`, shadowId = `helixShadow-${uid}`;
 
-  // Ladder rungs (base pairs) connecting the two strands
-  const RUNGS = TWISTS * 2;
-  let rungs = '';
-  for (let i = 0; i < RUNGS; i++) {
-    const theta = (i / RUNGS) * 2 * Math.PI;
-    const [x1, y1] = pt(theta, 1);
-    const [x2, y2] = pt(theta, -1);
-    const isColored = theta <= thetaP;
-    rungs += `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="${isColored ? color : '#dde4ee'}" stroke-width="${isColored ? 0.8 : 0.5}" opacity="${isColored ? .85 : .6}"/>`;
+  let greyBeads = '';
+  for (let theta = thetaP; theta <= 2 * Math.PI; theta += TRACK_GAP_DEG * Math.PI / 180) {
+    const [xF, yF] = pt(theta, 1);
+    const [xB, yB] = pt(theta, -1);
+    greyBeads += `<circle cx="${xB.toFixed(2)}" cy="${yB.toFixed(2)}" r="1.5" fill="#d8dfe9"/><circle cx="${xF.toFixed(2)}" cy="${yF.toFixed(2)}" r="1.9" fill="#e7ecf3"/>`;
   }
 
-  const gradId = `helixGrad-${uid}`;
+  let coloredBeads = '';
+  for (let theta = 0; theta <= thetaP; theta += COLOR_GAP_DEG * Math.PI / 180) {
+    const [xF, yF] = pt(theta, 1);
+    const [xB, yB] = pt(theta, -1);
+    coloredBeads += `<circle cx="${xB.toFixed(2)}" cy="${yB.toFixed(2)}" r="2" fill="${color}" opacity=".55"/><circle cx="${xF.toFixed(2)}" cy="${yF.toFixed(2)}" r="2.6" fill="url(#${gradId})"/>`;
+  }
+
   let head = '';
   if (pct > 0) {
     const [hx, hy] = pt(thetaP, 1);
-    head = `<circle cx="${hx.toFixed(2)}" cy="${hy.toFixed(2)}" r="3.6" fill="url(#${gradId})"/>`;
+    head = `<circle cx="${hx.toFixed(2)}" cy="${hy.toFixed(2)}" r="4.6" fill="url(#${gradId})" filter="url(#${shadowId})"/>`;
   }
 
   return `
     <defs>
-      <radialGradient id="${gradId}" cx="35%" cy="30%" r="65%">
+      <radialGradient id="${gradId}" cx="32%" cy="28%" r="70%">
         <stop offset="0%" stop-color="#ffffff"/>
-        <stop offset="35%" stop-color="${color}"/>
+        <stop offset="28%" stop-color="${color}" stop-opacity=".9"/>
         <stop offset="100%" stop-color="${color}"/>
       </radialGradient>
+      <filter id="${shadowId}" x="-100%" y="-100%" width="300%" height="300%">
+        <feDropShadow dx="0" dy="0.6" stdDeviation="0.7" flood-color="${color}" flood-opacity=".5"/>
+      </filter>
     </defs>
-    <path d="${toPath(s1.grey)}" fill="none" stroke="#dde4ee" stroke-width="1.1" opacity=".75" stroke-linecap="round"/>
-    <path d="${toPath(s2.grey)}" fill="none" stroke="#dde4ee" stroke-width="0.85" opacity=".55" stroke-linecap="round"/>
-    ${rungs}
-    <path d="${toPath(s1.colored)}" fill="none" stroke="${color}" stroke-width="1.5" opacity="1" stroke-linecap="round"/>
-    <path d="${toPath(s2.colored)}" fill="none" stroke="${color}" stroke-width="1.05" opacity=".7" stroke-linecap="round"/>
+    ${greyBeads}
+    ${coloredBeads}
     ${head}`;
 }
 

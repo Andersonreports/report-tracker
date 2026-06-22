@@ -3342,12 +3342,11 @@ function _relOrTat(r) {
   return parseDate(r.tat);
 }
 
-// Builds a minimal circular progress ring whose colored arc is textured as a
-// thin DNA double-helix (two fine interleaved strands + subtle glow), hugging
-// the circle exactly — no spring/coil wobble, no beads. Inactive remainder is
-// a plain thin grey track. Enterprise/biotech dashboard style.
+// Builds a twisted DNA double-helix progress ring: two interleaved strands with
+// cross "rungs" (like base pairs) forming a clear ladder/chain texture, a thin
+// grey track for the inactive remainder, and a small glossy bead at the tip.
 function buildHelixRing(color, pct, uid) {
-  const cx = 50, cy = 50, R = 38, WAVE = 1.6, TWISTS = 26, SEGS = 420, TRACK_SW = 5;
+  const cx = 50, cy = 50, R = 35, WAVE = 2.3, TWISTS = 16, SEGS = 360;
   const thetaP = Math.max(0, Math.min(1, pct)) * 2 * Math.PI;
   const pt = (theta, sign) => {
     const a = theta - Math.PI / 2;
@@ -3355,29 +3354,51 @@ function buildHelixRing(color, pct, uid) {
     return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
   };
   const fmt = ([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`;
-  const arcPath = sign => {
-    let pts = [];
-    for (let i = 0; i <= SEGS; i++) pts.push(pt((i / SEGS) * thetaP, sign));
-    return 'M' + pts.map(fmt).join(' L');
-  };
 
-  const glowId = `helixGlow-${uid}`;
-  let colored = '';
+  function strandPaths(sign) {
+    let colored = [], grey = [];
+    for (let i = 0; i <= SEGS; i++) {
+      const theta = (i / SEGS) * 2 * Math.PI;
+      const p = pt(theta, sign);
+      if (theta <= thetaP) colored.push(p); else grey.push(p);
+    }
+    return { colored, grey };
+  }
+  const toPath = pts => pts.length ? 'M' + pts.map(fmt).join(' L') : '';
+  const s1 = strandPaths(1), s2 = strandPaths(-1);
+
+  // Ladder rungs (base pairs) connecting the two strands
+  const RUNGS = TWISTS * 2;
+  let rungs = '';
+  for (let i = 0; i < RUNGS; i++) {
+    const theta = (i / RUNGS) * 2 * Math.PI;
+    const [x1, y1] = pt(theta, 1);
+    const [x2, y2] = pt(theta, -1);
+    const isColored = theta <= thetaP;
+    rungs += `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="${isColored ? color : '#dde4ee'}" stroke-width="${isColored ? 0.8 : 0.5}" opacity="${isColored ? .85 : .6}"/>`;
+  }
+
+  const gradId = `helixGrad-${uid}`;
+  let head = '';
   if (pct > 0) {
-    colored = `
-      <path d="${arcPath(1)}" fill="none" stroke="${color}" stroke-width="2.6" opacity=".22" stroke-linecap="round" filter="url(#${glowId})"/>
-      <path d="${arcPath(-1)}" fill="none" stroke="${color}" stroke-width="1" opacity=".85" stroke-linecap="round"/>
-      <path d="${arcPath(1)}" fill="none" stroke="${color}" stroke-width="1.3" opacity="1" stroke-linecap="round"/>`;
+    const [hx, hy] = pt(thetaP, 1);
+    head = `<circle cx="${hx.toFixed(2)}" cy="${hy.toFixed(2)}" r="3.6" fill="url(#${gradId})"/>`;
   }
 
   return `
     <defs>
-      <filter id="${glowId}" x="-50%" y="-50%" width="200%" height="200%">
-        <feGaussianBlur stdDeviation="1.4"/>
-      </filter>
+      <radialGradient id="${gradId}" cx="35%" cy="30%" r="65%">
+        <stop offset="0%" stop-color="#ffffff"/>
+        <stop offset="35%" stop-color="${color}"/>
+        <stop offset="100%" stop-color="${color}"/>
+      </radialGradient>
     </defs>
-    <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#eaedf3" stroke-width="${TRACK_SW}"/>
-    ${colored}`;
+    <path d="${toPath(s1.grey)}" fill="none" stroke="#dde4ee" stroke-width="1.1" opacity=".75" stroke-linecap="round"/>
+    <path d="${toPath(s2.grey)}" fill="none" stroke="#dde4ee" stroke-width="0.85" opacity=".55" stroke-linecap="round"/>
+    ${rungs}
+    <path d="${toPath(s1.colored)}" fill="none" stroke="${color}" stroke-width="1.5" opacity="1" stroke-linecap="round"/>
+    <path d="${toPath(s2.colored)}" fill="none" stroke="${color}" stroke-width="1.05" opacity=".7" stroke-linecap="round"/>
+    ${head}`;
 }
 
 function anDrawChart0() {

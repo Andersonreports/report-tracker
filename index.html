@@ -624,26 +624,17 @@
       color: var(--pri); font-weight: 700; font-size: 13px; border: 1px solid rgba(79,70,229,.2);
     }
 
-    /* ── Reviewer milestone celebration (Chart 0) — confetti burst per donut ── */
-    .ata-confetti {
-      position: absolute; top: 6px; left: 50%; width: 0; height: 0;
-      pointer-events: none; z-index: 6;
+    /* ── Reviewer milestone badge (Chart 0) — "Target Achieved" pill ── */
+    .ata-badge {
+      position: absolute; top: -6px; left: 50%; transform: translate(-50%, -100%);
+      display: flex; align-items: center; gap: 5px; white-space: nowrap;
+      background: #e3faf0; color: #0f9d68; border: 1px solid #b7eed4;
+      border-radius: 20px; padding: 5px 12px; font-size: 11px; font-weight: 700;
+      letter-spacing: .03em; box-shadow: 0 2px 8px rgba(16,185,129,.18); z-index: 6;
+      animation: ataPop .3s cubic-bezier(.34,1.56,.64,1);
     }
-    .ata-confetti span {
-      position: absolute; left: 0; top: 0; font-size: 19px; opacity: 0;
-      animation: ataBurst 1.8s ease-out infinite;
-    }
-    .ata-confetti span:nth-child(1){ --tx:-38px; --ty:-58px; --rot:-25deg; animation-delay:0s; }
-    .ata-confetti span:nth-child(2){ --tx:-10px; --ty:-70px; --rot:10deg;  animation-delay:.25s; }
-    .ata-confetti span:nth-child(3){ --tx:32px;  --ty:-56px; --rot:22deg; animation-delay:.5s; }
-    .ata-confetti span:nth-child(4){ --tx:4px;   --ty:-48px; --rot:-12deg; animation-delay:.75s; }
-    .ata-confetti span:nth-child(5){ --tx:18px;  --ty:-62px; --rot:16deg; animation-delay:1s; }
-    @keyframes ataBurst {
-      0%   { opacity: 0; transform: translate(-50%,-50%) scale(.3) rotate(0); }
-      20%  { opacity: 1; transform: translate(calc(-50% + var(--tx)*.4), calc(-50% + var(--ty)*.4)) scale(1.1) rotate(var(--rot)); }
-      75%  { opacity: 1; }
-      100% { opacity: 0; transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(.7) rotate(var(--rot)); }
-    }
+    .ata-badge svg { flex-shrink: 0; }
+    @keyframes ataPop { from{opacity:0;transform:translate(-50%,-100%) scale(.7)} to{opacity:1;transform:translate(-50%,-100%) scale(1)} }
 
     /* per-chart filter panel */
     .an-chart-content { display: flex; gap: 20px; align-items: flex-start; }
@@ -3383,7 +3374,7 @@ function anDrawChart0() {
   const monthIdx = MONTH_LABELS.indexOf(month);
   const inThresholdWindow = year !== 'All' && month !== 'All' &&
     (yearNum > THRESHOLD_YEAR || (yearNum === THRESHOLD_YEAR && monthIdx >= THRESHOLD_MONTH_IDX));
-  const CONFETTI = `<div class="ata-confetti"><span>🎉</span><span>✨</span><span>🎊</span><span>⭐</span><span>🥳</span></div>`;
+  const TARGET_BADGE = `<div class="ata-badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>TARGET ACHIEVED</div>`;
 
   // SVG donut chart per reviewer
   const R = 40, SW = 10;                        // radius, stroke-width
@@ -3400,7 +3391,7 @@ function anDrawChart0() {
     return `
     <div style="display:flex;flex-direction:column;align-items:center;gap:14px;flex:1;min-width:150px">
       <div style="position:relative;width:220px;height:220px">
-        ${celebrate ? CONFETTI : ''}
+        ${celebrate ? TARGET_BADGE : ''}
         <svg viewBox="0 0 100 100" width="220" height="220">
           <circle cx="50" cy="50" r="${R}" fill="none" stroke="#e2e8f0" stroke-width="${SW}"/>
           <circle cx="50" cy="50" r="${R}" fill="none" stroke="${t.color}" stroke-width="${SW}"

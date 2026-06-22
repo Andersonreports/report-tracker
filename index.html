@@ -3441,7 +3441,10 @@ function anDrawChart0() {
 
   const donuts = TEAM_MEMBERS.map(t => {
     const cnt    = teamCount[t.key] || 0;
-    const pct    = Math.min(cnt / 100, 1); // ring is always out of a 100-sample target
+    // Fixed 100-sample target only applies to a single selected month; when
+    // viewing "All" months, fall back to share-of-total so the ring still
+    // makes sense at that larger scale.
+    const pct    = month !== 'All' ? Math.min(cnt / 100, 1) : (total > 0 ? cnt / total : 0);
     const pctTxt = Math.round(pct * 100) + '%';
     const celebrate = inThresholdWindow && cnt > 40;
     return `

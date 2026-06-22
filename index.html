@@ -3401,56 +3401,23 @@ function buildHelixRing(color, pct, uid) {
     ${head}`;
 }
 
-function anDrawChart0() {
-  const year  = document.getElementById('an-f0-year').value;
-  const month = document.getElementById('an-f0-month').value;
+const TARGET_BADGE_HTML = `<div class="ata-badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>TARGET ACHIEVED</div>`;
 
-  const filtered = rows.filter(r => {
-    if (getStatus(r) !== 'Released') return false;
-    const d = _relOrTat(r);
-    if (!d) return false;
-    const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
-    const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
-    return yearMatch && monthMatch;
-  });
-
-  const labels = month === 'All' ? MONTH_LABELS : [month];
-
-  // Count per reviewer (flat total, not by month)
-  const teamCount = {};
-  TEAM_MEMBERS.forEach(t => { teamCount[t.key] = 0; });
-  filtered.forEach(r => {
-    const rv = String(r.pri_rev || '').toLowerCase().trim();
-    TEAM_MEMBERS.forEach(t => { if (rv.includes(t.key)) teamCount[t.key]++; });
-  });
-
-  const total = filtered.length;
-  document.getElementById('an-total-0').textContent = `Total: ${total}`;
-
-  // Reviewer milestone — month-wise, effective Jun 2026 onward
-  const THRESHOLD_YEAR = 2026, THRESHOLD_MONTH_IDX = MONTH_LABELS.indexOf('Jun');
-  const yearNum = parseInt(year, 10);
-  const monthIdx = MONTH_LABELS.indexOf(month);
-  const inThresholdWindow = year !== 'All' && month !== 'All' &&
-    (yearNum > THRESHOLD_YEAR || (yearNum === THRESHOLD_YEAR && monthIdx >= THRESHOLD_MONTH_IDX));
-  const TARGET_BADGE = `<div class="ata-badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>TARGET ACHIEVED</div>`;
-
-  // DNA helix progress ring per reviewer
-  const chartBody = document.getElementById('an-chart-body-0');
-  if (!chartBody) return;
-
-  const donuts = TEAM_MEMBERS.map(t => {
-    const cnt    = teamCount[t.key] || 0;
+// Shared by the main chart and the click-through modal: one DNA helix ring per
+// team member. `highlightKey` (optional) outlines that one reviewer's card.
+function buildReviewerRingsHtml(teamCount, total, month, inThresholdWindow, highlightKey) {
+  return TEAM_MEMBERS.map(t => {
+    const cnt = teamCount[t.key] || 0;
     // Fixed 100-sample target only applies to a single selected month; when
     // viewing "All" months, fall back to share-of-total so the ring still
     // makes sense at that larger scale.
-    const pct    = month !== 'All' ? Math.min(cnt / 100, 1) : (total > 0 ? cnt / total : 0);
-    const pctTxt = Math.round(pct * 100) + '%';
+    const pct = month !== 'All' ? Math.min(cnt / 100, 1) : (total > 0 ? cnt / total : 0);
     const celebrate = inThresholdWindow && cnt > 40;
+    const isHighlighted = t.key === highlightKey;
     return `
-    <div style="display:flex;flex-direction:column;align-items:center;gap:14px;flex:1;min-width:150px;cursor:pointer" onclick="openReviewerRingModal('${t.key}','${t.label.replace(/'/g, "\\'")}')">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:14px;flex:1;min-width:150px;cursor:pointer;${isHighlighted ? `outline:2px solid ${t.color};outline-offset:8px;border-radius:18px;` : ''}" onclick="openReviewerRingModal('${t.key}','${t.label.replace(/'/g, "\\'")}')">
       <div style="position:relative;width:220px;height:220px">
-        ${celebrate ? TARGET_BADGE : ''}
+        ${celebrate ? TARGET_BADGE_HTML : ''}
         <svg viewBox="0 0 100 100" width="220" height="220">
           ${buildHelixRing(t.color, pct, t.key)}
         </svg>
@@ -3464,28 +3431,11 @@ function anDrawChart0() {
       </div>
     </div>`;
   }).join('');
-
-  chartBody.innerHTML = `
-    <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:space-evenly;align-items:flex-start;padding:24px 16px">
-      ${donuts}
-    </div>`;
-
-  // Clear old legend — info is inside donuts
-  const legendEl = document.getElementById('an-legend-0');
-  if (legendEl) legendEl.innerHTML = '';
 }
 
-const REVIEWER_RING_COLS = ['name', 'test', 'gen_id', 'and_id', 'run_text', 'client', 'rel_date'];
-
-// Clicking a reviewer's helix ring shows that reviewer's own released samples
-// for the currently selected month/year — same filter the ring's count uses.
-function openReviewerRingModal(key, label) {
-  const year  = document.getElementById('an-f0-year').value;
-  const month = document.getElementById('an-f0-month').value;
-
-  const reviewerRows = rows.filter(r => {
+function _chart0Data(year, month) {
+  const filtered = rows.filter(r => {
     if (getStatus(r) !== 'Released') return false;
-    if (!String(r.pri_rev || '').toLowerCase().trim().includes(key)) return false;
     const d = _relOrTat(r);
     if (!d) return false;
     const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
@@ -3493,8 +3443,59 @@ function openReviewerRingModal(key, label) {
     return yearMatch && monthMatch;
   });
 
+  const teamCount = {};
+  TEAM_MEMBERS.forEach(t => { teamCount[t.key] = 0; });
+  filtered.forEach(r => {
+    const rv = String(r.pri_rev || '').toLowerCase().trim();
+    TEAM_MEMBERS.forEach(t => { if (rv.includes(t.key)) teamCount[t.key]++; });
+  });
+
+  const THRESHOLD_YEAR = 2026, THRESHOLD_MONTH_IDX = MONTH_LABELS.indexOf('Jun');
+  const yearNum = parseInt(year, 10);
+  const monthIdx = MONTH_LABELS.indexOf(month);
+  const inThresholdWindow = year !== 'All' && month !== 'All' &&
+    (yearNum > THRESHOLD_YEAR || (yearNum === THRESHOLD_YEAR && monthIdx >= THRESHOLD_MONTH_IDX));
+
+  return { total: filtered.length, teamCount, inThresholdWindow };
+}
+
+function anDrawChart0() {
+  const year  = document.getElementById('an-f0-year').value;
+  const month = document.getElementById('an-f0-month').value;
+  const { total, teamCount, inThresholdWindow } = _chart0Data(year, month);
+
+  document.getElementById('an-total-0').textContent = `Total: ${total}`;
+
+  const chartBody = document.getElementById('an-chart-body-0');
+  if (!chartBody) return;
+
+  chartBody.innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:space-evenly;align-items:flex-start;padding:24px 16px">
+      ${buildReviewerRingsHtml(teamCount, total, month, inThresholdWindow, null)}
+    </div>`;
+
+  // Clear old legend — info is inside donuts
+  const legendEl = document.getElementById('an-legend-0');
+  if (legendEl) legendEl.innerHTML = '';
+}
+
+// Clicking a reviewer's helix ring opens a detail view with every team
+// member's own ring (same filter the main chart uses), highlighting the one
+// that was clicked — a focused view of team progress, not a sample table.
+function openReviewerRingModal(key, label) {
+  const year  = document.getElementById('an-f0-year').value;
+  const month = document.getElementById('an-f0-month').value;
+  const { total, teamCount, inThresholdWindow } = _chart0Data(year, month);
+
   const period = (year === 'All' && month === 'All') ? 'All time' : `${month === 'All' ? '' : month + ' '}${year === 'All' ? '' : year}`.trim();
-  openQModal(`${label}'s Released Samples — ${period}`, reviewerRows, REVIEWER_RING_COLS);
+  document.getElementById('qmodal-title').textContent = `Team Progress — ${period}`;
+  document.getElementById('qmodal-count').textContent = ` · highlighting ${label}`;
+  document.getElementById('qmodal-body').innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:24px;justify-content:center;align-items:flex-start;padding:28px;overflow:auto">
+      ${buildReviewerRingsHtml(teamCount, total, month, inThresholdWindow, key)}
+    </div>`;
+  document.getElementById('qmodal-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
 }
 
 // High-contrast, distinct color palette

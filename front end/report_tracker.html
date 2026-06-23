@@ -899,6 +899,36 @@
     }
     #page-overdue .rel-count-btn .rc-num { background: rgba(239,68,68,.2) !important; color: #b91c1c !important; }
 
+    /* Released table — green accent instead of indigo */
+    #page-released .tbl-wrap {
+      border-top: 3px solid #10b981 !important;
+      box-shadow: 0 8px 40px rgba(16,185,129,.10), 0 2px 8px rgba(0,0,0,.05) !important;
+      border: 1px solid rgba(16,185,129,.14) !important;
+    }
+    #page-released .tbl-wrap thead th {
+      background: linear-gradient(135deg, rgba(16,185,129,.11) 0%, rgba(52,211,153,.06) 100%) !important;
+      color: #065f46 !important;
+      border-bottom: 2px solid rgba(16,185,129,.18) !important;
+    }
+    #page-released .tbl-wrap tbody tr:hover { background: linear-gradient(90deg, rgba(16,185,129,.07) 0%, rgba(52,211,153,.02) 70%, transparent 100%) !important; }
+    #page-released .tbl-wrap tbody tr:hover td:first-child { box-shadow: inset 3px 0 0 #10b981 !important; }
+    #page-released .tbl-wrap tbody tr:nth-child(even) { background: rgba(16,185,129,.022) !important; }
+
+    /* Overdue table — subtle red accent instead of indigo */
+    #page-overdue .tbl-wrap {
+      border-top: 3px solid #f87171 !important;
+      box-shadow: 0 8px 40px rgba(239,68,68,.10), 0 2px 8px rgba(0,0,0,.05) !important;
+      border: 1px solid rgba(239,68,68,.14) !important;
+    }
+    #page-overdue .tbl-wrap thead th {
+      background: linear-gradient(135deg, rgba(239,68,68,.10) 0%, rgba(248,113,113,.05) 100%) !important;
+      color: #b91c1c !important;
+      border-bottom: 2px solid rgba(239,68,68,.16) !important;
+    }
+    #page-overdue .tbl-wrap tbody tr:hover { background: linear-gradient(90deg, rgba(239,68,68,.06) 0%, rgba(248,113,113,.02) 70%, transparent 100%) !important; }
+    #page-overdue .tbl-wrap tbody tr:hover td:first-child { box-shadow: inset 3px 0 0 #ef4444 !important; }
+    #page-overdue .tbl-wrap tbody tr:nth-child(even) { background: rgba(239,68,68,.018) !important; }
+
     /* Status tile hover */
     .si-card { transition: transform 0.2s ease, box-shadow 0.2s ease; cursor: pointer; }
     .si-card:hover { transform: translateY(-3px); box-shadow: 0 10px 32px rgba(0,0,0,.12); }

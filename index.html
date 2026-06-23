@@ -363,6 +363,12 @@
     }
     .tat-chip .tc-label{font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
     .tat-chip .tc-val{color:var(--text);font-weight:500}
+    .release-remark-row{
+      display:flex;align-items:center;gap:10px;width:100%;padding:6px 14px;
+      border-radius:20px;background:var(--pb);border:1px solid var(--bdr);cursor:text;
+    }
+    .release-remark-row .tc-label{flex-shrink:0;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+    .release-remark-input{flex:1;border:none;background:transparent;outline:none;font-family:inherit;font-size:12px;color:var(--text)}
 
     /* ── TEAM WORKLOAD CARDS ── */
     .emp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:13px}
@@ -1835,7 +1841,10 @@ function tatDetailBlock(id, r) {
 
 function releaseRemarkBlock(id, r) {
   return `<div class="tat-detail" id="tat-d-${id}">
-    <span class="tat-chip"><span class="tc-label">Remark</span><span class="tc-val">${esc(r.remark||'No remark')}</span></span>
+    <div class="release-remark-row" onclick="event.stopPropagation()">
+      <span class="tc-label">Remark</span>
+      <input type="text" class="release-remark-input" value="${esc(r.remark||'')}" placeholder="Type a note…">
+    </div>
   </div>`;
 }
 

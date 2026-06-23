@@ -324,7 +324,7 @@
     .tat-chip .tc-val{color:var(--text);font-weight:500}
 
     /* ── TEAM WORKLOAD CARDS ── */
-    .emp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:13px}
+    .emp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:13px}
     .emp-card{
       padding:18px 20px;border-radius:var(--r);border-top:3px solid var(--ong);
       display:flex;flex-direction:column;gap:8px;transition:var(--tr);
@@ -490,7 +490,7 @@
     @media(max-width:900px){
       .stats{grid-template-columns:repeat(2,1fr)}
       .tat-grid{grid-template-columns:1fr}
-      .emp-grid{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
+      .emp-grid{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
       #qmodal{max-width:95vw;margin:10px}
     }
 
@@ -872,6 +872,32 @@
     }
     .tab { transition: all 0.2s ease; }
     .tab:hover:not(.active) { background: rgba(79,70,229,.08); color: var(--pri); }
+
+    /* Released tab — green instead of indigo when active */
+    #t-rel.tab.active {
+      background: linear-gradient(135deg, #059669, #10b981) !important;
+      box-shadow: 0 4px 18px rgba(16,185,129,.35) !important;
+    }
+    #t-rel.tab.active .tbadge { background: rgba(255,255,255,.25) !important; color: #fff !important; }
+    #page-released .rel-count-btn {
+      background: linear-gradient(135deg, rgba(16,185,129,.18), rgba(52,211,153,.12)) !important;
+      border: 1.5px solid rgba(16,185,129,.32) !important;
+      box-shadow: 0 4px 16px rgba(16,185,129,.15) !important; color: #047857 !important;
+    }
+    #page-released .rel-count-btn .rc-num { background: linear-gradient(135deg, rgba(16,185,129,.25), rgba(52,211,153,.18)) !important; color: #065f46 !important; }
+
+    /* Overdue tab — subtle red instead of indigo when active */
+    #t-overdue.tab.active {
+      background: linear-gradient(135deg, #f87171, #ef4444) !important;
+      box-shadow: 0 4px 18px rgba(239,68,68,.3) !important;
+    }
+    #t-overdue.tab.active .tbadge { background: rgba(255,255,255,.25) !important; color: #fff !important; }
+    #page-overdue .rel-count-btn {
+      background: linear-gradient(135deg, rgba(248,113,113,.16), rgba(239,68,68,.1)) !important;
+      border: 1.5px solid rgba(239,68,68,.28) !important;
+      box-shadow: 0 4px 16px rgba(239,68,68,.12) !important; color: #b91c1c !important;
+    }
+    #page-overdue .rel-count-btn .rc-num { background: rgba(239,68,68,.2) !important; color: #b91c1c !important; }
 
     /* Status tile hover */
     .si-card { transition: transform 0.2s ease, box-shadow 0.2s ease; cursor: pointer; }

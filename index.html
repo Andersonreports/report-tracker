@@ -214,6 +214,46 @@
     }
     .rel-clear-btn:hover{border-color:var(--danger);color:var(--danger)}
 
+    /* ── RELEASE DATE PICKER PANEL ── */
+    .release-date-input{
+      height:42px;padding:0 12px;border:1.5px solid rgba(239,68,68,.3);border-radius:var(--rs);
+      background:var(--ib);font-family:inherit;font-size:13px;color:var(--text);
+    }
+    .release-date-input:focus{outline:none;border-color:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.12)}
+    .release-mark-btn{border-color:rgba(16,185,129,.35)!important;background:rgba(16,185,129,.1)!important;color:#047857!important}
+    .release-mark-btn:disabled{opacity:.5;cursor:not-allowed}
+    .release-mark-btn:not(:disabled):hover{border-color:#10b981!important;color:#065f46!important}
+    .release-panel{
+      display:none;padding:14px 18px;margin-bottom:14px;border-radius:var(--r);
+      border:1px solid rgba(239,68,68,.18);background:var(--panel);backdrop-filter:blur(12px);
+      animation:fadeUp .2s ease-out;
+    }
+    .release-panel.open{display:block}
+    .release-panel-search{
+      display:flex;align-items:center;gap:8px;padding:0 14px;height:42px;margin-bottom:12px;
+      border:1.5px solid var(--bdr);border-radius:var(--rs);background:var(--ib);cursor:text;
+    }
+    .release-panel-search:focus-within{border-color:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.1)}
+    .release-panel-search svg{color:var(--muted);flex-shrink:0}
+    .release-panel-search input{border:none;background:transparent;outline:none;font-family:inherit;font-size:13px;color:var(--text);width:100%}
+    .release-list-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+    .release-select-all{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer}
+    .release-selected-count{font-size:12px;font-weight:700;color:#b91c1c}
+    .release-picker-list{max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+    .release-row{
+      display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:var(--rs);
+      border:1px solid var(--bdr);background:var(--ib);cursor:pointer;transition:var(--tr);
+    }
+    .release-row:hover{border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.04)}
+    .release-row input[type="checkbox"]{flex-shrink:0;width:16px;height:16px;cursor:pointer;accent-color:#ef4444}
+    .release-row-name{font-weight:700;font-size:12.5px;color:var(--text);min-width:160px;overflow:hidden;text-overflow:ellipsis}
+    .release-row-sub{font-size:11.5px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .release-row-tat{font-size:11px;color:var(--muted);white-space:nowrap}
+    .release-badge{padding:3px 9px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap}
+    .release-badge-over{background:rgba(239,68,68,.15);color:#b91c1c}
+    .release-badge-soon{background:rgba(245,158,11,.15);color:#b45309}
+    .release-empty{padding:20px;text-align:center;color:var(--muted);font-size:13px}
+
     /* ── TABLE ── */
     .tbl-wrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--pb);width:fit-content;max-width:100%}
     table{border-collapse:collapse;font-size:12px;white-space:nowrap;width:auto;table-layout:auto;margin:0}
@@ -1276,6 +1316,15 @@
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
         <input type="text" id="q-overdue" placeholder="Search Sample, Test, Gen_ID…" oninput="renderOverdue()" />
       </div>
+      <button class="rel-filter-toggle" id="release-date-btn" onclick="toggleReleasePanel()" style="border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.08);color:#b91c1c">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Release Date
+      </button>
+      <input type="date" id="release-date-input" class="release-date-input" style="display:none" />
+      <button class="rel-filter-toggle release-mark-btn" id="mark-released-btn" style="display:none" disabled onclick="markSelectedAsReleased()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+        Mark as Released
+      </button>
       <button class="rel-filter-toggle" id="overdue-filter-btn" onclick="toggleOverdueFilters()">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
         Filters <span class="rel-filter-badge" id="overdue-active-count">0</span>
@@ -1288,6 +1337,20 @@
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Download Excel
       </button>
+    </div>
+    <!-- Release Date picker panel: combined overdue + due-soon list with checkboxes -->
+    <div class="release-panel" id="release-panel">
+      <div class="release-panel-search" onclick="this.querySelector('input').focus()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="q-release" placeholder="Search Sample, Test, Gen_ID…" oninput="renderReleasePicker()" />
+      </div>
+      <div class="release-list-head">
+        <label class="release-select-all">
+          <input type="checkbox" id="release-select-all-chk" onchange="toggleSelectAllRelease(this)" /> Select all
+        </label>
+        <span class="release-selected-count" id="release-selected-count"></span>
+      </div>
+      <div class="release-picker-list" id="release-picker-list"></div>
     </div>
     <!-- Collapsible filter panel -->
     <div class="rel-panel glass" id="overdue-panel">
@@ -2789,6 +2852,145 @@ function getOverdueRows() {
     const diff = Math.round((today2 - td) / 86400000);
     return { ...r, _overdue_days: diff };
   }).sort((a,b) => b._overdue_days - a._overdue_days);
+}
+
+// ================================================================
+//  RELEASE DATE PICKER — overdue + due-within-7-days, with checkboxes
+// ================================================================
+function getDueSoonRows() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const limit = new Date(today); limit.setDate(limit.getDate() + TAT_WARN_DAYS);
+  return rows.filter(r => {
+    if (getStatus(r) === 'Released') return false;
+    const td = parseTatDate(r);
+    if (!td) return false;
+    td.setHours(0,0,0,0);
+    return td >= today && td <= limit;
+  }).map(r => {
+    const td = parseTatDate(r); td.setHours(0,0,0,0);
+    const today2 = new Date(); today2.setHours(0,0,0,0);
+    const diff = Math.round((td - today2) / 86400000);
+    return { ...r, _due_in_days: diff };
+  }).sort((a,b) => a._due_in_days - b._due_in_days);
+}
+
+function getReleaseCandidates() {
+  return [...getOverdueRows(), ...getDueSoonRows()];
+}
+
+let releasePickerRows = [];
+
+function toggleReleasePanel() {
+  const panel = document.getElementById('release-panel');
+  const btn   = document.getElementById('release-date-btn');
+  const dateInput = document.getElementById('release-date-input');
+  const markBtn   = document.getElementById('mark-released-btn');
+  const open = panel.classList.toggle('open');
+  btn.classList.toggle('active');
+  dateInput.style.display = open ? '' : 'none';
+  markBtn.style.display   = open ? '' : 'none';
+  if (open) renderReleasePicker();
+}
+
+function renderReleasePicker() {
+  const q = (document.getElementById('q-release')?.value || '').toLowerCase();
+  let data = getReleaseCandidates();
+  if (q) {
+    data = data.filter(r =>
+      (r.name||'').toLowerCase().includes(q) ||
+      (r.test||'').toLowerCase().includes(q) ||
+      (r.gen_id||'').toLowerCase().includes(q) ||
+      (r.and_id||'').toLowerCase().includes(q) ||
+      (r.client||'').toLowerCase().includes(q)
+    );
+  }
+  releasePickerRows = data;
+  const list = document.getElementById('release-picker-list');
+  if (!data.length) {
+    list.innerHTML = '<div class="release-empty">No overdue or due-soon samples found.</div>';
+  } else {
+    list.innerHTML = data.map((r, i) => {
+      const badge = r._overdue_days != null
+        ? `<span class="release-badge release-badge-over">${r._overdue_days}d overdue</span>`
+        : `<span class="release-badge release-badge-soon">${r._due_in_days===0 ? 'Due today' : 'Due in '+r._due_in_days+'d'}</span>`;
+      return `
+      <label class="release-row">
+        <input type="checkbox" class="release-chk" data-idx="${i}" onchange="updateReleaseSelectedCount()">
+        <span class="release-row-name" title="${esc(r.name||r.gen_id||'')}">${esc(r.name||r.gen_id||'—')}</span>
+        <span class="release-row-sub">${esc(r.test||'—')} · ${esc(r.gen_id||'—')}</span>
+        <span class="release-row-tat">TAT ${esc(r.tat||'—')}</span>
+        ${badge}
+      </label>`;
+    }).join('');
+  }
+  const selectAll = document.getElementById('release-select-all-chk');
+  if (selectAll) selectAll.checked = false;
+  updateReleaseSelectedCount();
+}
+
+function updateReleaseSelectedCount() {
+  const checked = document.querySelectorAll('#release-picker-list .release-chk:checked');
+  const btn = document.getElementById('mark-released-btn');
+  const countEl = document.getElementById('release-selected-count');
+  if (countEl) countEl.textContent = checked.length ? `${checked.length} selected` : '';
+  if (btn) btn.disabled = checked.length === 0;
+}
+
+function toggleSelectAllRelease(cb) {
+  document.querySelectorAll('#release-picker-list .release-chk').forEach(el => { el.checked = cb.checked; });
+  updateReleaseSelectedCount();
+}
+
+function isoToDdMmYyyy(iso) {
+  const [y,m,d] = iso.split('-');
+  return `${d}-${m}-${y}`;
+}
+
+async function markSelectedAsReleased() {
+  const dateInput = document.getElementById('release-date-input');
+  const dateStr = dateInput.value;
+  if (!dateStr) { toast('Pick a release date first', 'err'); return; }
+  const checked = [...document.querySelectorAll('#release-picker-list .release-chk:checked')];
+  if (!checked.length) { toast('Select at least one sample', 'err'); return; }
+  const selectedRows = checked.map(el => releasePickerRows[parseInt(el.dataset.idx, 10)]);
+
+  const btn = document.getElementById('mark-released-btn');
+  btn.disabled = true; const origLabel = btn.innerHTML; btn.textContent = 'Saving…';
+  try {
+    await submitReleaseUpdates(dateStr, selectedRows);
+    const relDateText = isoToDdMmYyyy(dateStr);
+    selectedRows.forEach(sel => {
+      const target = rows.find(r => r.gen_id === sel.gen_id && r.and_id === sel.and_id && r.run_text === sel.run_text && r.sno === sel.sno);
+      if (target) target.rel_date = relDateText;
+    });
+    saveToStorage(rows);
+    refreshAll();
+    renderReleasePicker();
+    toast(`Marked ${selectedRows.length} sample${selectedRows.length>1?'s':''} as released`);
+    dateInput.value = '';
+  } catch (e) {
+    toast('Failed to save release date: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false; btn.innerHTML = origLabel;
+    updateReleaseSelectedCount();
+  }
+}
+
+async function submitReleaseUpdates(dateStr, items) {
+  const payload = {
+    action: 'markReleased',
+    date: dateStr,
+    items: items.map(r => ({ gen_id: r.gen_id, and_id: r.and_id, run_text: r.run_text, sno: r.sno }))
+  };
+  const resp = await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const result = await resp.json();
+  if (!result || result.ok !== true) throw new Error((result && result.error) || 'Unknown error');
+  return result;
 }
 
 function getFilteredOverdue() {

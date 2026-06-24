@@ -2380,7 +2380,8 @@ function renderTeamWorkload(containerId, data) {
     if (!byEmp[emp]) byEmp[emp] = [];
     byEmp[emp].push(r);
   });
-  el.innerHTML = Object.entries(byEmp).sort((a,b)=>b[1].length-a[1].length).map(([emp, reports])=>{
+  const teamNum = emp => parseInt((((TEAM_MAP[emp]||'Team 6')).match(/\d+/)||['6'])[0], 10);
+  el.innerHTML = Object.entries(byEmp).sort((a,b)=>teamNum(a[0])-teamNum(b[0])).map(([emp, reports])=>{
     const teamTitle = TEAM_MAP[emp] || 'Team 6';
     const tc = teamColorFor(teamTitle);
     const cardStyle = `--accent-1:${tc.c1};--accent-2:${tc.c2};--accent-shadow:${tc.shadow};--accent-pill-bg:${tc.pillBg};--accent-pill-text:${tc.pillText};--accent-pill-border:${tc.pillBorder}`;

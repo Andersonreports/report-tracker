@@ -385,28 +385,37 @@
     .release-remark-input{flex:1;border:none;background:transparent;outline:none;font-family:inherit;font-size:12px;color:var(--text)}
 
     /* ── TEAM WORKLOAD CARDS ── */
-    .emp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:13px}
+    .emp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
     .emp-card{
-      padding:18px 20px;border-radius:var(--r);border-top:3px solid var(--ong);
-      display:flex;flex-direction:column;gap:8px;transition:var(--tr);
+      padding:20px 22px;border-radius:16px;border:1px solid var(--bdr);
+      border-top:3px solid var(--accent-1,var(--ong));
+      background:linear-gradient(165deg,var(--accent-pill-bg,rgba(245,158,11,.07)) 0%,#fff 55%);
+      display:flex;flex-direction:column;gap:10px;transition:var(--tr);cursor:pointer;
     }
-    .emp-card:hover{transform:translateY(-2px);box-shadow:var(--sh-lg)}
+    .emp-card:hover{transform:translateY(-3px);box-shadow:0 12px 28px var(--accent-shadow,rgba(0,0,0,.12))}
     .emp-avatar{
-      width:42px;height:42px;border-radius:50%;
-      background:linear-gradient(135deg,#f59e0b,#d97706);
+      width:44px;height:44px;border-radius:14px;
+      background:linear-gradient(135deg,var(--accent-1,#f59e0b),var(--accent-2,#d97706));
       color:#fff;font-size:18px;font-weight:800;
       display:flex;align-items:center;justify-content:center;
+      box-shadow:0 4px 14px var(--accent-shadow,rgba(245,158,11,.35));
     }
     .emp-name{font-size:14px;color:var(--text);display:flex;flex-direction:column;gap:1px}
     .emp-team-title{font-size:16px;font-weight:800;color:var(--text)}
     .emp-team-sub{font-size:12px;font-weight:500;color:var(--muted)}
-    .emp-count{font-size:12px;font-weight:600;color:var(--ong)}
-    .emp-pills{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
+    .emp-count{font-size:12.5px;font-weight:700;color:var(--accent-2,var(--ong))}
+    .emp-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
     .emp-pill{
-      font-size:10.5px;padding:2px 8px;border-radius:10px;
-      background:rgba(245,158,11,.12);color:#92400e;border:1px solid rgba(245,158,11,.25);
+      font-size:10.5px;padding:3px 9px;border-radius:10px;font-weight:600;
+      background:var(--accent-pill-bg,rgba(245,158,11,.12));color:var(--accent-pill-text,#92400e);
+      border:1px solid var(--accent-pill-border,rgba(245,158,11,.25));
       white-space:nowrap;overflow:hidden;max-width:130px;text-overflow:ellipsis;
     }
+    .emp-view-link{font-size:11.5px;font-weight:700;color:var(--accent-2,var(--muted));margin-top:2px;display:flex;align-items:center;gap:4px}
+    .team-modal-wrap{overflow-y:auto;flex:1;padding:22px}
+    #q-active-modal{grid-template-columns:repeat(3,minmax(0,1fr))}
+    @media(max-width:760px){ #q-active-modal{grid-template-columns:repeat(2,minmax(0,1fr))} }
+    @media(max-width:480px){ #q-active-modal{grid-template-columns:1fr} }
     /* ── QUICK MODAL ── */
     #qmodal-backdrop{
       display:none;position:fixed;inset:0;z-index:900;
@@ -2373,8 +2382,10 @@ function renderTeamWorkload(containerId, data) {
   });
   el.innerHTML = Object.entries(byEmp).sort((a,b)=>b[1].length-a[1].length).map(([emp, reports])=>{
     const teamTitle = TEAM_MAP[emp] || 'Team 6';
+    const tc = teamColorFor(teamTitle);
+    const cardStyle = `--accent-1:${tc.c1};--accent-2:${tc.c2};--accent-shadow:${tc.shadow};--accent-pill-bg:${tc.pillBg};--accent-pill-text:${tc.pillText};--accent-pill-border:${tc.pillBorder}`;
     return `
-    <div class="emp-card glass" onclick="openEmpModal('${emp.replace(/'/g,"\\'")}')">
+    <div class="emp-card glass" style="${cardStyle}" onclick="openEmpModal('${emp.replace(/'/g,"\\'")}')">
       <div class="emp-avatar">${esc(emp.charAt(0).toUpperCase())}</div>
       <div class="emp-name">
         <span class="emp-team-title">${esc(teamTitle)}</span>
@@ -2385,8 +2396,23 @@ function renderTeamWorkload(containerId, data) {
         ${reports.slice(0,3).map(r=>`<span class="emp-pill" title="${esc(r.name||r.gen_id||'')}">${esc(r.name||r.gen_id||'—')}</span>`).join('')}
         ${reports.length>3?`<span class="emp-pill">+${reports.length-3} more</span>`:''}
       </div>
-      <div style="font-size:11px;color:var(--muted);margin-top:4px">Click to view samples ↗</div>
+      <div class="emp-view-link">Click to view samples ↗</div>
     </div>`}).join('');
+}
+
+const TEAM_COLORS = [
+  { c1:'#4f46e5', c2:'#4338ca', shadow:'rgba(79,70,229,.3)',  pillBg:'rgba(79,70,229,.09)',  pillText:'#3730a3', pillBorder:'rgba(79,70,229,.25)' },
+  { c1:'#8b5cf6', c2:'#7c3aed', shadow:'rgba(139,92,246,.3)', pillBg:'rgba(139,92,246,.09)', pillText:'#6d28d9', pillBorder:'rgba(139,92,246,.25)' },
+  { c1:'#06b6d4', c2:'#0891b2', shadow:'rgba(6,182,212,.3)',  pillBg:'rgba(6,182,212,.09)',  pillText:'#0e7490', pillBorder:'rgba(6,182,212,.25)' },
+  { c1:'#10b981', c2:'#059669', shadow:'rgba(16,185,129,.3)', pillBg:'rgba(16,185,129,.09)', pillText:'#047857', pillBorder:'rgba(16,185,129,.25)' },
+  { c1:'#f59e0b', c2:'#d97706', shadow:'rgba(245,158,11,.3)', pillBg:'rgba(245,158,11,.09)', pillText:'#92400e', pillBorder:'rgba(245,158,11,.25)' },
+  { c1:'#ec4899', c2:'#db2777', shadow:'rgba(236,72,153,.3)', pillBg:'rgba(236,72,153,.09)', pillText:'#be185d', pillBorder:'rgba(236,72,153,.25)' },
+];
+
+function teamColorFor(teamTitle) {
+  const m = String(teamTitle||'').match(/\d+/);
+  const n = m ? parseInt(m[0], 10) : 1;
+  return TEAM_COLORS[(n - 1) % TEAM_COLORS.length];
 }
 
 // ================================================================
@@ -2599,7 +2625,7 @@ function openTeamWorkloadModal() {
   document.getElementById('qmodal-title').textContent = 'Team Workload';
   const ong = rows.filter(r=>getStatus(r)==='Ongoing');
   document.getElementById('qmodal-count').textContent = ` · ${ong.length} record${ong.length!==1?'s':''}`;
-  document.getElementById('qmodal-body').innerHTML = '<div class="emp-grid" id="q-active-modal" style="padding:20px"></div>';
+  document.getElementById('qmodal-body').innerHTML = '<div class="team-modal-wrap"><div class="emp-grid" id="q-active-modal"></div></div>';
   document.getElementById('qmodal-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
   renderTeamWorkload('q-active-modal', ong);

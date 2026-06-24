@@ -435,12 +435,13 @@
     }
     #qmodal-title{font-size:15px;font-weight:700;color:var(--text)}
     #qmodal-count{font-size:12px;color:var(--muted);margin-left:8px}
-    #qmodal-close,#qmodal-max{
+    #qmodal-close,#qmodal-max,#qmodal-back{
       background:none;border:none;cursor:pointer;font-size:20px;
       color:var(--muted);padding:4px 8px;border-radius:8px;line-height:1;
       display:flex;align-items:center;justify-content:center;
     }
-    #qmodal-close:hover,#qmodal-max:hover{background:var(--pb);color:var(--text)}
+    #qmodal-close:hover,#qmodal-max:hover,#qmodal-back:hover{background:var(--pb);color:var(--text)}
+    #qmodal-back{margin-right:6px}
     #qmodal-hdr-actions{display:flex;align-items:center;gap:4px}
     #qmodal-backdrop.maximized{align-items:stretch;justify-content:stretch}
     #qmodal.maximized{
@@ -1099,7 +1100,12 @@
 <div id="qmodal-backdrop" onclick="closeQModal(event)">
   <div id="qmodal">
     <div id="qmodal-hdr">
-      <div><span id="qmodal-title"></span><span id="qmodal-count"></span></div>
+      <div style="display:flex;align-items:center">
+        <button id="qmodal-back" onclick="event.stopPropagation();if(qmodalBackHandler)qmodalBackHandler()" style="display:none" title="Back">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <span id="qmodal-title"></span><span id="qmodal-count"></span>
+      </div>
       <div id="qmodal-hdr-actions">
         <button id="qmodal-max" onclick="toggleQModalMaximize()" title="Maximize">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
@@ -2573,7 +2579,15 @@ document.addEventListener('click', (e) => {
   }
 });
 
+let qmodalBackHandler = null;
+
+function setQModalBack(handler) {
+  qmodalBackHandler = handler || null;
+  document.getElementById('qmodal-back').style.display = handler ? 'flex' : 'none';
+}
+
 function openQModal(title, data, cols) {
+  setQModalBack(null);
   document.getElementById('qmodal-title').textContent = title;
   document.getElementById('qmodal-count').textContent = ` · ${data.length} record${data.length!==1?'s':''}`;
   document.getElementById('qmodal-body').innerHTML = '<div class="modal-table-wrap">' + buildModalTable(data, cols) + '</div>';
@@ -2582,6 +2596,7 @@ function openQModal(title, data, cols) {
 }
 
 function openTeamWorkloadModal() {
+  setQModalBack(null);
   document.getElementById('qmodal-title').textContent = 'Team Workload';
   const ong = rows.filter(r=>getStatus(r)==='Ongoing');
   document.getElementById('qmodal-count').textContent = ` · ${ong.length} record${ong.length!==1?'s':''}`;
@@ -2625,6 +2640,7 @@ function openEmpModal(empName) {
     return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
   });
   openQModal(`${empName}'s Reviews`, empRows, MODAL_COLS.assigned);
+  setQModalBack(openTeamWorkloadModal);
 }
 
 // ================================================================

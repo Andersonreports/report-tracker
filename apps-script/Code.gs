@@ -10,12 +10,14 @@ function doGet() {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// Routes writes coming from the Release Date picker on the Dashboard
-// (front end/report_tracker.html: markSelectedAsReleased, applyBulkRemark, saveRowRemark).
+// Routes writes coming from the Release Date picker on the Dashboard and the
+// Remove action on the Released tab (front end/report_tracker.html:
+// markSelectedAsReleased, applyBulkRemark, saveRowRemark, removeFromReleased).
 function doPost(e) {
   try {
     var payload = JSON.parse(e.postData.contents);
     if (payload.action === 'markReleased') return handleMarkReleased(payload);
+    if (payload.action === 'unmarkReleased') return handleUnmarkReleased(payload);
     if (payload.action === 'updateRemarks') return handleUpdateRemarks(payload);
     return jsonOutput({ ok: false, error: 'Unknown action' });
   } catch (err) {
@@ -36,6 +38,15 @@ function handleMarkReleased(payload) {
   var relDateText = dp.length === 3 ? (dp[2] + '-' + dp[1] + '-' + dp[0]) : dateStr;
 
   var result = writeColumnForItems('rel_date', items, function () { return relDateText; });
+  return jsonOutput(result);
+}
+
+function handleUnmarkReleased(payload) {
+  var items = payload.items || [];
+  if (!items.length) {
+    return jsonOutput({ ok: false, error: 'Missing items' });
+  }
+  var result = writeColumnForItems('rel_date', items, function () { return ''; });
   return jsonOutput(result);
 }
 

@@ -259,6 +259,12 @@
       cursor:pointer;transition:var(--tr);white-space:nowrap;
     }
     .release-remark-btn:hover{border-color:var(--pri);color:var(--pri)}
+    .rel-remove-btn{
+      width:28px;height:28px;border-radius:8px;border:1px solid var(--bdr);background:var(--ib);
+      color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:var(--tr);
+    }
+    .rel-remove-btn:hover{border-color:#ef4444;color:#ef4444;background:rgba(239,68,68,.06)}
+    .rel-remove-btn:disabled{opacity:.5;cursor:not-allowed}
     .bulk-remark-bar{display:none;align-items:center;gap:12px;margin-bottom:14px}
     .bulk-remark-bar.open{display:flex}
     .release-empty{padding:20px;text-align:center;color:var(--muted);font-size:13px}
@@ -2619,7 +2625,7 @@ const TABLE_CFG = {
   assigned:  { status:'Ongoing',      q:'q-asgn', test:'f-asgn-test', reviewer:'f-asgn-employee', tat:'f-asgn-tat', relMonth:null,          relYear:null,
                cols:['pri_rev','analyst','assign_date','name','run_text','test','gen_id','and_id','client','tat','ana_date','remark'] },
   released:  { status:'Released',     q:'q-rel',  test:'f-rel-test',  analyst:'f-rel-analyst',  client:'f-rel-client', tat:null,  relMonth:'f-rel-month', relYear:'f-rel-year', relDate:'f-rel-date',
-               cols:['name','test','gen_id','and_id','run_text','analyst_txt','client','tat','rel_date'] },
+               cols:['name','test','gen_id','and_id','run_text','analyst_txt','client','tat','rel_date','_remove'] },
 };
 
 const COL_LABELS = {
@@ -2627,7 +2633,7 @@ const COL_LABELS = {
   client:'Client', tat:'TAT', rep_exp:'Repeat Exp',
   analyst:'Assigned To', analyst_raw:'Assigned To', analyst_txt:'Analyst', assign_date:'Assigned Date', ana_date:'Analyze Date', pri_rev:'Primary Reviewer',
   final:'Final Review', remark:'Remark', rel_date:'Release Date', history:'History',
-  _status:'Status', _rel:'Release Date',
+  _status:'Status', _rel:'Release Date', _remove:'Action',
 };
 
 function renderTable(key) {
@@ -2704,6 +2710,11 @@ function renderTable(key) {
     if (c==='ana_date') return `<td class="${cls} col-date">${fmtDate(v)}</td>`;
     if (c==='pri_rev'||c==='final') return `<td class="${cls}">${v?`<span class="badge b-cmp">${IC.check} ${fmtDate(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
     if (c==='tat') return `<td class="${cls} muted-val">${fmtDate(v)}</td>`;
+    if (c==='_remove') return `<td class="${cls}"><button type="button" class="rel-remove-btn" title="Remove from Released"
+        data-gen-id="${esc(r.gen_id)}" data-and-id="${esc(r.and_id)}" data-run-text="${esc(r.run_text)}" data-sno="${esc(r.sno)}"
+        onclick="event.stopPropagation();removeFromReleased(this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button></td>`;
     return `<td class="${cls}" title="${esc(v)}">${esc(v)||'—'}</td>`;
   }).join('')}</tr>`).join('');
 
@@ -3025,6 +3036,47 @@ async function saveRowRemark(input) {
   } finally {
     input.disabled = false;
   }
+}
+
+async function removeFromReleased(btn) {
+  const key = { gen_id: btn.dataset.genId, and_id: btn.dataset.andId, run_text: btn.dataset.runText, sno: btn.dataset.sno };
+  const target = rows.find(r => r.gen_id === key.gen_id && r.and_id === key.and_id && r.run_text === key.run_text && r.sno === key.sno);
+  if (!target) return;
+
+  const run = parseInt(target.run_number || 0, 10);
+  if (run < 54 || (run === 54 && target.is_hidden)) {
+    toast("This sample is auto-released by its run number and can't be removed from Released", 'err');
+    return;
+  }
+  if (!confirm(`Remove "${target.name || target.gen_id || 'this sample'}" from Released? This clears its release date.`)) return;
+
+  btn.disabled = true;
+  try {
+    await submitReleaseClear([target]);
+    target.rel_date = '';
+    saveToStorage(rows);
+    refreshAll();
+    toast('Removed from Released');
+  } catch (e) {
+    toast('Failed to remove: ' + e.message, 'err');
+    btn.disabled = false;
+  }
+}
+
+async function submitReleaseClear(items) {
+  const payload = {
+    action: 'unmarkReleased',
+    items: items.map(r => ({ gen_id: r.gen_id, and_id: r.and_id, run_text: r.run_text, sno: r.sno }))
+  };
+  const resp = await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const result = await resp.json();
+  if (!result || result.ok !== true) throw new Error((result && result.error) || 'Unknown error');
+  return result;
 }
 
 function toggleBulkRemarkBar() {

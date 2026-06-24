@@ -2625,7 +2625,7 @@ const TABLE_CFG = {
   assigned:  { status:'Ongoing',      q:'q-asgn', test:'f-asgn-test', reviewer:'f-asgn-employee', tat:'f-asgn-tat', relMonth:null,          relYear:null,
                cols:['pri_rev','analyst','assign_date','name','run_text','test','gen_id','and_id','client','tat','ana_date','remark'] },
   released:  { status:'Released',     q:'q-rel',  test:'f-rel-test',  analyst:'f-rel-analyst',  client:'f-rel-client', tat:null,  relMonth:'f-rel-month', relYear:'f-rel-year', relDate:'f-rel-date',
-               cols:['name','test','gen_id','and_id','run_text','analyst_txt','client','tat','rel_date','_remove'] },
+               cols:['name','test','gen_id','and_id','run_text','analyst_txt','client','tat','rel_date','remark','_remove'] },
 };
 
 const COL_LABELS = {
@@ -2839,7 +2839,7 @@ function updateYetCount() {
 // ================================================================
 //  TAT OVERDUE TAB — all overdue samples (no day limit)
 // ================================================================
-const OVERDUE_COLS = ['name','test','gen_id','and_id','run_text', 'client','tat','_status','_overdue_days','pri_rev'];
+const OVERDUE_COLS = ['name','test','gen_id','and_id','run_text', 'client','tat','_status','_overdue_days','pri_rev','remark'];
 
 function getOverdueRows() {
   const today = new Date(); today.setHours(0,0,0,0);

@@ -253,6 +253,14 @@
       cursor:pointer;transition:var(--tr);
     }
     .release-detail-btn:hover{border-color:var(--pri);color:var(--pri)}
+    .release-remark-btn{
+      height:40px;padding:0 16px;border-radius:14px;border:1.5px solid var(--bdr);
+      background:var(--ib);color:var(--muted);font-family:inherit;font-size:13px;font-weight:600;
+      cursor:pointer;transition:var(--tr);white-space:nowrap;
+    }
+    .release-remark-btn:hover{border-color:var(--pri);color:var(--pri)}
+    .bulk-remark-bar{display:none;align-items:center;gap:12px;margin-bottom:14px}
+    .bulk-remark-bar.open{display:flex}
     .release-empty{padding:20px;text-align:center;color:var(--muted);font-size:13px}
 
     /* ── TABLE ── */
@@ -1179,6 +1187,11 @@
         <input type="text" id="release-date-input" class="release-date-input" placeholder="Release Date — e.g. 23-06-2026" />
         <button class="release-mark-btn" id="mark-released-btn" disabled onclick="markSelectedAsReleased()">Mark Selected as Released</button>
         <span class="release-selected-count" id="release-selected-count">0 selected</span>
+        <button class="release-remark-btn" id="bulk-remark-btn" onclick="toggleBulkRemarkBar()">Update Remarks</button>
+      </div>
+      <div class="bulk-remark-bar" id="bulk-remark-bar">
+        <input type="text" id="bulk-remark-input" class="release-date-input" style="flex:1;min-width:0" placeholder="Type a remark to apply to all selected samples…" />
+        <button class="release-mark-btn" id="apply-remark-btn" onclick="applyBulkRemark()" style="background:linear-gradient(135deg,#10b981,#059669)">Apply to Selected</button>
       </div>
       <div class="release-panel-search" onclick="this.querySelector('input').focus()">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
@@ -1843,7 +1856,9 @@ function releaseRemarkBlock(id, r) {
   return `<div class="tat-detail" id="tat-d-${id}">
     <div class="release-remark-row" onclick="event.stopPropagation()">
       <span class="tc-label">Remark</span>
-      <input type="text" class="release-remark-input" value="${esc(r.remark||'')}" placeholder="Type a note…">
+      <input type="text" class="release-remark-input" value="${esc(r.remark||'')}" placeholder="Type a note…"
+        data-gen-id="${esc(r.gen_id)}" data-and-id="${esc(r.and_id)}" data-run-text="${esc(r.run_text)}" data-sno="${esc(r.sno)}"
+        onchange="saveRowRemark(this)">
     </div>
   </div>`;
 }
@@ -3019,6 +3034,71 @@ async function submitReleaseUpdates(dateStr, items) {
   const result = await resp.json();
   if (!result || result.ok !== true) throw new Error((result && result.error) || 'Unknown error');
   return result;
+}
+
+async function submitRemarkUpdates(items) {
+  const payload = { action: 'updateRemarks', items };
+  const resp = await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const result = await resp.json();
+  if (!result || result.ok !== true) throw new Error((result && result.error) || 'Unknown error');
+  return result;
+}
+
+async function saveRowRemark(input) {
+  const item = {
+    gen_id: input.dataset.genId, and_id: input.dataset.andId,
+    run_text: input.dataset.runText, sno: input.dataset.sno, remark: input.value
+  };
+  input.disabled = true;
+  try {
+    await submitRemarkUpdates([item]);
+    const target = rows.find(r => r.gen_id === item.gen_id && r.and_id === item.and_id && r.run_text === item.run_text && r.sno === item.sno);
+    if (target) target.remark = item.remark;
+    saveToStorage(rows);
+    toast('Remark saved');
+  } catch (e) {
+    toast('Failed to save remark: ' + e.message, 'err');
+  } finally {
+    input.disabled = false;
+  }
+}
+
+function toggleBulkRemarkBar() {
+  const bar = document.getElementById('bulk-remark-bar');
+  const open = bar.classList.toggle('open');
+  if (open) document.getElementById('bulk-remark-input').focus();
+}
+
+async function applyBulkRemark() {
+  const input = document.getElementById('bulk-remark-input');
+  const text = input.value.trim();
+  const checked = [...document.querySelectorAll('#release-picker-list .release-chk:checked')];
+  if (!checked.length) { toast('Select at least one sample', 'err'); return; }
+  const selectedRows = checked.map(el => releasePickerRows[parseInt(el.dataset.idx, 10)]);
+
+  const btn = document.getElementById('apply-remark-btn');
+  btn.disabled = true; const origLabel = btn.textContent; btn.textContent = 'Saving…';
+  try {
+    await submitRemarkUpdates(selectedRows.map(r => ({ gen_id: r.gen_id, and_id: r.and_id, run_text: r.run_text, sno: r.sno, remark: text })));
+    selectedRows.forEach(sel => {
+      const target = rows.find(r => r.gen_id === sel.gen_id && r.and_id === sel.and_id && r.run_text === sel.run_text && r.sno === sel.sno);
+      if (target) target.remark = text;
+    });
+    saveToStorage(rows);
+    renderReleasePicker();
+    toast(`Updated remark for ${selectedRows.length} sample${selectedRows.length>1?'s':''}`);
+    input.value = '';
+    document.getElementById('bulk-remark-bar').classList.remove('open');
+  } catch (e) {
+    toast('Failed to update remarks: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = origLabel;
+  }
 }
 
 function getFilteredOverdue() {

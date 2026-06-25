@@ -3912,7 +3912,7 @@ function buildReviewerRingsHtml(teamCount, total, month, inThresholdWindow, high
     // viewing "All" months, fall back to share-of-total so the ring still
     // makes sense at that larger scale.
     const pct = month !== 'All' ? Math.min(cnt / 100, 1) : (total > 0 ? cnt / total : 0);
-    const celebrate = inThresholdWindow && cnt > 40;
+    const celebrate = inThresholdWindow && cnt >= 40;
     const isHighlighted = t.key === highlightKey;
     return `
     <div style="display:flex;flex-direction:column;align-items:center;gap:14px;flex:1;min-width:150px;cursor:pointer;${isHighlighted ? `outline:2px solid ${t.color};outline-offset:8px;border-radius:18px;` : ''}" onclick="openReviewerRingModal('${t.key}','${t.label.replace(/'/g, "\\'")}')">

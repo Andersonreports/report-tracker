@@ -118,9 +118,10 @@
     .tab.active .tbadge{background:var(--pri);color:#fff}
 
     /* ── MAIN ── */
-    .main{padding:0 28px 32px;flex:1;min-width:0}
+    .main{padding:0 28px 32px;flex:1;min-width:0;display:flex;flex-direction:column}
     .page{display:none;animation:fadeUp .3s ease-out}
     .page.active{display:block}
+    #page-dashboard.active{display:flex;flex-direction:column;flex:1;min-height:0}
     @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 
     /* ── STAT CARDS ── */
@@ -334,8 +335,8 @@
     .qcard .qc-footer{display:flex;align-items:center;justify-content:space-between}
 
     /* ── TAT ALERT BLOCKS ── */
-    .tat-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:22px}
-    .tat-card{padding:20px 22px;border-radius:var(--r);border-left:4px solid transparent;transition:var(--tr);min-width:0;overflow:hidden}
+    .tat-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:0;flex:1;min-height:0}
+    .tat-card{padding:20px 22px;border-radius:var(--r);border-left:4px solid transparent;transition:var(--tr);min-width:0;overflow:hidden;display:flex;flex-direction:column}
     .tat-card:hover{transform:translateY(-2px);box-shadow:var(--sh-lg)}
     .tat-soon{border-left-color:#f59e0b;background:rgba(245,158,11,.07)}
     .tat-over{border-left-color:#ef4444;background:rgba(239,68,68,.07)}
@@ -348,7 +349,7 @@
     }
     .tat-soon .tc-count{background:rgba(245,158,11,.18);color:#b45309}
     .tat-over .tc-count{background:rgba(239,68,68,.18);color:#dc2626}
-    .tat-list{display:flex;flex-direction:column;gap:7px;max-height:320px;overflow-y:auto}
+    .tat-list{display:flex;flex-direction:column;gap:7px;flex:1;min-height:0;max-height:none;overflow-y:auto}
     .tat-item{
       display:flex;align-items:center;gap:10px;
       padding:7px 10px;border-radius:var(--rs);background:var(--pb);font-size:12px;
@@ -450,8 +451,8 @@
     }
     #qmodal-body{display:flex;flex-direction:column;overflow:hidden;flex:1;padding:0}
     .modal-filters-wrap{flex-shrink:0;padding-bottom:12px;border-bottom:1px solid var(--pb);background:var(--panel);position:sticky;top:0;z-index:20}
-    .modal-table-wrap{overflow:auto;flex:1;width:max-content;max-width:100%}
-    #qmodal-body table{border-collapse:collapse;font-size:12.5px;width:max-content}
+    .modal-table-wrap{overflow:auto;flex:1;width:100%}
+    #qmodal-body table{border-collapse:collapse;font-size:12.5px;width:max-content;min-width:100%}
     #qmodal-body th{
       position:sticky;top:0;background:var(--panel);z-index:10;
       padding:10px 14px;font-size:10.5px;font-weight:700;letter-spacing:.06em;
@@ -596,11 +597,11 @@
       .s-icon svg{width:20px;height:20px}
 
       /* TAT blocks */
-      .tat-grid{grid-template-columns:1fr;gap:10px;margin-bottom:16px}
+      .tat-grid{grid-template-columns:1fr;gap:10px;margin-bottom:0}
       .tat-card{padding:12px 14px}
       .tat-card .tc-title{font-size:12px}
       .tat-card .tc-count{min-width:24px;height:24px;font-size:12px}
-      .tat-list{max-height:250px}
+      .tat-list{max-height:none}
       .tat-item{gap:5px;padding:5px 8px;font-size:11px}
       .tat-item .ti-name{font-size:11px}
       .tat-item .ti-date{width:72px;font-size:10px}
@@ -706,6 +707,10 @@
     }
     .ata-badge svg { flex-shrink: 0; }
     @keyframes ataPop { from{opacity:0;transform:translate(-50%,-100%) scale(.7)} to{opacity:1;transform:translate(-50%,-100%) scale(1)} }
+
+    /* Reviewer DNA ring — responsive wrapper replaces hardcoded 220px */
+    .rev-ring-wrap { position:relative; width:220px; aspect-ratio:1; flex-shrink:0; }
+    .rev-ring-count { font-size:30px; font-weight:900; color:#1e293b; line-height:1.1; }
 
     /* per-chart filter panel */
     .an-chart-content { display: flex; gap: 20px; align-items: flex-start; }
@@ -1096,8 +1101,10 @@
       .tabs{padding:22px 48px 0}
       .main{padding:0 48px 48px}
       .stats{gap:24px;padding-top:28px;margin-bottom:28px}
-      .tat-grid{gap:24px;margin-bottom:28px}
+      .tat-grid{gap:24px;margin-bottom:0}
       .emp-grid{gap:20px;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+      .rev-ring-wrap{width:250px}
+      .rev-ring-count{font-size:34px}
       .an-chart-body{height:460px!important;min-height:460px!important}
       .an-fp{width:320px}
       .scard .s-val{font-size:36px}
@@ -1110,8 +1117,10 @@
       .tabs{padding:24px 64px 0}
       .main{padding:0 64px 56px}
       .stats{grid-template-columns:repeat(4,1fr);gap:28px;padding-top:32px;margin-bottom:32px}
-      .tat-grid{gap:28px;margin-bottom:32px}
+      .tat-grid{gap:28px;margin-bottom:0}
       .emp-grid{gap:22px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+      .rev-ring-wrap{width:min(290px,100%)}
+      .rev-ring-count{font-size:40px}
       .an-chart-body{height:520px!important;min-height:520px!important}
       .an-fp{width:360px}
       .scard .s-val{font-size:40px}
@@ -3940,13 +3949,13 @@ function buildReviewerRingsHtml(teamCount, total, month, inThresholdWindow, high
     const isHighlighted = t.key === highlightKey;
     return `
     <div style="display:flex;flex-direction:column;align-items:center;gap:14px;flex:1;min-width:150px;cursor:pointer;${isHighlighted ? `outline:2px solid ${t.color};outline-offset:8px;border-radius:18px;` : ''}" onclick="openReviewerRingModal('${t.key}','${t.label.replace(/'/g, "\\'")}')">
-      <div style="position:relative;width:220px;height:220px">
+      <div class="rev-ring-wrap">
         ${celebrate ? TARGET_BADGE_HTML : ''}
-        <svg viewBox="0 0 100 100" width="220" height="220">
+        <svg viewBox="0 0 100 100" width="100%" height="100%" style="display:block">
           ${buildHelixRing(t.color, pct, t.key)}
         </svg>
         <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
-          <div style="font-size:30px;font-weight:900;color:#1e293b;line-height:1.1">${cnt}</div>
+          <div class="rev-ring-count">${cnt}</div>
         </div>
       </div>
       <div style="text-align:center">

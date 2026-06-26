@@ -335,8 +335,8 @@
     .qcard .qc-footer{display:flex;align-items:center;justify-content:space-between}
 
     /* ── TAT ALERT BLOCKS ── */
-    .tat-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:0;flex:1;min-height:0}
-    .tat-card{padding:20px 22px;border-radius:var(--r);border-left:4px solid transparent;transition:var(--tr);min-width:0;overflow:hidden;display:flex;flex-direction:column}
+    .tat-grid{display:flex;flex-direction:row;gap:16px;margin-bottom:0;flex:1;min-height:0}
+    .tat-card{flex:1;min-width:0;padding:20px 22px;border-radius:var(--r);border-left:4px solid transparent;transition:var(--tr);overflow:hidden;display:flex;flex-direction:column}
     .tat-card:hover{transform:translateY(-2px);box-shadow:var(--sh-lg)}
     .tat-soon{border-left-color:#f59e0b;background:rgba(245,158,11,.07)}
     .tat-over{border-left-color:#ef4444;background:rgba(239,68,68,.07)}
@@ -561,7 +561,7 @@
     /* Tablet */
     @media(max-width:900px){
       .stats{grid-template-columns:repeat(2,1fr)}
-      .tat-grid{grid-template-columns:1fr}
+      .tat-grid{flex-direction:column}
       .emp-grid{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
       #qmodal{max-width:95vw;margin:10px}
     }
@@ -597,7 +597,7 @@
       .s-icon svg{width:20px;height:20px}
 
       /* TAT blocks */
-      .tat-grid{grid-template-columns:1fr;gap:10px;margin-bottom:0}
+      .tat-grid{flex-direction:column;gap:10px;margin-bottom:0}
       .tat-card{padding:12px 14px}
       .tat-card .tc-title{font-size:12px}
       .tat-card .tc-count{min-width:24px;height:24px;font-size:12px}
@@ -1195,7 +1195,7 @@
 <!-- ╔═ TABS ═╗ -->
 <nav class="tabs">
   <button class="tab active" onclick="switchTab('dashboard',this)" id="t-dash"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> Dashboard</button>
-  <button class="tab" onclick="switchTab('yet',this)" id="t-yet"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24z"/></svg> Yet to Start <span class="tbadge" id="b-yet">0</span></button>
+
   <button class="tab" onclick="switchTab('released',this)" id="t-rel"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg> Released <span class="tbadge" id="b-rel">0</span></button>
   <button class="tab" onclick="switchTab('overdue',this)" id="t-overdue"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Overdue <span class="tbadge" id="b-overdue" style="background:rgba(239,68,68,.18);color:#dc2626">0</span></button>
   <button class="tab" onclick="switchTab('analytics',this)" id="t-analytics"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Analytics</button>

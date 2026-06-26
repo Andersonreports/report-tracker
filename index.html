@@ -36,7 +36,7 @@
       --tr:       all .22s cubic-bezier(.4,0,.2,1);
     }
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Inter',sans-serif;font-size:14px;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+    body{font-family:'Inter',sans-serif;font-size:14px;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;display:flex;flex-direction:column}
     /* inline SVGs inherit color & scale with font-size */
     svg.ic,.s-icon svg,.tc-icon svg,.ei svg,.w-logo svg{display:inline-block;vertical-align:middle}
     .s-icon svg{width:26px;height:26px}
@@ -58,7 +58,7 @@
     /* ── HEADER ── */
     .hdr{
       display:flex;align-items:center;justify-content:space-between;
-      padding:16px 28px;position:sticky;top:0;z-index:200;
+      padding:16px 28px;position:sticky;top:0;z-index:200;flex-shrink:0;
       background:rgba(255,255,255,.87);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
       border-bottom:1px solid var(--pb);box-shadow:0 2px 12px rgba(0,0,0,.06);
     }
@@ -98,7 +98,7 @@
     .btn-sm{padding:5px 11px;font-size:12px}
 
     /* ── TABS ── */
-    .tabs{display:flex;gap:6px;padding:18px 28px 0}
+    .tabs{display:flex;gap:6px;padding:18px 28px 0;flex-shrink:0}
     .tab{
       display:flex;align-items:center;gap:7px;
       padding:10px 18px;border-radius:10px 10px 0 0;
@@ -118,7 +118,7 @@
     .tab.active .tbadge{background:var(--pri);color:#fff}
 
     /* ── MAIN ── */
-    .main{padding:0 28px 32px}
+    .main{padding:0 28px 32px;flex:1;min-width:0}
     .page{display:none;animation:fadeUp .3s ease-out}
     .page.active{display:block}
     @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
@@ -270,8 +270,8 @@
     .release-empty{padding:20px;text-align:center;color:var(--muted);font-size:13px}
 
     /* ── TABLE ── */
-    .tbl-wrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--pb);width:fit-content;max-width:100%}
-    table{border-collapse:collapse;font-size:12px;white-space:nowrap;width:auto;table-layout:auto;margin:0}
+    .tbl-wrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--pb);width:100%}
+    table{border-collapse:collapse;font-size:12px;white-space:nowrap;width:100%;table-layout:auto;margin:0}
     thead th, tbody td{padding:10px 14px;vertical-align:middle;text-align:left;white-space:nowrap}
     thead th:last-child, tbody td:last-child{width:auto}
     .col-tight{width:1px;white-space:nowrap}
@@ -1093,6 +1093,72 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(99,102,241,.25); border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,.45); }
+
+    /* ── FULL-VIEWPORT RESPONSIVE ── */
+
+    /* Analytics filter panel stacks below chart on medium/small screens */
+    @media(max-width:900px){
+      .an-chart-content{flex-direction:column}
+      .an-fp{width:100%;max-height:280px}
+    }
+
+    /* Shrink chart heights on small screens */
+    @media(max-width:640px){
+      .an-chart-body{height:240px!important;min-height:240px!important}
+      .main{padding:0 10px 20px}
+    }
+
+    /* Small screens: prevent any horizontal overflow bleed */
+    @media(max-width:640px){
+      .rel-bar{flex-wrap:wrap}
+      .toolbar{flex-wrap:wrap}
+      .release-toolbar-row{flex-wrap:wrap}
+      .release-date-input,.release-mark-btn{width:100%;min-width:0}
+      .an-chart-actions{flex-wrap:wrap;gap:6px}
+    }
+
+    /* Medium screens (900px–1280px): balanced spacing */
+    @media(min-width:901px) and (max-width:1279px){
+      .an-fp{width:240px}
+    }
+
+    /* Large screens (1280px+): more breathing room */
+    @media(min-width:1280px){
+      .stats{gap:20px}
+      .tat-grid{gap:20px}
+      .emp-grid{gap:18px}
+      .an-chart-body{height:400px!important;min-height:400px!important}
+    }
+
+    /* XL screens (1600px+): scale up padding and charts */
+    @media(min-width:1600px){
+      .hdr{padding:18px 48px}
+      .tabs{padding:22px 48px 0}
+      .main{padding:0 48px 48px}
+      .stats{gap:24px;padding-top:28px;margin-bottom:28px}
+      .tat-grid{gap:24px;margin-bottom:28px}
+      .emp-grid{gap:20px;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+      .an-chart-body{height:460px!important;min-height:460px!important}
+      .an-fp{width:320px}
+      .scard .s-val{font-size:36px}
+      .scard{padding:24px 26px}
+    }
+
+    /* 2K+ screens (1920px+): maximise use of available space */
+    @media(min-width:1920px){
+      .hdr{padding:20px 64px}
+      .tabs{padding:24px 64px 0}
+      .main{padding:0 64px 56px}
+      .stats{grid-template-columns:repeat(4,1fr);gap:28px;padding-top:32px;margin-bottom:32px}
+      .tat-grid{gap:28px;margin-bottom:32px}
+      .emp-grid{gap:22px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+      .an-chart-body{height:520px!important;min-height:520px!important}
+      .an-fp{width:360px}
+      .scard .s-val{font-size:40px}
+      .scard{padding:28px 30px}
+      .hdr-title{font-size:22px}
+      .tab{padding:12px 22px;font-size:14px}
+    }
 
   </style>
 </head>

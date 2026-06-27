@@ -2107,8 +2107,11 @@ const SYNC_INTERVAL = 30000; // 30 seconds
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz1L3kvdFve5flajc89OeyEEXbfZTjI5t0Kqefs70kjO9Y8_JC_fcytKp-FAqmzyOjV/exec';
 
 async function fetchGoogleSheet(silent) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
   try {
-    const resp = await fetch(APPS_SCRIPT_URL);
+    const resp = await fetch(APPS_SCRIPT_URL, { signal: controller.signal });
+    clearTimeout(timer);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const grid = await resp.json();
     rows = parseGrid(grid);
@@ -2117,8 +2120,9 @@ async function fetchGoogleSheet(silent) {
     setLivePill(true);
     if (!silent) toast(`Synced — ${rows.length} rows from Google Sheet`);
   } catch(e) {
-    setLivePill(false, e.message);
-    if (!silent) toast('Failed to fetch Google Sheet: ' + e.message, 'err');
+    clearTimeout(timer);
+    setLivePill(false, e.name === 'AbortError' ? 'Request timed out' : e.message);
+    if (!silent) toast('Failed to fetch Google Sheet: ' + (e.name === 'AbortError' ? 'Request timed out (15s)' : e.message), 'err');
   }
 }
 
@@ -2238,7 +2242,6 @@ function refreshAll() {
   updateStatsByYear();
 
   // badges
-  document.getElementById('b-yet').textContent = yet.length;
   document.getElementById('b-rel').textContent = rel.length;
 
   // overdue badge count
@@ -4249,8 +4252,8 @@ function anExportPNG() {
     refreshAll();
   }
 
-  // Fetch live data from Google Sheet
-  await fetchGoogleSheet(false);
+  // Fetch live data from Google Sheet — always dismiss overlay when done
+  try { await fetchGoogleSheet(false); } catch(_) {}
   dismissWelcome();
 
   // Start auto-sync every 30s

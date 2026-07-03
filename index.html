@@ -2509,6 +2509,16 @@ const TEAM_LEADER_MAP = {
   'Team 6': 'Unassigned'
 };
 
+// Team targets per month
+const TEAM_TARGETS = {
+  'Team 1': 40,
+  'Team 2': 40,
+  'Team 3': 40,
+  'Team 4': 80,
+  'Team 5': 50,
+  'Team 6': 0
+};
+
 function renderTeamWorkload(containerId, data) {
   const el = document.getElementById(containerId);
   if (!data.length) {
@@ -4194,50 +4204,55 @@ function downloadReviewerCounts(label, key) {
   // Get all released data
   const allReleased = rows.filter(r => getStatus(r) === 'Released');
 
-  // Build month-wise count data for this reviewer
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const monthCounts = {};
-
-  // Initialize
-  months.forEach(m => { monthCounts[m] = 0; });
-
-  // Count samples for this reviewer by month
-  allReleased.forEach(r => {
-    const d = _relOrTat(r);
-    if (!d) return;
-    const monthName = MONTH_LABELS[d.getMonth()];
-    const rv = String(r.pri_rev || '').toLowerCase().trim();
-    if (rv.includes(key)) {
-      monthCounts[monthName]++;
+  // Get the team for this reviewer
+  const emp = normalizeAnalystName(label) || label;
+  let reviewerTeam = null;
+  TEAM_MEMBERS.forEach(t => {
+    if (t.label === label) {
+      reviewerTeam = TEAM_MAP[t.label] || 'Team 6';
     }
   });
+  if (!reviewerTeam) {
+    // Try to find team from key
+    TEAM_MEMBERS.forEach(t => {
+      if (t.key === key) {
+        reviewerTeam = TEAM_MAP[t.label] || 'Team 6';
+      }
+    });
+  }
+
+  // Count samples for this reviewer
+  let totalCount = 0;
+  allReleased.forEach(r => {
+    const rv = String(r.pri_rev || '').toLowerCase().trim();
+    if (rv.includes(key)) {
+      totalCount++;
+    }
+  });
+
+  // Get target for this team
+  const target = TEAM_TARGETS[reviewerTeam] || 100;
+  const additionalCount = Math.max(0, totalCount - target);
 
   // Prepare data for Excel
   const excelData = [];
 
   // Add title
-  excelData.push([`${label} - Monthly Sample Counts`]);
+  excelData.push([`${label} - Summary of Reports Released`]);
   excelData.push(['']);
 
   // Add header row
-  excelData.push(['Month', 'Sample Count', 'Target', 'Extra Samples (Above Target)']);
+  excelData.push(['Team', 'Target', 'Total Cases Released', 'Additional Cases Released']);
 
-  // Target per month
-  const TARGET_SAMPLES = 100;
-  let totalCount = 0;
+  // Add data row
+  excelData.push([`${reviewerTeam}: ${label}`, target, totalCount, additionalCount]);
 
-  // Add data rows for each month
-  months.forEach(m => {
-    const cnt = monthCounts[m] || 0;
-    const extraSamples = Math.max(0, cnt - TARGET_SAMPLES);
-    excelData.push([m, cnt, TARGET_SAMPLES, extraSamples]);
-    totalCount += cnt;
-  });
-
-  // Add summary
+  // Add summary section
   excelData.push(['']);
-  excelData.push(['Total', totalCount, TARGET_SAMPLES * 12, Math.max(0, totalCount - (TARGET_SAMPLES * 12))]);
-  excelData.push(['']);
+  excelData.push(['Summary']);
+  excelData.push(['Target Cases', target]);
+  excelData.push(['Total Cases Released', totalCount]);
+  excelData.push(['Additional Cases Released', additionalCount]);
   excelData.push(['Export Date', new Date().toLocaleDateString('en-IN')]);
 
   // Create workbook
@@ -4247,10 +4262,10 @@ function downloadReviewerCounts(label, key) {
 
   // Set column widths
   ws['!cols'] = [
-    { wch: 15 }, // Month
-    { wch: 15 }, // Sample Count
-    { wch: 10 }, // Target
-    { wch: 22 }  // Extra Samples
+    { wch: 25 }, // Team
+    { wch: 12 }, // Target
+    { wch: 20 }, // Total Cases Released
+    { wch: 25 }  // Additional Cases Released
   ];
 
   // Generate filename
@@ -4510,86 +4525,86 @@ function downloadChart0Data() {
   const year = document.getElementById('an-f0-year').value;
   const month = document.getElementById('an-f0-month').value;
 
-  // Get all released data
-  const allReleased = rows.filter(r => getStatus(r) === 'Released');
-
-  // Build month-wise team data
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const monthTeamData = {}; // { 'Jan': { 'Naveen': 5, 'Vignesh': 3, ... }, ... }
-
-  // Initialize data structure
-  months.forEach(m => { monthTeamData[m] = {}; TEAM_MEMBERS.forEach(t => { monthTeamData[m][t.label] = 0; }); });
-
-  // Fill with sample counts
-  allReleased.forEach(r => {
+  // Get the filtered data using the same logic as the chart
+  const filtered = rows.filter(r => {
+    if (getStatus(r) !== 'Released') return false;
     const d = _relOrTat(r);
-    if (!d) return;
-    const monthName = MONTH_LABELS[d.getMonth()];
-    const rv = String(r.pri_rev || '').toLowerCase().trim();
-    TEAM_MEMBERS.forEach(t => {
-      if (rv.includes(t.key)) {
-        monthTeamData[monthName][t.label]++;
-      }
-    });
+    if (!d) return false;
+    const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
+    const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
+    return yearMatch && monthMatch;
   });
 
-  // Prepare data for Excel in the requested format
+  // Build team count data
+  const teamCount = {};
+  TEAM_MEMBERS.forEach(t => { teamCount[t.key] = 0; });
+  filtered.forEach(r => {
+    const rv = String(r.pri_rev || '').toLowerCase().trim();
+    TEAM_MEMBERS.forEach(t => { if (rv.includes(t.key)) teamCount[t.key]++; });
+  });
+
+  // Prepare data for Excel
   const excelData = [];
 
+  // Add title
+  const period = (year === 'All' && month === 'All') ? 'All Time' : `${month === 'All' ? '' : month + ' '}${year === 'All' ? '' : year}`.trim();
+  excelData.push([`Team-wise Summary of Reports Released in ${period}`]);
+  excelData.push(['']);
+
   // Add header row
-  excelData.push(['Team Name', 'Month', 'Sample Count', 'Target', 'Extra Samples (Above Target)']);
+  excelData.push(['Team', 'Target', 'Total Cases Released', 'Additional Cases Released']);
 
-  // Target is 100 samples per team per month
-  const TARGET_SAMPLES = 100;
+  // Add team data rows
+  let grandTotal = 0;
+  let totalTarget = 0;
+  let totalAdditional = 0;
 
-  // Add data rows (one row per team per month)
-  months.forEach(m => {
-    TEAM_MEMBERS.forEach(t => {
-      const sampleCount = monthTeamData[m][t.label] || 0;
-      const extraSamples = Math.max(0, sampleCount - TARGET_SAMPLES);
-      excelData.push([
-        t.label,
-        m,
-        sampleCount,
-        TARGET_SAMPLES,
-        extraSamples
-      ]);
-    });
+  TEAM_MEMBERS.forEach(t => {
+    const teamName = TEAM_MAP[t.label] || 'Team 6';
+    const cnt = teamCount[t.key] || 0;
+    const target = TEAM_TARGETS[teamName] || 100;
+    const additionalCount = Math.max(0, cnt - target);
+
+    excelData.push([
+      `${teamName}: ${t.label}`,
+      target,
+      cnt,
+      additionalCount
+    ]);
+
+    grandTotal += cnt;
+    totalTarget += target;
+    totalAdditional += additionalCount;
   });
 
-  // Add summary row
+  // Add total row
   excelData.push(['']);
-  excelData.push(['Summary Statistics']);
-  excelData.push(['Total Released Samples', allReleased.length]);
-  excelData.push(['Teams', TEAM_MEMBERS.length]);
-  excelData.push(['Months Covered', 12]);
-  excelData.push(['Target per Team-Month', TARGET_SAMPLES]);
+  excelData.push(['Total', totalTarget, grandTotal, totalAdditional]);
 
   // Add filter info
   excelData.push(['']);
-  excelData.push(['Export Information']);
-  excelData.push(['Year Filter Applied', year === 'All' ? 'No (All Years)' : year]);
-  excelData.push(['Month Filter Applied', month === 'All' ? 'No (All Months)' : month]);
+  excelData.push(['Filter Information']);
+  excelData.push(['Year Filter', year === 'All' ? 'All Years' : year]);
+  excelData.push(['Month Filter', month === 'All' ? 'All Months' : month]);
   excelData.push(['Export Date', new Date().toLocaleDateString('en-IN')]);
 
   // Create workbook
   const ws = XLSX.utils.aoa_to_sheet(excelData);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Team Samples');
+  XLSX.utils.book_append_sheet(wb, ws, 'Team Summary');
 
   // Set column widths
   ws['!cols'] = [
-    { wch: 18 }, // Team Name
-    { wch: 12 }, // Month
-    { wch: 14 }, // Sample Count
-    { wch: 10 }, // Target
-    { wch: 22 }  // Extra Samples
+    { wch: 25 }, // Team
+    { wch: 12 }, // Target
+    { wch: 20 }, // Total Cases Released
+    { wch: 25 }  // Additional Cases Released
   ];
 
   // Generate filename
   const now = new Date();
   const dateStr = now.toISOString().split('T')[0];
-  const filename = `team-samples-${dateStr}.xlsx`;
+  const filename = `team-summary-${dateStr}.xlsx`;
 
   // Trigger download
   XLSX.writeFile(wb, filename);

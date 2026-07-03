@@ -1411,6 +1411,10 @@
     <div class="rel-panel glass" id="rel-panel">
       <div class="rel-panel-grid">
         <div class="rel-panel-item">
+          <label>Team</label>
+          <select class="sel" id="f-rel-team" onchange="render('released')"><option value="">All Teams</option></select>
+        </div>
+        <div class="rel-panel-item">
           <label>Analyst</label>
           <select class="sel" id="f-rel-analyst" onchange="render('released')"><option value="">All Analysts</option></select>
         </div>
@@ -2258,9 +2262,10 @@ function refreshAll() {
   populateFilter('f-asgn-test',     rows, 'test');
   populateFilter('f-asgn-employee', ong, 'pri_rev');
   populateFilter('f-asgn-tat',      rows, 'tat');
+  populateTeamFilter('f-rel-team', rel);
   populateNormalizedFilter('f-rel-analyst', rel);
   populateFilter('f-rel-test',      rows, 'test');
-  populateFilter('f-rel-client',    rel,  'client');
+  populateNormalizedClientFilter('f-rel-client', rel);
   // f-rel-tat removed — TAT filter not in released panel
   populateDateFilters('f-rel-month', 'f-rel-year', rel);
 
@@ -2307,6 +2312,43 @@ function populateNormalizedFilter(selectId, data) {
   data.forEach(r => extractAnalysts(r.analyst_raw).forEach(n => nameSet.add(n)));
   const vals = [...nameSet].sort();
   sel.innerHTML = '<option value="">All Analysts</option>';
+  vals.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
+  if (vals.includes(cur)) sel.value=cur;
+}
+
+function populateTeamFilter(selectId, data) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  const cur = sel.value;
+  // Get team names from pri_rev column using TEAM_MAP
+  const teamSet = new Set();
+  data.forEach(r => {
+    const emp = normalizeAnalystName(r.pri_rev) || 'Unassigned';
+    const team = TEAM_MAP[emp] || 'Team 6';
+    teamSet.add(team);
+  });
+  const vals = [...teamSet].sort((a,b) => {
+    const numA = parseInt((a.match(/\d+/)||['6'])[0], 10);
+    const numB = parseInt((b.match(/\d+/)||['6'])[0], 10);
+    return numA - numB;
+  });
+  sel.innerHTML = '<option value="">All Teams</option>';
+  vals.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
+  if (vals.includes(cur)) sel.value=cur;
+}
+
+function populateNormalizedClientFilter(selectId, data) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  const cur = sel.value;
+  // Normalize and combine client names
+  const clientSet = new Set();
+  data.forEach(r => {
+    const normalized = normalizeClient(r.client);
+    if (normalized) clientSet.add(normalized);
+  });
+  const vals = [...clientSet].sort();
+  sel.innerHTML = '<option value="">All Clients</option>';
   vals.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
   if (vals.includes(cur)) sel.value=cur;
 }
@@ -2791,7 +2833,7 @@ const TABLE_CFG = {
                cols:['name','run_text','test','gen_id','and_id','client','tat','rep_exp'] },
   assigned:  { status:'Ongoing',      q:'q-asgn', test:'f-asgn-test', reviewer:'f-asgn-employee', tat:'f-asgn-tat', relMonth:null,          relYear:null,
                cols:['pri_rev','analyst','assign_date','name','run_text','test','gen_id','and_id','client','tat','ana_date','remark'] },
-  released:  { status:'Released',     q:'q-rel',  test:'f-rel-test',  analyst:'f-rel-analyst',  client:'f-rel-client', tat:null,  relMonth:'f-rel-month', relYear:'f-rel-year', relDate:'f-rel-date',
+  released:  { status:'Released',     q:'q-rel',  test:'f-rel-test',  analyst:'f-rel-analyst',  team:'f-rel-team', client:'f-rel-client', tat:null,  relMonth:'f-rel-month', relYear:'f-rel-year', relDate:'f-rel-date',
                cols:['name','test','gen_id','and_id','run_text','analyst_txt','client','tat','rel_date','remark','_remove'] },
 };
 
@@ -2809,6 +2851,7 @@ function renderTable(key) {
   const q        = (document.getElementById(cfg.q)?.value||'').toLowerCase();
   const test     = document.getElementById(cfg.test)?.value||'';
   const ana      = cfg.analyst   ? (document.getElementById(cfg.analyst)?.value||'')   : '';
+  const team     = cfg.team      ? (document.getElementById(cfg.team)?.value||'')      : '';
   const clientF  = cfg.client    ? (document.getElementById(cfg.client)?.value||'')    : '';
   const reviewer = cfg.reviewer  ? (document.getElementById(cfg.reviewer)?.value||'') : '';
   const tat      = cfg.tat       ? (document.getElementById(cfg.tat)?.value||'')      : '';
@@ -2821,8 +2864,9 @@ function renderTable(key) {
 
   let data = rows.filter(r=>getStatus(r)===cfg.status);
   if (test)     data = data.filter(r=>r.test===test);
+  if (team)     data = data.filter(r=>{ const emp = normalizeAnalystName(r.pri_rev) || 'Unassigned'; return (TEAM_MAP[emp] || 'Team 6') === team; });
   if (ana)      data = data.filter(r=>extractAnalysts(r.analyst_raw).includes(ana));
-  if (clientF)  data = data.filter(r=>r.client===clientF);
+  if (clientF)  data = data.filter(r=>{ const norm = normalizeClient(r.client); return norm === clientF; });
   if (reviewer) data = data.filter(r=>r.pri_rev===reviewer);
   if (tat)      data = data.filter(r=>r.tat===tat);
   if (relMonth) data = data.filter(r=>{ const d=parseDate(r.rel_date); return d&&String(d.getMonth()+1)===relMonth; });
@@ -2906,7 +2950,7 @@ function toggleRelFilters() {
 }
 
 function clearRelFilters() {
-  ['f-rel-analyst','f-rel-test','f-rel-client','f-rel-month','f-rel-year'].forEach(id => {
+  ['f-rel-team','f-rel-analyst','f-rel-test','f-rel-client','f-rel-month','f-rel-year'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -2920,7 +2964,7 @@ function clearRelFilters() {
 function updateRelCount() {
   // Count active filters
   let active = 0;
-  ['f-rel-analyst','f-rel-test','f-rel-client','f-rel-month','f-rel-year'].forEach(id => {
+  ['f-rel-team','f-rel-analyst','f-rel-test','f-rel-client','f-rel-month','f-rel-year'].forEach(id => {
     if (document.getElementById(id)?.value) active++;
   });
   if (document.getElementById('f-rel-date')?.value) active++;
@@ -2931,6 +2975,7 @@ function updateRelCount() {
   const cfg = TABLE_CFG.released;
   const q        = (document.getElementById(cfg.q)?.value||'').toLowerCase();
   const test     = document.getElementById(cfg.test)?.value||'';
+  const team     = cfg.team ? (document.getElementById(cfg.team)?.value||'') : '';
   const ana      = cfg.analyst ? (document.getElementById(cfg.analyst)?.value||'') : '';
   const clientF  = cfg.client ? (document.getElementById(cfg.client)?.value||'') : '';
   const relMonth = cfg.relMonth ? (document.getElementById(cfg.relMonth)?.value||'') : '';
@@ -2939,8 +2984,9 @@ function updateRelCount() {
 
   let data = rows.filter(r=>getStatus(r)==='Released');
   if (test)     data = data.filter(r=>r.test===test);
+  if (team)     data = data.filter(r=>{ const emp = normalizeAnalystName(r.pri_rev) || 'Unassigned'; return (TEAM_MAP[emp] || 'Team 6') === team; });
   if (ana)      data = data.filter(r=>extractAnalysts(r.analyst_raw).includes(ana));
-  if (clientF)  data = data.filter(r=>r.client===clientF);
+  if (clientF)  data = data.filter(r=>{ const norm = normalizeClient(r.client); return norm === clientF; });
   if (relMonth) data = data.filter(r=>{ const d=parseDate(r.rel_date); return d&&String(d.getMonth()+1)===relMonth; });
   if (relYear)  data = data.filter(r=>{ const d=parseDate(r.rel_date); return d&&String(d.getFullYear())===relYear; });
   if (relDate)  data = data.filter(r=>{ const d=parseDate(r.rel_date); if(!d) return false; const pick=new Date(relDate+'T00:00:00'); return d.getFullYear()===pick.getFullYear()&&d.getMonth()===pick.getMonth()&&d.getDate()===pick.getDate(); });

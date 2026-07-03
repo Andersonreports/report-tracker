@@ -1527,6 +1527,9 @@
               <button class="btn btn-sm btn-out an-filter-btn" onclick="anToggleFilter(0)">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg> Filters
               </button>
+              <button class="btn btn-sm btn-pri" onclick="downloadChart0Data()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download
+              </button>
               <span class="badge b-yet">Donut Chart</span>
               <div id="an-total-0" class="an-total-box">Total: 0</div>
             </div>
@@ -4234,6 +4237,96 @@ function anExportPNG() {
   const container = document.querySelector('.an-charts-scroll');
   if (!container) return;
   toast('Right-click on charts to save as image', 'info');
+}
+
+function downloadChart0Data() {
+  const year = document.getElementById('an-f0-year').value;
+  const month = document.getElementById('an-f0-month').value;
+
+  // Get all released data
+  const allReleased = rows.filter(r => getStatus(r) === 'Released');
+
+  // Build month-wise team data
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const monthTeamData = {}; // { 'Jan': { 'Naveen': 5, 'Vignesh': 3, ... }, ... }
+
+  // Initialize data structure
+  months.forEach(m => { monthTeamData[m] = {}; TEAM_MEMBERS.forEach(t => { monthTeamData[m][t.label] = 0; }); });
+
+  // Fill with sample counts
+  allReleased.forEach(r => {
+    const d = _relOrTat(r);
+    if (!d) return;
+    const monthName = MONTH_LABELS[d.getMonth()];
+    const rv = String(r.pri_rev || '').toLowerCase().trim();
+    TEAM_MEMBERS.forEach(t => {
+      if (rv.includes(t.key)) {
+        monthTeamData[monthName][t.label]++;
+      }
+    });
+  });
+
+  // Prepare data for Excel in the requested format
+  const excelData = [];
+
+  // Add header row
+  excelData.push(['Team Name', 'Month', 'Sample Count', 'Target', 'Extra Samples (Above Target)']);
+
+  // Target is 100 samples per team per month
+  const TARGET_SAMPLES = 100;
+
+  // Add data rows (one row per team per month)
+  months.forEach(m => {
+    TEAM_MEMBERS.forEach(t => {
+      const sampleCount = monthTeamData[m][t.label] || 0;
+      const extraSamples = Math.max(0, sampleCount - TARGET_SAMPLES);
+      excelData.push([
+        t.label,
+        m,
+        sampleCount,
+        TARGET_SAMPLES,
+        extraSamples
+      ]);
+    });
+  });
+
+  // Add summary row
+  excelData.push(['']);
+  excelData.push(['Summary Statistics']);
+  excelData.push(['Total Released Samples', allReleased.length]);
+  excelData.push(['Teams', TEAM_MEMBERS.length]);
+  excelData.push(['Months Covered', 12]);
+  excelData.push(['Target per Team-Month', TARGET_SAMPLES]);
+
+  // Add filter info
+  excelData.push(['']);
+  excelData.push(['Export Information']);
+  excelData.push(['Year Filter Applied', year === 'All' ? 'No (All Years)' : year]);
+  excelData.push(['Month Filter Applied', month === 'All' ? 'No (All Months)' : month]);
+  excelData.push(['Export Date', new Date().toLocaleDateString('en-IN')]);
+
+  // Create workbook
+  const ws = XLSX.utils.aoa_to_sheet(excelData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Team Samples');
+
+  // Set column widths
+  ws['!cols'] = [
+    { wch: 18 }, // Team Name
+    { wch: 12 }, // Month
+    { wch: 14 }, // Sample Count
+    { wch: 10 }, // Target
+    { wch: 22 }  // Extra Samples
+  ];
+
+  // Generate filename
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+  const filename = `team-samples-${dateStr}.xlsx`;
+
+  // Trigger download
+  XLSX.writeFile(wb, filename);
+  toast(`Downloaded: ${filename}`, 'info');
 }
 
 

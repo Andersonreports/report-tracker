@@ -4091,12 +4091,15 @@ function openReviewerRingModal(key, label) {
   const RELEASED_COLS = ['name','test','gen_id','and_id','run_text','client','tat','rel_date','analyst','remark'];
 
   const filterHtml = `
-    <div style="padding:12px 22px 0;display:flex;gap:8px;align-items:center">
+    <div style="padding:12px 22px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button class="btn btn-sm btn-out" onclick="openReviewerRingModal_BackToTeams()">
         <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Back
       </button>
       <button class="btn btn-sm btn-pri" onclick="downloadReviewerSamples('${label.replace(/'/g,"\\'")}', '${period.replace(/'/g,"\\'")}')">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download Samples
+      </button>
+      <button class="btn btn-sm btn-pri" onclick="downloadReviewerCounts('${label.replace(/'/g,"\\'")}', '${key}')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download Counts
       </button>
       <span style="font-size:12px;color:var(--pri);font-weight:700">${reviewerSamples.length} samples</span>
     </div>
@@ -4119,6 +4122,80 @@ function openReviewerRingModal_BackToTeams() {
     <div style="display:flex;flex-wrap:wrap;gap:24px;justify-content:center;align-items:flex-start;padding:28px;overflow:auto">
       ${buildReviewerRingsHtml(teamCount, total, month, inThresholdWindow, null)}
     </div>`;
+}
+
+function downloadReviewerCounts(label, key) {
+  // Get all released data
+  const allReleased = rows.filter(r => getStatus(r) === 'Released');
+
+  // Build month-wise count data for this reviewer
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const monthCounts = {};
+
+  // Initialize
+  months.forEach(m => { monthCounts[m] = 0; });
+
+  // Count samples for this reviewer by month
+  allReleased.forEach(r => {
+    const d = _relOrTat(r);
+    if (!d) return;
+    const monthName = MONTH_LABELS[d.getMonth()];
+    const rv = String(r.pri_rev || '').toLowerCase().trim();
+    if (rv.includes(key)) {
+      monthCounts[monthName]++;
+    }
+  });
+
+  // Prepare data for Excel
+  const excelData = [];
+
+  // Add title
+  excelData.push([`${label} - Monthly Sample Counts`]);
+  excelData.push(['']);
+
+  // Add header row
+  excelData.push(['Month', 'Sample Count', 'Target', 'Extra Samples (Above Target)']);
+
+  // Target per month
+  const TARGET_SAMPLES = 100;
+  let totalCount = 0;
+
+  // Add data rows for each month
+  months.forEach(m => {
+    const cnt = monthCounts[m] || 0;
+    const extraSamples = Math.max(0, cnt - TARGET_SAMPLES);
+    excelData.push([m, cnt, TARGET_SAMPLES, extraSamples]);
+    totalCount += cnt;
+  });
+
+  // Add summary
+  excelData.push(['']);
+  excelData.push(['Total', totalCount, TARGET_SAMPLES * 12, Math.max(0, totalCount - (TARGET_SAMPLES * 12))]);
+  excelData.push(['']);
+  excelData.push(['Export Date', new Date().toLocaleDateString('en-IN')]);
+
+  // Create workbook
+  const ws = XLSX.utils.aoa_to_sheet(excelData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, label + ' - Counts');
+
+  // Set column widths
+  ws['!cols'] = [
+    { wch: 15 }, // Month
+    { wch: 15 }, // Sample Count
+    { wch: 10 }, // Target
+    { wch: 22 }  // Extra Samples
+  ];
+
+  // Generate filename
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+  const cleanLabel = label.replace(/[^a-zA-Z0-9]/g, '_');
+  const filename = `${cleanLabel}-counts-${dateStr}.xlsx`;
+
+  // Trigger download
+  XLSX.writeFile(wb, filename);
+  toast(`Downloaded: ${filename}`, 'info');
 }
 
 function downloadReviewerSamples(label, period) {

@@ -2866,7 +2866,7 @@ function renderTable(key) {
   if (test)     data = data.filter(r=>r.test===test);
   if (team)     data = data.filter(r=>{ const emp = normalizeAnalystName(r.pri_rev) || 'Unassigned'; return (TEAM_MAP[emp] || 'Team 6') === team; });
   if (ana)      data = data.filter(r=>extractAnalysts(r.analyst_raw).includes(ana));
-  if (clientF)  data = data.filter(r=>{ const norm = normalizeClient(r.client); return norm === clientF; });
+  if (clientF)  data = data.filter(r=>{ const norm = normalizeClient(r.client) || ''; return norm === clientF; });
   if (reviewer) data = data.filter(r=>r.pri_rev===reviewer);
   if (tat)      data = data.filter(r=>r.tat===tat);
   if (relMonth) data = data.filter(r=>{ const d=parseDate(r.rel_date); return d&&String(d.getMonth()+1)===relMonth; });
@@ -2986,7 +2986,7 @@ function updateRelCount() {
   if (test)     data = data.filter(r=>r.test===test);
   if (team)     data = data.filter(r=>{ const emp = normalizeAnalystName(r.pri_rev) || 'Unassigned'; return (TEAM_MAP[emp] || 'Team 6') === team; });
   if (ana)      data = data.filter(r=>extractAnalysts(r.analyst_raw).includes(ana));
-  if (clientF)  data = data.filter(r=>{ const norm = normalizeClient(r.client); return norm === clientF; });
+  if (clientF)  data = data.filter(r=>{ const norm = normalizeClient(r.client) || ''; return norm === clientF; });
   if (relMonth) data = data.filter(r=>{ const d=parseDate(r.rel_date); return d&&String(d.getMonth()+1)===relMonth; });
   if (relYear)  data = data.filter(r=>{ const d=parseDate(r.rel_date); return d&&String(d.getFullYear())===relYear; });
   if (relDate)  data = data.filter(r=>{ const d=parseDate(r.rel_date); if(!d) return false; const pick=new Date(relDate+'T00:00:00'); return d.getFullYear()===pick.getFullYear()&&d.getMonth()===pick.getMonth()&&d.getDate()===pick.getDate(); });

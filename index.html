@@ -4578,13 +4578,6 @@ function downloadChart0Data() {
   excelData.push(['']);
   excelData.push(['Total', totalTarget, grandTotal, totalAdditional]);
 
-  // Add filter info
-  excelData.push(['']);
-  excelData.push(['Filter Information']);
-  excelData.push(['Year Filter', year === 'All' ? 'All Years' : year]);
-  excelData.push(['Month Filter', month === 'All' ? 'All Months' : month]);
-  excelData.push(['Export Date', new Date().toLocaleDateString('en-IN')]);
-
   // Create workbook
   const ws = XLSX.utils.aoa_to_sheet(excelData);
   const wb = XLSX.utils.book_new();

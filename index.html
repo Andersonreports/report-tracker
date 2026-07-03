@@ -2333,7 +2333,13 @@ function populateTeamFilter(selectId, data) {
     return numA - numB;
   });
   sel.innerHTML = '<option value="">All Teams</option>';
-  vals.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
+  // Display leader names but store team names as values
+  vals.forEach(v=>{
+    const o=document.createElement('option');
+    o.value=v;
+    o.textContent=TEAM_LEADER_MAP[v] || v;
+    sel.appendChild(o);
+  });
   if (vals.includes(cur)) sel.value=cur;
 }
 
@@ -2491,6 +2497,16 @@ const TEAM_MAP = {
   'Vignesh':   'Team 3',
   'Dr. Sudha': 'Team 4',
   'Vikram':    'Team 5'
+};
+
+// Reverse mapping: Team name to leader name
+const TEAM_LEADER_MAP = {
+  'Team 1': 'Naveen',
+  'Team 2': 'Diwakar',
+  'Team 3': 'Vignesh',
+  'Team 4': 'Dr. Sudha',
+  'Team 5': 'Vikram',
+  'Team 6': 'Unassigned'
 };
 
 function renderTeamWorkload(containerId, data) {

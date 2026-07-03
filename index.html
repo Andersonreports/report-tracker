@@ -4061,23 +4061,147 @@ function anDrawChart0() {
   if (legendEl) legendEl.innerHTML = '';
 }
 
-// Clicking a reviewer's helix ring opens a detail view with every team
-// member's own ring (same filter the main chart uses), highlighting the one
-// that was clicked — a focused view of team progress, not a sample table.
+// Clicking a reviewer's helix ring opens a detail view showing their released samples
 function openReviewerRingModal(key, label) {
   const year  = document.getElementById('an-f0-year').value;
   const month = document.getElementById('an-f0-month').value;
-  const { total, teamCount, inThresholdWindow } = _chart0Data(year, month);
+
+  // Get released samples for this reviewer
+  const reviewerSamples = rows.filter(r => {
+    if (getStatus(r) !== 'Released') return false;
+    const d = _relOrTat(r);
+    if (!d) return false;
+    const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
+    const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
+
+    const rv = String(r.pri_rev || '').toLowerCase().trim();
+    const reviewerMatch = rv.includes(key);
+
+    return yearMatch && monthMatch && reviewerMatch;
+  }).sort((a, b) => {
+    const da = parseDate(a.rel_date), db = parseDate(b.rel_date);
+    return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
+  });
 
   const period = (year === 'All' && month === 'All') ? 'All time' : `${month === 'All' ? '' : month + ' '}${year === 'All' ? '' : year}`.trim();
-  document.getElementById('qmodal-title').textContent = `Team Progress — ${period}`;
-  document.getElementById('qmodal-count').textContent = ` · highlighting ${label}`;
-  document.getElementById('qmodal-body').innerHTML = `
-    <div style="display:flex;flex-wrap:wrap;gap:24px;justify-content:center;align-items:flex-start;padding:28px;overflow:auto">
-      ${buildReviewerRingsHtml(teamCount, total, month, inThresholdWindow, key)}
-    </div>`;
+  document.getElementById('qmodal-title').textContent = `${label} — Released Samples`;
+  document.getElementById('qmodal-count').textContent = ` · ${reviewerSamples.length} samples · ${period}`;
+
+  // Define columns to show for released samples
+  const RELEASED_COLS = ['name','test','gen_id','and_id','run_text','client','tat','rel_date','analyst','remark'];
+
+  const filterHtml = `
+    <div style="padding:12px 22px 0;display:flex;gap:8px;align-items:center">
+      <button class="btn btn-sm btn-out" onclick="openReviewerRingModal_BackToTeams()">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Back
+      </button>
+      <button class="btn btn-sm btn-pri" onclick="downloadReviewerSamples('${label.replace(/'/g,"\\'")}', '${period.replace(/'/g,"\\'")}')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download
+      </button>
+      <span style="font-size:12px;color:var(--pri);font-weight:700">${reviewerSamples.length} samples</span>
+    </div>
+  `;
+
+  document.getElementById('qmodal-body').innerHTML = '<div class="modal-filters-wrap">' + filterHtml + '</div><div class="modal-table-wrap" id="reviewer-table-wrap">' + buildModalTable(reviewerSamples, RELEASED_COLS, true) + '</div>';
   document.getElementById('qmodal-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
+}
+
+function openReviewerRingModal_BackToTeams() {
+  const year  = document.getElementById('an-f0-year').value;
+  const month = document.getElementById('an-f0-month').value;
+  const { total, teamCount, inThresholdWindow } = _chart0Data(year, month);
+  const period = (year === 'All' && month === 'All') ? 'All time' : `${month === 'All' ? '' : month + ' '}${year === 'All' ? '' : year}`.trim();
+
+  document.getElementById('qmodal-title').textContent = `Team Progress — ${period}`;
+  document.getElementById('qmodal-count').textContent = ` · all teams`;
+  document.getElementById('qmodal-body').innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:24px;justify-content:center;align-items:flex-start;padding:28px;overflow:auto">
+      ${buildReviewerRingsHtml(teamCount, total, month, inThresholdWindow, null)}
+    </div>`;
+}
+
+function downloadReviewerSamples(label, period) {
+  const year  = document.getElementById('an-f0-year').value;
+  const month = document.getElementById('an-f0-month').value;
+
+  // Find the key for this label
+  let key = null;
+  TEAM_MEMBERS.forEach(t => { if (t.label === label) key = t.key; });
+  if (!key) return;
+
+  // Get released samples for this reviewer
+  const reviewerSamples = rows.filter(r => {
+    if (getStatus(r) !== 'Released') return false;
+    const d = _relOrTat(r);
+    if (!d) return false;
+    const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
+    const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
+
+    const rv = String(r.pri_rev || '').toLowerCase().trim();
+    const reviewerMatch = rv.includes(key);
+
+    return yearMatch && monthMatch && reviewerMatch;
+  }).sort((a, b) => {
+    const da = parseDate(a.rel_date), db = parseDate(b.rel_date);
+    return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
+  });
+
+  // Prepare data for Excel
+  const excelData = [];
+  const RELEASED_COLS = ['name','test','gen_id','and_id','run_text','client','tat','rel_date','analyst','remark'];
+
+  // Add title
+  excelData.push([`${label} - Released Samples`]);
+  excelData.push([`Period: ${period}`]);
+  excelData.push(['']);
+
+  // Add header row
+  excelData.push(RELEASED_COLS.map(c => COL_LABELS[c] || c));
+
+  // Add data rows
+  reviewerSamples.forEach(r => {
+    excelData.push(RELEASED_COLS.map(c => {
+      if (c === 'rel_date') return fmtRelDate(r[c], r);
+      if (c === 'tat') return fmtDate(r[c]);
+      return r[c] || '';
+    }));
+  });
+
+  // Add summary
+  excelData.push(['']);
+  excelData.push(['Summary']);
+  excelData.push(['Total Samples Released', reviewerSamples.length]);
+  excelData.push(['Export Date', new Date().toLocaleDateString('en-IN')]);
+
+  // Create workbook
+  const ws = XLSX.utils.aoa_to_sheet(excelData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, label);
+
+  // Set column widths
+  ws['!cols'] = [
+    { wch: 25 }, // name
+    { wch: 18 }, // test
+    { wch: 15 }, // gen_id
+    { wch: 15 }, // and_id
+    { wch: 15 }, // run_text
+    { wch: 20 }, // client
+    { wch: 12 }, // tat
+    { wch: 12 }, // rel_date
+    { wch: 15 }, // analyst
+    { wch: 20 }  // remark
+  ];
+
+  // Generate filename
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+  const cleanLabel = label.replace(/[^a-zA-Z0-9]/g, '_');
+  const filename = `${cleanLabel}-samples-${dateStr}.xlsx`;
+
+  // Trigger download
+  XLSX.writeFile(wb, filename);
+  toast(`Downloaded: ${filename}`, 'info');
 }
 
 // High-contrast, distinct color palette

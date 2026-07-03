@@ -4090,15 +4090,19 @@ function openReviewerRingModal(key, label) {
   // Define columns to show for released samples
   const RELEASED_COLS = ['name','test','gen_id','and_id','run_text','client','tat','rel_date','analyst','remark'];
 
+  // Pre-escape label and period for use in onclick handlers
+  const escapedLabel = label.replace(/'/g, "\\'");
+  const escapedPeriod = period.replace(/'/g, "\\'");
+
   const filterHtml = `
     <div style="padding:12px 22px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button class="btn btn-sm btn-out" onclick="openReviewerRingModal_BackToTeams()">
         <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Back
       </button>
-      <button class="btn btn-sm btn-pri" onclick="downloadReviewerSamples('${label.replace(/'/g,"\\'")}', '${period.replace(/'/g,"\\'")}')">
+      <button class="btn btn-sm btn-pri" onclick="downloadReviewerSamples('${escapedLabel}', '${escapedPeriod}')">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download Samples
       </button>
-      <button class="btn btn-sm btn-pri" onclick="downloadReviewerCounts('${label.replace(/'/g,"\\'")}', '${key}')">
+      <button class="btn btn-sm btn-pri" onclick="downloadReviewerCounts('${escapedLabel}', '${key}')">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download Counts
       </button>
       <span style="font-size:12px;color:var(--pri);font-weight:700">${reviewerSamples.length} samples</span>

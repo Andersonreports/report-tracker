@@ -2496,7 +2496,9 @@ const TEAM_MAP = {
   'Diwakar':   'Team 2',
   'Vignesh':   'Team 3',
   'Dr. Sudha': 'Team 4',
-  'Vikram':    'Team 5'
+  'Gayathri':  'Team 5',
+  'Nikhil':    'Team 6',
+  'Vamshi':    'Team 7'
 };
 
 // Reverse mapping: Team name to leader name
@@ -2505,8 +2507,9 @@ const TEAM_LEADER_MAP = {
   'Team 2': 'Diwakar',
   'Team 3': 'Vignesh',
   'Team 4': 'Dr. Sudha',
-  'Team 5': 'Vikram',
-  'Team 6': 'Unassigned'
+  'Team 5': 'Gayathri',
+  'Team 6': 'Nikhil',
+  'Team 7': 'Vamshi'
 };
 
 // Team targets per month
@@ -2515,8 +2518,9 @@ const TEAM_TARGETS = {
   'Team 2': 40,
   'Team 3': 40,
   'Team 4': 80,
-  'Team 5': 50,
-  'Team 6': 0
+  'Team 5': 0,
+  'Team 6': 0,
+  'Team 7': 0
 };
 
 function renderTeamWorkload(containerId, data) {
@@ -2536,8 +2540,9 @@ function renderTeamWorkload(containerId, data) {
     if (!byEmp[emp]) byEmp[emp] = [];
     byEmp[emp].push(r);
   });
-  const teamNum = emp => parseInt((((TEAM_MAP[emp]||'Team 6')).match(/\d+/)||['6'])[0], 10);
-  el.innerHTML = Object.entries(byEmp).sort((a,b)=>teamNum(a[0])-teamNum(b[0])).map(([emp, reports])=>{
+  // Order teams by TEAM_MEMBERS order
+  const orderedTeams = TEAM_MEMBERS.filter(t => byEmp[t.label]).map(t => [t.label, byEmp[t.label]]);
+  el.innerHTML = orderedTeams.map(([emp, reports])=>{
     const teamTitle = TEAM_MAP[emp] || 'Team 6';
     const tc = teamColorFor(teamTitle);
     const cardStyle = `--accent-1:${tc.c1};--accent-2:${tc.c2};--accent-shadow:${tc.shadow};--accent-pill-bg:${tc.pillBg};--accent-pill-text:${tc.pillText};--accent-pill-border:${tc.pillBorder}`;
@@ -3732,10 +3737,11 @@ let anChart2 = null;
 const TEAM_MEMBERS = [
   { key: 'naveen',   label: 'Naveen',    color: '#ef4444' },
   { key: 'vignesh',  label: 'Vignesh',   color: '#10b981' },
-  { key: 'vikram',   label: 'Vikram',    color: '#f59e0b' },
   { key: 'sudha',    label: 'Dr. Sudha', color: '#4f46e5' },
   { key: 'diwakar',  label: 'Diwakar',   color: '#06b6d4' },
   { key: 'gayathri', label: 'Gayathri',  color: '#ec4899' },
+  { key: 'nikhil',   label: 'Nikhil',    color: '#8b5cf6' },
+  { key: 'vamshi',   label: 'Vamshi',    color: '#f97316' },
 ];
 const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 

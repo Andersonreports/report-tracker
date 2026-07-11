@@ -2497,8 +2497,8 @@ const TEAM_MAP = {
   'Dr. Sudha': 'Team 3',
   'Diwakar':   'Team 4',
   'Gayathri':  'Team 5',
-  'Nikhil':    'Team 6',
-  'Vamshi':    'Team 7'
+  'Vamshi':    'Team 6',
+  'Nikhil':    'Team 7'
 };
 
 // Reverse mapping: Team name to leader name
@@ -2508,8 +2508,8 @@ const TEAM_LEADER_MAP = {
   'Team 3': 'Dr. Sudha',
   'Team 4': 'Diwakar',
   'Team 5': 'Gayathri',
-  'Team 6': 'Nikhil',
-  'Team 7': 'Vamshi'
+  'Team 6': 'Vamshi',
+  'Team 7': 'Nikhil'
 };
 
 // Team targets per month
@@ -2569,6 +2569,7 @@ const TEAM_COLORS = [
   { c1:'#06b6d4', c2:'#0891b2', shadow:'rgba(6,182,212,.3)',  pillBg:'rgba(6,182,212,.09)',  pillText:'#0e7490', pillBorder:'rgba(6,182,212,.25)' },
   { c1:'#ec4899', c2:'#db2777', shadow:'rgba(236,72,153,.3)', pillBg:'rgba(236,72,153,.09)', pillText:'#be185d', pillBorder:'rgba(236,72,153,.25)' },
   { c1:'#8b5cf6', c2:'#7c3aed', shadow:'rgba(139,92,246,.3)', pillBg:'rgba(139,92,246,.09)', pillText:'#6d28d9', pillBorder:'rgba(139,92,246,.25)' },
+  { c1:'#eab308', c2:'#ca8a04', shadow:'rgba(234,179,8,.3)',  pillBg:'rgba(234,179,8,.09)',  pillText:'#a16207', pillBorder:'rgba(234,179,8,.25)' },
 ];
 
 function teamColorFor(teamTitle) {
@@ -4096,7 +4097,7 @@ function buildReviewerRingsHtml(teamCount, total, month, inThresholdWindow, high
 function _chart0Data(year, month) {
   const filtered = rows.filter(r => {
     if (getStatus(r) !== 'Released') return false;
-    const d = _relOrTat(r);
+    const d = parseDate(r.rel_date);
     if (!d) return false;
     const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
     const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
@@ -4147,7 +4148,7 @@ function openReviewerRingModal(key, label) {
   // Get released samples for this reviewer
   const reviewerSamples = rows.filter(r => {
     if (getStatus(r) !== 'Released') return false;
-    const d = _relOrTat(r);
+    const d = parseDate(r.rel_date);
     if (!d) return false;
     const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
     const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
@@ -4294,7 +4295,7 @@ function downloadReviewerSamples(label, period) {
   // Get released samples for this reviewer
   const reviewerSamples = rows.filter(r => {
     if (getStatus(r) !== 'Released') return false;
-    const d = _relOrTat(r);
+    const d = parseDate(r.rel_date);
     if (!d) return false;
     const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
     const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
@@ -4531,7 +4532,7 @@ function downloadChart0Data() {
   // Get the filtered data using the same logic as the chart
   const filtered = rows.filter(r => {
     if (getStatus(r) !== 'Released') return false;
-    const d = _relOrTat(r);
+    const d = parseDate(r.rel_date);
     if (!d) return false;
     const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
     const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;

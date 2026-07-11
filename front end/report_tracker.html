@@ -3969,7 +3969,7 @@ function buildReviewerRingsHtml(teamCount, total, month, inThresholdWindow, high
 function _chart0Data(year, month) {
   const filtered = rows.filter(r => {
     if (getStatus(r) !== 'Released') return false;
-    const d = _relOrTat(r);
+    const d = parseDate(r.rel_date);
     if (!d) return false;
     const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
     const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;

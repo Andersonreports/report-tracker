@@ -1695,7 +1695,7 @@
       <div class="an-chart-header">
         <div class="an-chart-info">
           <span class="an-chart-title">Re-analysis Count by Team</span>
-          <span class="an-chart-sub">Number of re-analysis samples per team member</span>
+          <span class="an-chart-sub">Completed re-analysis per team — every 2 samples = 1</span>
         </div>
         <div class="an-chart-actions">
           <span class="badge b-yet">Donut Chart</span>
@@ -2301,14 +2301,19 @@ function raReviewerColumn(headers) {
 
 function raTeamCount(headers, rrows) {
   const revCol = raReviewerColumn(headers);
-  const teamCount = {};
-  TEAM_MEMBERS.forEach(t => { teamCount[t.key] = 0; });
+  // raw = number of sample rows attributed to each team via the reviewer column.
+  const raw = {};
+  TEAM_MEMBERS.forEach(t => { raw[t.key] = 0; });
   rrows.forEach(r => {
     // Prefer the detected reviewer column; fall back to scanning the whole row.
     const hay = (revCol != null ? String(r[revCol] || '') : Object.values(r).join(' ')).toLowerCase();
-    TEAM_MEMBERS.forEach(t => { if (hay.includes(t.key)) teamCount[t.key]++; });
+    TEAM_MEMBERS.forEach(t => { if (hay.includes(t.key)) raw[t.key]++; });
   });
-  return { teamCount, revCol };
+  // Re-analysis count = completed PAIRS: every 2 samples = 1. An odd leftover
+  // sample is not counted until it pairs up with another (floor division).
+  const teamCount = {};
+  TEAM_MEMBERS.forEach(t => { teamCount[t.key] = Math.floor(raw[t.key] / 2); });
+  return { teamCount, revCol, raw };
 }
 
 // Ring chart mirroring buildReviewerRingsHtml, but click filters the table by team.
@@ -2364,7 +2369,9 @@ function renderReanalysis() {
   }
 
   const { teamCount, revCol } = raTeamCount(reanalysisHeaders, reanalysisRows);
-  const total = reanalysisRows.length;
+  // Chart total = sum of team pair-counts (every 2 samples = 1), so ring
+  // shares add up. The table below still lists every individual sample row.
+  const total = Object.values(teamCount).reduce((a, b) => a + b, 0);
   if (totalEl) totalEl.textContent = 'Total: ' + total;
 
   chartEl.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:space-evenly;align-items:flex-start;padding:24px 16px">${buildReanalysisRingsHtml(teamCount, total)}</div>`;

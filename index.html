@@ -1240,6 +1240,7 @@
   <button class="tab" onclick="switchTab('released',this)" id="t-rel"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg> Released <span class="tbadge" id="b-rel">0</span></button>
   <button class="tab" onclick="switchTab('overdue',this)" id="t-overdue"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Overdue <span class="tbadge" id="b-overdue" style="background:rgba(239,68,68,.18);color:#dc2626">0</span></button>
   <button class="tab" onclick="switchTab('analytics',this)" id="t-analytics"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Analytics</button>
+  <button class="tab" onclick="switchTab('reanalysis',this)" id="t-reanalysis"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> Re-analysis</button>
 </nav>
 
 <!-- ╔═ MAIN ═╗ -->
@@ -1678,6 +1679,50 @@
 
       </div>
     </div>
+  </div>
+
+  <!-- ══ RE-ANALYSIS ══ -->
+  <div id="page-reanalysis" class="page">
+    <div class="an-header">
+      <div>
+        <h2 class="an-title">Re-analysis</h2>
+        <p class="an-sub">Re-analysis count per team, with the full sheet below</p>
+      </div>
+    </div>
+
+    <!-- Count-per-team ring chart (same visual as the Analytics reviewer chart) -->
+    <div class="an-chart-card">
+      <div class="an-chart-header">
+        <div class="an-chart-info">
+          <span class="an-chart-title">Re-analysis Count by Team</span>
+          <span class="an-chart-sub">Number of re-analysis samples per team member</span>
+        </div>
+        <div class="an-chart-actions">
+          <span class="badge b-yet">Donut Chart</span>
+          <div id="ra-total" class="an-total-box">Total: 0</div>
+        </div>
+      </div>
+      <div class="an-chart-content">
+        <div id="ra-chart-body" class="an-chart-body" style="height:auto;min-height:260px;overflow:visible;flex:1"></div>
+      </div>
+    </div>
+
+    <!-- Full sheet table -->
+    <div class="rel-bar" style="margin-top:18px">
+      <div class="rel-search-wrap" onclick="this.querySelector('input').focus()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="q-reanalysis" placeholder="Search re-analysis records…" oninput="raOnSearch(this.value)" />
+      </div>
+      <div class="rel-count-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15A9 9 0 1 1 5.64 5.64L23 10"/></svg>
+        Records <span class="rc-num" id="ra-count-num">0</span>
+      </div>
+      <button id="ra-clear-team" class="rel-filter-toggle" style="display:none" onclick="raFilterTeam(null)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <span id="ra-clear-team-label">Clear team</span>
+      </button>
+    </div>
+    <div class="tbl-wrap glass"><div id="ra-table"></div></div>
   </div>
 
 
@@ -2180,7 +2225,187 @@ function parseGrid(grid) {
 
 function startAutoSync() {
   if (sheetTimer) clearInterval(sheetTimer);
-  sheetTimer = setInterval(() => fetchGoogleSheet(true), SYNC_INTERVAL);
+  sheetTimer = setInterval(() => { fetchGoogleSheet(true); fetchReanalysisSheet(true); }, SYNC_INTERVAL);
+}
+
+// ================================================================
+//  RE-ANALYSIS TAB — separate sheet, self-contained (does not touch `rows`)
+// ================================================================
+const REANALYSIS_SHEET = 'RE-ANALYSIS';
+let reanalysisHeaders = [];   // column names, in sheet order
+let reanalysisRows = [];      // [{ header: value, ... }]
+let raTeamFilter = null;      // active team key from a ring click
+let raSearch = '';
+
+async function fetchReanalysisSheet(silent) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const resp = await fetch(APPS_SCRIPT_URL + '?sheet=' + encodeURIComponent(REANALYSIS_SHEET), { signal: controller.signal });
+    clearTimeout(timer);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const grid = await resp.json();
+    const parsed = parseReanalysisGrid(grid);
+    reanalysisHeaders = parsed.headers;
+    reanalysisRows = parsed.rows;
+    // Re-render only if the tab is currently open
+    const active = document.querySelector('.page.active');
+    if (active && active.id === 'page-reanalysis') renderReanalysis();
+    if (!silent) toast(`Re-analysis synced — ${reanalysisRows.length} rows`);
+  } catch(e) {
+    clearTimeout(timer);
+    if (!silent) toast('Failed to fetch Re-analysis sheet: ' + (e.name === 'AbortError' ? 'Request timed out (15s)' : e.message), 'err');
+  }
+}
+
+// Generic grid → {headers, rows}. Header = first row with >=2 non-empty cells;
+// every later non-empty row becomes an object keyed by the (de-duplicated) headers.
+function parseReanalysisGrid(grid) {
+  if (!Array.isArray(grid) || !grid.length) return { headers: [], rows: [] };
+  const norm = v => String(v == null ? '' : v).trim();
+
+  let hIdx = -1;
+  for (let i = 0; i < grid.length; i++) {
+    const nonEmpty = grid[i].filter(c => norm(c) !== '').length;
+    if (nonEmpty >= 2) { hIdx = i; break; }
+  }
+  if (hIdx === -1) return { headers: [], rows: [] };
+
+  const seen = {};
+  const headers = grid[hIdx].map((c, j) => {
+    let h = norm(c) || ('Column ' + (j + 1));
+    if (seen[h] != null) { seen[h]++; h = h + ' (' + seen[h] + ')'; } else { seen[h] = 0; }
+    return h;
+  });
+
+  const outRows = [];
+  for (let i = hIdx + 1; i < grid.length; i++) {
+    const row = grid[i];
+    if (row.filter(c => norm(c) !== '').length === 0) continue;
+    const obj = {};
+    headers.forEach((h, j) => { obj[h] = norm(row[j]); });
+    outRows.push(obj);
+  }
+  return { headers, rows: outRows };
+}
+
+// Pick the column that names the reviewer/analyst so rows can be grouped by team.
+function raReviewerColumn(headers) {
+  const lc = headers.map(h => h.toLowerCase());
+  const prefs = ['primary reviewer', 'reviewer', 'reviewed by', 'pri_rev', 'analyst', 'assigned to', 'assigned', 'done by', 'name'];
+  for (const p of prefs) {
+    for (let i = 0; i < lc.length; i++) { if (lc[i].includes(p)) return headers[i]; }
+  }
+  return null;
+}
+
+function raTeamCount(headers, rrows) {
+  const revCol = raReviewerColumn(headers);
+  const teamCount = {};
+  TEAM_MEMBERS.forEach(t => { teamCount[t.key] = 0; });
+  rrows.forEach(r => {
+    // Prefer the detected reviewer column; fall back to scanning the whole row.
+    const hay = (revCol != null ? String(r[revCol] || '') : Object.values(r).join(' ')).toLowerCase();
+    TEAM_MEMBERS.forEach(t => { if (hay.includes(t.key)) teamCount[t.key]++; });
+  });
+  return { teamCount, revCol };
+}
+
+// Ring chart mirroring buildReviewerRingsHtml, but click filters the table by team.
+function buildReanalysisRingsHtml(teamCount, total) {
+  return TEAM_MEMBERS.map(t => {
+    const cnt = teamCount[t.key] || 0;
+    const pct = total > 0 ? cnt / total : 0;
+    const isActive = raTeamFilter === t.key;
+    return `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:14px;flex:1;min-width:150px;cursor:pointer;${isActive ? `outline:2px solid ${t.color};outline-offset:8px;border-radius:18px;` : ''}" onclick="raFilterTeam('${t.key}')">
+      <div class="rev-ring-wrap">
+        <svg viewBox="0 0 100 100" width="100%" height="100%" style="display:block">
+          ${buildHelixRing(t.color, pct, 'ra-' + t.key)}
+        </svg>
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
+          <div class="rev-ring-count">${cnt}</div>
+        </div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:13px;font-weight:800;color:${t.color};text-transform:uppercase;letter-spacing:1px">${esc(t.label)}</div>
+        <div style="font-size:12px;color:#94a3b8;margin-top:5px">${cnt} re-analysis</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function raFilterTeam(key) {
+  raTeamFilter = (key && raTeamFilter === key) ? null : key; // click active team again → clear
+  renderReanalysis();
+}
+
+function raOnSearch(v) {
+  raSearch = v || '';
+  renderReanalysis();
+}
+
+function renderReanalysis() {
+  const chartEl = document.getElementById('ra-chart-body');
+  const tableEl = document.getElementById('ra-table');
+  const totalEl = document.getElementById('ra-total');
+  const countEl = document.getElementById('ra-count-num');
+  const clearBtn = document.getElementById('ra-clear-team');
+  const clearLbl = document.getElementById('ra-clear-team-label');
+  if (!chartEl || !tableEl) return;
+
+  if (!reanalysisHeaders.length) {
+    chartEl.innerHTML = `<div class="empty" style="padding:30px 0;grid-column:1/-1"><div class="ei">${IC.inbox}</div><p>No Re-analysis data yet. Ensure the Apps Script is redeployed and the sheet is named "${esc(REANALYSIS_SHEET)}".</p></div>`;
+    tableEl.innerHTML = '';
+    if (totalEl) totalEl.textContent = 'Total: 0';
+    if (countEl) countEl.textContent = '0';
+    if (clearBtn) clearBtn.style.display = 'none';
+    return;
+  }
+
+  const { teamCount, revCol } = raTeamCount(reanalysisHeaders, reanalysisRows);
+  const total = reanalysisRows.length;
+  if (totalEl) totalEl.textContent = 'Total: ' + total;
+
+  chartEl.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:space-evenly;align-items:flex-start;padding:24px 16px">${buildReanalysisRingsHtml(teamCount, total)}</div>`;
+
+  // Filter the table by active team + search
+  let data = reanalysisRows;
+  if (raTeamFilter && revCol != null) {
+    data = data.filter(r => String(r[revCol] || '').toLowerCase().includes(raTeamFilter));
+  }
+  if (raSearch) {
+    const q = raSearch.toLowerCase();
+    data = data.filter(r => reanalysisHeaders.some(h => String(r[h] || '').toLowerCase().includes(q)));
+  }
+
+  if (countEl) countEl.textContent = data.length;
+  if (clearBtn) {
+    if (raTeamFilter) {
+      const tm = TEAM_MEMBERS.find(t => t.key === raTeamFilter);
+      clearBtn.style.display = '';
+      if (clearLbl) clearLbl.textContent = 'Clear: ' + (tm ? tm.label : raTeamFilter);
+    } else {
+      clearBtn.style.display = 'none';
+    }
+  }
+
+  renderReanalysisTable(reanalysisHeaders, data);
+}
+
+function renderReanalysisTable(headers, data) {
+  const el = document.getElementById('ra-table');
+  if (!el) return;
+  if (!data.length) {
+    el.innerHTML = `<div class="empty"><div class="ei">${IC.search}</div><p>No re-analysis records match.</p></div>`;
+    return;
+  }
+  const ths = headers.map(h => `<th>${esc(h)}</th>`).join('');
+  const trs = data.map(r => `<tr>${headers.map(h => {
+    const v = r[h] || '';
+    return `<td title="${esc(v)}">${esc(v) || '—'}</td>`;
+  }).join('')}</tr>`).join('');
+  el.innerHTML = `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
 }
 
 function setLivePill(connected, errMsg) {
@@ -2203,7 +2428,7 @@ function dismissWelcome() { document.getElementById('welcome').classList.remove(
 // ================================================================
 //  TAB ROUTING
 // ================================================================
-const PAGE_MAP = { dashboard:'page-dashboard', yet:'page-yet', assigned:'page-assigned', released:'page-released', overdue:'page-overdue', analytics:'page-analytics' };
+const PAGE_MAP = { dashboard:'page-dashboard', yet:'page-yet', assigned:'page-assigned', released:'page-released', overdue:'page-overdue', analytics:'page-analytics', reanalysis:'page-reanalysis' };
 
 function switchTab(id, btn) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -2212,6 +2437,7 @@ function switchTab(id, btn) {
   btn.classList.add('active');
   if (id==='overdue') renderOverdue();
   else if (id==='analytics') { anInitFilters(); anWaitAndDraw(); }
+  else if (id==='reanalysis') { renderReanalysis(); fetchReanalysisSheet(true); }
   else if (id!=='dashboard') renderTable(id);
 }
 
@@ -4627,6 +4853,8 @@ function downloadChart0Data() {
 
   // Fetch live data from Google Sheet — always dismiss overlay when done
   try { await fetchGoogleSheet(false); } catch(_) {}
+  // Re-analysis sheet loads in the background; never blocks the main dashboard.
+  fetchReanalysisSheet(true);
   dismissWelcome();
 
   // Start auto-sync every 30s

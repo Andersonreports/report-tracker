@@ -1,7 +1,24 @@
-function doGet() {
+function doGet(e) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName("Sheet1");
-  var data = sheet.getDataRange().getDisplayValues();
+
+  // Default to "Sheet1" so the existing dashboard fetch (no query param) is
+  // unchanged. The Re-analysis tab calls this with ?sheet=Re-analysis.
+  var sheetName = (e && e.parameter && e.parameter.sheet) ? e.parameter.sheet : "Sheet1";
+  var sheet = ss.getSheetByName(sheetName);
+
+  // getSheetByName is case-sensitive; fall back to a case-insensitive match so
+  // "RE-ANALYSIS" / "Re-analysis" etc. all resolve to the same tab.
+  if (!sheet) {
+    var wanted = String(sheetName).toLowerCase();
+    var allSheets = ss.getSheets();
+    for (var i = 0; i < allSheets.length; i++) {
+      if (allSheets[i].getName().toLowerCase() === wanted) { sheet = allSheets[i]; break; }
+    }
+  }
+
+  // Unknown sheet → return an empty grid instead of throwing, so a missing
+  // Re-analysis sheet never breaks the caller.
+  var data = sheet ? sheet.getDataRange().getDisplayValues() : [];
 
   var output = JSON.stringify(data);
 

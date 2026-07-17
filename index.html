@@ -1383,6 +1383,7 @@
     <div class="toolbar">
       <div class="search"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><input type="text" id="q-asgn" placeholder="Search Sample, Reviewer, Test…" oninput="render('assigned')" /></div>
       <select class="sel" id="f-asgn-test"     onchange="render('assigned')"><option value="">All Tests</option></select>
+      <select class="sel" id="f-asgn-run"      onchange="render('assigned')"><option value="">All Runs</option></select>
       <select class="sel" id="f-asgn-employee" onchange="render('assigned')"><option value="">All Reviewers</option></select>
       <select class="sel" id="f-asgn-tat"      onchange="render('assigned')"><option value="">All TAT</option></select>
     </div>
@@ -1422,6 +1423,10 @@
         <div class="rel-panel-item">
           <label>Test</label>
           <select class="sel" id="f-rel-test" onchange="render('released')"><option value="">All Tests</option></select>
+        </div>
+        <div class="rel-panel-item">
+          <label>Run</label>
+          <select class="sel" id="f-rel-run" onchange="render('released')"><option value="">All Runs</option></select>
         </div>
         <div class="rel-panel-item">
           <label>Client</label>
@@ -1474,6 +1479,10 @@
         <div class="rel-panel-item">
           <label>Test</label>
           <select class="sel" id="f-overdue-test" onchange="renderOverdue()"><option value="">All Tests</option></select>
+        </div>
+        <div class="rel-panel-item">
+          <label>Run</label>
+          <select class="sel" id="f-overdue-run" onchange="renderOverdue()"><option value="">All Runs</option></select>
         </div>
         <div class="rel-panel-item">
           <label>Client</label>
@@ -2501,10 +2510,13 @@ function refreshAll() {
   populateNormalizedClientFilter('f-rel-client', rel);
   // f-rel-tat removed — TAT filter not in released panel
   populateDateFilters('f-rel-month', 'f-rel-year', rel);
+  populateRunFilter('f-rel-run', rel);
+  populateRunFilter('f-asgn-run', ong);
 
   // overdue filter dropdowns
   populateFilter('f-overdue-test',   overdueAll, 'test');
   populateFilter('f-overdue-client', overdueAll, 'client');
+  populateRunFilter('f-overdue-run', overdueAll);
 
   // team workload + stat card subtext (grouped by primary reviewer)
   const empNames = [...new Set(ong.map(r=>normalizeAnalystName(r.pri_rev)).filter(Boolean))];
@@ -2532,6 +2544,30 @@ function populateFilter(selectId, data, field) {
   const label = field==='test'?'Tests':field==='tat'?'TAT':field==='analyst'?'Analysts':'Employees';
   const vals = [...new Set(data.map(r=>r[field]).filter(Boolean))].sort();
   sel.innerHTML = `<option value="">All ${label}</option>`;
+  vals.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
+  if (vals.includes(cur)) sel.value=cur;
+}
+
+// Distinct run values (run_text), sorted by run number descending — newest runs first
+function runOptions(data) {
+  const seen = new Map(); // run_text -> run_number
+  data.forEach(r=>{
+    const txt = r.run_text;
+    if (txt && txt !== '—' && !seen.has(txt)) seen.set(txt, parseInt(r.run_number||0,10)||0);
+  });
+  return [...seen.keys()].sort((a,b)=>{
+    const na = seen.get(a), nb = seen.get(b);
+    if (nb !== na) return nb - na;
+    return a.localeCompare(b);
+  });
+}
+
+function populateRunFilter(selectId, data) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  const cur = sel.value;
+  const vals = runOptions(data);
+  sel.innerHTML = '<option value="">All Runs</option>';
   vals.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
   if (vals.includes(cur)) sel.value=cur;
 }
@@ -2877,6 +2913,7 @@ function openAllSamplesModal() {
   const statuses = ['Yet to Start','Ongoing','Released'];
   const analysts = [...new Set(_allModalData.flatMap(r=>extractAnalysts(r.analyst_raw)).filter(Boolean))].sort();
   const clients = [...new Set(_allModalData.map(r=>r.client).filter(Boolean))].sort();
+  const runs = runOptions(_allModalData);
 
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const tatMonths = [...new Set(_allModalData.map(r=>{ const d=parseDate(r.tat); return d?d.getMonth()+1:null; }).filter(Boolean))].sort((a,b)=>a-b);
@@ -2897,6 +2934,7 @@ function openAllSamplesModal() {
     <div class="rel-panel" id="all-filter-panel" style="margin:8px 22px 0;padding:10px 14px">
       <div class="rel-panel-grid">
         <div class="rel-panel-item"><label>Test</label><select class="sel" id="all-f-test" onchange="filterAllSamples()">${'<option value="">All Tests</option>'+tests.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('')}</select></div>
+        <div class="rel-panel-item"><label>Run</label><select class="sel" id="all-f-run" onchange="filterAllSamples()">${'<option value="">All Runs</option>'+runs.map(rn=>`<option value="${esc(rn)}">${esc(rn)}</option>`).join('')}</select></div>
         <div class="rel-panel-item"><label>Status</label><select class="sel" id="all-f-status" onchange="filterAllSamples()">${'<option value="">All Statuses</option>'+statuses.map(s=>`<option value="${s}">${s}</option>`).join('')}</select></div>
         <div class="rel-panel-item"><label>Analyst</label><select class="sel" id="all-f-analyst" onchange="filterAllSamples()">${'<option value="">All Analysts</option>'+analysts.map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('')}</select></div>
         <div class="rel-panel-item"><label>Client</label><select class="sel" id="all-f-client" onchange="filterAllSamples()">${'<option value="">All Clients</option>'+clients.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}</select></div>
@@ -2921,9 +2959,11 @@ function filterAllSamples() {
   const clientF = document.getElementById('all-f-client')?.value||'';
   const month   = document.getElementById('all-f-month')?.value||'';
   const year    = document.getElementById('all-f-year')?.value||'';
+  const runF    = document.getElementById('all-f-run')?.value||'';
 
   let data = _allModalData;
   if (test)    data = data.filter(r=>r.test===test);
+  if (runF)    data = data.filter(r=>r.run_text===runF);
   if (status)  data = data.filter(r=>getStatus(r)===status);
   if (analyst) data = data.filter(r=>extractAnalysts(r.analyst_raw).includes(analyst));
   if (clientF) data = data.filter(r=>r.client===clientF);
@@ -2932,6 +2972,7 @@ function filterAllSamples() {
   if (q)       data = data.filter(r=>
     (r.name||'').toLowerCase().includes(q)||(r.test||'').toLowerCase().includes(q)||
     (r.gen_id||'').toLowerCase().includes(q)||(r.and_id||'').toLowerCase().includes(q)||
+    (r.run_text||'').toLowerCase().includes(q)||
     (r.client||'').toLowerCase().includes(q)||(r.analyst||'').toLowerCase().includes(q)
   );
 
@@ -2941,7 +2982,7 @@ function filterAllSamples() {
 }
 
 function clearAllSamplesFilters() {
-  ['all-f-test','all-f-status','all-f-analyst','all-f-client','all-f-month','all-f-year'].forEach(id => {
+  ['all-f-test','all-f-run','all-f-status','all-f-analyst','all-f-client','all-f-month','all-f-year'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   const q = document.getElementById('all-q'); if (q) q.value = '';
@@ -3096,9 +3137,9 @@ function renderQuickCards(containerId, data, status) {
 const TABLE_CFG = {
   yet:       { status:'Yet to Start', q:'q-yet',  test:'f-yet-test',  analyst:null,              tat:null,  tatMonth:'f-yet-month', tatYear:'f-yet-year', tatDate:'f-yet-date',
                cols:['name','run_text','test','gen_id','and_id','client','tat','rep_exp'] },
-  assigned:  { status:'Ongoing',      q:'q-asgn', test:'f-asgn-test', reviewer:'f-asgn-employee', tat:'f-asgn-tat', relMonth:null,          relYear:null,
+  assigned:  { status:'Ongoing',      q:'q-asgn', test:'f-asgn-test', reviewer:'f-asgn-employee', tat:'f-asgn-tat', run:'f-asgn-run', relMonth:null,          relYear:null,
                cols:['pri_rev','analyst','assign_date','name','run_text','test','gen_id','and_id','client','tat','ana_date','remark'] },
-  released:  { status:'Released',     q:'q-rel',  test:'f-rel-test',  analyst:'f-rel-analyst',  team:'f-rel-team', client:'f-rel-client', tat:null,  relMonth:'f-rel-month', relYear:'f-rel-year', relDate:'f-rel-date',
+  released:  { status:'Released',     q:'q-rel',  test:'f-rel-test',  analyst:'f-rel-analyst',  team:'f-rel-team', client:'f-rel-client', tat:null, run:'f-rel-run', relMonth:'f-rel-month', relYear:'f-rel-year', relDate:'f-rel-date',
                cols:['name','test','gen_id','and_id','run_text','analyst_txt','client','tat','rel_date','remark','_remove'] },
 };
 
@@ -3119,6 +3160,7 @@ function renderTable(key) {
   const team     = cfg.team      ? (document.getElementById(cfg.team)?.value||'')      : '';
   const clientF  = cfg.client    ? (document.getElementById(cfg.client)?.value||'')    : '';
   const reviewer = cfg.reviewer  ? (document.getElementById(cfg.reviewer)?.value||'') : '';
+  const runF     = cfg.run       ? (document.getElementById(cfg.run)?.value||'')      : '';
   const tat      = cfg.tat       ? (document.getElementById(cfg.tat)?.value||'')      : '';
   const relMonth = cfg.relMonth  ? (document.getElementById(cfg.relMonth)?.value||'') : '';
   const relYear  = cfg.relYear   ? (document.getElementById(cfg.relYear)?.value||'')  : '';
@@ -3133,6 +3175,7 @@ function renderTable(key) {
   if (ana)      data = data.filter(r=>extractAnalysts(r.analyst_raw).includes(ana));
   if (clientF)  data = data.filter(r=>{ const norm = normalizeClient(r.client) || ''; return norm === clientF; });
   if (reviewer) data = data.filter(r=>r.pri_rev===reviewer);
+  if (runF)     data = data.filter(r=>r.run_text===runF);
   if (tat)      data = data.filter(r=>r.tat===tat);
   if (relMonth) data = data.filter(r=>{ const d=parseDate(r.rel_date); return d&&String(d.getMonth()+1)===relMonth; });
   if (relYear)  data = data.filter(r=>{ const d=parseDate(r.rel_date); return d&&String(d.getFullYear())===relYear; });
@@ -3145,6 +3188,7 @@ function renderTable(key) {
     (r.test||'').toLowerCase().includes(q) ||
     (r.gen_id||'').toLowerCase().includes(q) ||
     (r.and_id||'').toLowerCase().includes(q) ||
+    (r.run_text||'').toLowerCase().includes(q) ||
     (r.client||'').toLowerCase().includes(q) ||
     (r.analyst||'').toLowerCase().includes(q) ||
     (r.pri_rev||'').toLowerCase().includes(q)
@@ -3215,7 +3259,7 @@ function toggleRelFilters() {
 }
 
 function clearRelFilters() {
-  ['f-rel-team','f-rel-analyst','f-rel-test','f-rel-client','f-rel-month','f-rel-year'].forEach(id => {
+  ['f-rel-team','f-rel-analyst','f-rel-test','f-rel-run','f-rel-client','f-rel-month','f-rel-year'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -3229,7 +3273,7 @@ function clearRelFilters() {
 function updateRelCount() {
   // Count active filters
   let active = 0;
-  ['f-rel-team','f-rel-analyst','f-rel-test','f-rel-client','f-rel-month','f-rel-year'].forEach(id => {
+  ['f-rel-team','f-rel-analyst','f-rel-test','f-rel-run','f-rel-client','f-rel-month','f-rel-year'].forEach(id => {
     if (document.getElementById(id)?.value) active++;
   });
   if (document.getElementById('f-rel-date')?.value) active++;
@@ -3243,6 +3287,7 @@ function updateRelCount() {
   const team     = cfg.team ? (document.getElementById(cfg.team)?.value||'') : '';
   const ana      = cfg.analyst ? (document.getElementById(cfg.analyst)?.value||'') : '';
   const clientF  = cfg.client ? (document.getElementById(cfg.client)?.value||'') : '';
+  const runF     = cfg.run ? (document.getElementById(cfg.run)?.value||'') : '';
   const relMonth = cfg.relMonth ? (document.getElementById(cfg.relMonth)?.value||'') : '';
   const relYear  = cfg.relYear ? (document.getElementById(cfg.relYear)?.value||'') : '';
   const relDate  = cfg.relDate ? (document.getElementById(cfg.relDate)?.value||'') : '';
@@ -3251,6 +3296,7 @@ function updateRelCount() {
   if (test)     data = data.filter(r=>r.test===test);
   if (team)     data = data.filter(r=>{ const emp = normalizeAnalystName(r.pri_rev) || 'Unassigned'; return (TEAM_MAP[emp] || 'Team 6') === team; });
   if (ana)      data = data.filter(r=>extractAnalysts(r.analyst_raw).includes(ana));
+  if (runF)     data = data.filter(r=>r.run_text===runF);
   if (clientF)  data = data.filter(r=>{ const norm = normalizeClient(r.client) || ''; return norm === clientF; });
   if (relMonth) data = data.filter(r=>{ const d=parseDate(r.rel_date); return d&&String(d.getMonth()+1)===relMonth; });
   if (relYear)  data = data.filter(r=>{ const d=parseDate(r.rel_date); return d&&String(d.getFullYear())===relYear; });
@@ -3258,6 +3304,7 @@ function updateRelCount() {
   if (q)        data = data.filter(r=>
     (r.name||'').toLowerCase().includes(q)||(r.test||'').toLowerCase().includes(q)||
     (r.gen_id||'').toLowerCase().includes(q)||(r.and_id||'').toLowerCase().includes(q)||
+    (r.run_text||'').toLowerCase().includes(q)||
     (r.client||'').toLowerCase().includes(q)||(r.analyst||'').toLowerCase().includes(q)
   );
   document.getElementById('rel-count-num').textContent = data.length;
@@ -3597,6 +3644,7 @@ function getFilteredOverdue() {
   const status   = document.getElementById('f-overdue-status')?.value||'';
   const numDays  = parseInt(document.getElementById('f-overdue-days')?.value||'0',10)||0;
   const reviewer = document.getElementById('f-overdue-reviewer')?.value||'';
+  const runF     = document.getElementById('f-overdue-run')?.value||'';
 
   let data = getOverdueRows();
   if (test)     data = data.filter(r=>r.test===test);
@@ -3604,9 +3652,11 @@ function getFilteredOverdue() {
   if (status)   data = data.filter(r=>getStatus(r)===status);
   if (numDays)  data = data.filter(r=>r._overdue_days===numDays);
   if (reviewer) data = data.filter(r=>r.pri_rev===reviewer);
+  if (runF)     data = data.filter(r=>r.run_text===runF);
   if (q)        data = data.filter(r=>
     (r.name||'').toLowerCase().includes(q)||(r.test||'').toLowerCase().includes(q)||
     (r.gen_id||'').toLowerCase().includes(q)||(r.and_id||'').toLowerCase().includes(q)||
+    (r.run_text||'').toLowerCase().includes(q)||
     (r.client||'').toLowerCase().includes(q)||(r.pri_rev||'').toLowerCase().includes(q)
   );
   return data;
@@ -3630,7 +3680,7 @@ function renderOverdue() {
 
   // Update active filter badge count
   let active = 0;
-  ['f-overdue-test','f-overdue-client','f-overdue-status','f-overdue-reviewer'].forEach(id => {
+  ['f-overdue-test','f-overdue-run','f-overdue-client','f-overdue-status','f-overdue-reviewer'].forEach(id => {
     if (document.getElementById(id)?.value) active++;
   });
   if (document.getElementById('f-overdue-days')?.value) active++;
@@ -3671,7 +3721,7 @@ function toggleOverdueFilters() {
 }
 
 function clearOverdueFilters() {
-  ['f-overdue-test','f-overdue-client','f-overdue-status','f-overdue-reviewer'].forEach(id => {
+  ['f-overdue-test','f-overdue-run','f-overdue-client','f-overdue-status','f-overdue-reviewer'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   const daysEl = document.getElementById('f-overdue-days'); if (daysEl) daysEl.value = '';

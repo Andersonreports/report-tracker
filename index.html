@@ -1757,6 +1757,10 @@
 //  STATE
 // ================================================================
 let rows   = [];          // parsed report rows
+let sheetHeaders = [];    // Sheet1 header row, verbatim and in sheet order — drives the
+                          // full-sheet view/export in the All Samples modal. mapRow() only
+                          // keeps the columns COL_MAP knows about, so the untouched cells
+                          // ride along on each row as `_cells` (aligned to this array).
 
 // ================================================================
 //  SVG ICONS (inline, no emoji)
@@ -1846,6 +1850,8 @@ function mapRow(raw) {
     run_number:   raw._run_num || 0,
     run_text:     raw._run_txt || '—',
     is_hidden:    !!raw._hidden,
+    // Every cell of the sheet row, positionally aligned to sheetHeaders.
+    _cells:       raw._cells || [],
   };
 }
 
@@ -2120,6 +2126,7 @@ function parseBinary(binary) {
 
   const allRows = [];
   let headers = null;
+  let capturedHeaders = [];
   let currentRunTxt = null;
   let currentRunNum = null;
 
@@ -2141,6 +2148,7 @@ function parseBinary(binary) {
 
     if (rowIsHeader) {
       headers = row.map(c => cellVal(c));
+      if (headers.length > capturedHeaders.length) capturedHeaders = headers.slice();
       continue;
     }
 
@@ -2154,9 +2162,13 @@ function parseBinary(binary) {
 
     if (Object.values(obj).every(v => v === '' || v === currentRunTxt || v === currentRunNum)) continue;
 
+    // After the emptiness check — an array value would never compare equal to ''.
+    obj._cells = row.map(c => cellVal(c));
+
     allRows.push(obj);
   }
 
+  sheetHeaders = capturedHeaders;
   return allRows.map(mapRow).filter(r => r.name || r.gen_id || r.and_id || r.client || r.test);
 }
 
@@ -2201,6 +2213,7 @@ function parseGrid(grid) {
 
   const allRows = [];
   let headers = null;
+  let capturedHeaders = [];
   let currentRunTxt = null;
   let currentRunNum = null;
 
@@ -2219,16 +2232,23 @@ function parseGrid(grid) {
       continue;
     }
 
-    if (rowIsHeader) { headers = row.map(c => cellVal(c)); continue; }
+    if (rowIsHeader) {
+      headers = row.map(c => cellVal(c));
+      if (headers.length > capturedHeaders.length) capturedHeaders = headers.slice();
+      continue;
+    }
     if (!headers) continue;
     const obj = {};
     headers.forEach((h, i) => { obj[h] = cellVal(row[i] ?? ''); });
     obj._run_txt = currentRunTxt;
     obj._run_num = currentRunNum;
     if (Object.values(obj).every(v => v === '' || v === currentRunTxt || v === currentRunNum)) continue;
+    // After the emptiness check — an array value would never compare equal to ''.
+    obj._cells = row.map(c => cellVal(c));
     allRows.push(obj);
   }
 
+  sheetHeaders = capturedHeaders;
   return allRows.map(mapRow).filter(r => r.name || r.gen_id || r.and_id || r.client || r.test);
 }
 
@@ -2896,10 +2916,54 @@ function buildModalTable(data, cols, applyStatusColors = false) {
 }
 
 // ================================================================
+//  FULL SHEET VIEW — every column of Sheet1, not just the COL_MAP subset
+// ================================================================
+// Returns [{idx,label,isName}] for each Sheet1 column worth showing: anything with a
+// header, plus unlabelled columns that still carry data (shown as "Column N"). `idx`
+// is the position within each row's `_cells`. Truly empty spacer columns are dropped.
+function fullSheetCols(data) {
+  const width = (data||[]).reduce((m,r) => Math.max(m, (r._cells||[]).length), sheetHeaders.length);
+  // Only the first name-ish header is the sample name, so "Client Name" isn't styled as one too.
+  const nameIdx = sheetHeaders.findIndex(h => {
+    const l = String(h||'').trim().toLowerCase();
+    return l && COL_MAP.name.some(a => l === a || l.includes(a));
+  });
+  const cols = [];
+  for (let i = 0; i < width; i++) {
+    const label = String(sheetHeaders[i]||'').trim();
+    if (!label && !(data||[]).some(r => String((r._cells||[])[i]||'').trim() !== '')) continue;
+    cols.push({ idx: i, label: label || `Column ${i+1}`, isName: i === nameIdx });
+  }
+  return cols;
+}
+
+// Run is a section-marker row in the sheet rather than a real column, so it is
+// carried separately and rendered/exported as the leading column.
+function buildFullSheetTable(data, cols) {
+  if (!data.length) return `<div class="empty" style="padding:40px"><div class="ei">${IC.inbox}</div><p>No records</p></div>`;
+  const ths = `<th class="col-w-run">Run</th>` + cols.map(c=>`<th${c.isName?' class="col-w-name"':''}>${esc(c.label)}</th>`).join('');
+  const trs = data.map(r=>{
+    const st = getStatus(r);
+    const rowClass = st==='Released' ? 'row-status-released' : st==='Ongoing' ? 'row-status-ongoing' : 'row-status-yet';
+    const tds = cols.map(c=>{
+      const v = String((r._cells||[])[c.idx]||'').trim();
+      const attrs = c.isName ? ' class="col-w-name" style="font-weight:600;color:var(--text)"' : '';
+      // title only where it earns its bytes — the name column ellipsizes, and long
+      // values are worth hovering. 18 columns x ~4k rows makes markup size matter.
+      const tip = (c.isName || v.length > 24) ? ` title="${esc(v)}"` : '';
+      return `<td${attrs}${tip}>${esc(v)||'—'}</td>`;
+    }).join('');
+    return `<tr class="${rowClass}"><td class="col-w-run">${esc(r.run_text)||'—'}</td>${tds}</tr>`;
+  }).join('');
+  return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+}
+
+// ================================================================
 //  ALL SAMPLES MODAL — with search + filters
 // ================================================================
-const ALL_COLS = ['name','test','gen_id','and_id','run_text', 'client','tat','_status','_rel'];
 let _allModalData = [];
+let _allModalCols = [];   // resolved full-sheet columns for the open modal
+let _allModalView = [];   // rows currently shown (post-filter) — what Download exports
 
 function openAllSamplesModal() {
   // Sort descending by TAT date
@@ -2930,6 +2994,10 @@ function openAllSamplesModal() {
         Filters
       </button>
       <span style="font-size:12px;font-weight:700;color:var(--pri)" id="all-count-label">${_allModalData.length} samples</span>
+      <button class="rel-filter-toggle" onclick="downloadAllSamplesExcel()" style="height:36px;font-size:11px;padding:0 10px;border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.08);color:#059669" title="Download every row and column as Excel">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download Excel
+      </button>
     </div>
     <div class="rel-panel" id="all-filter-panel" style="margin:8px 22px 0;padding:10px 14px">
       <div class="rel-panel-grid">
@@ -2944,9 +3012,12 @@ function openAllSamplesModal() {
       <div class="rel-panel-actions"><button class="rel-clear-btn" onclick="clearAllSamplesFilters()">Clear All</button></div>
     </div>`;
 
+  _allModalCols = fullSheetCols(_allModalData);
+  _allModalView = _allModalData;
+
   document.getElementById('qmodal-title').textContent = 'All Samples';
   document.getElementById('qmodal-count').textContent = ` · ${_allModalData.length} records`;
-  document.getElementById('qmodal-body').innerHTML = '<div class="modal-filters-wrap">' + filterHtml + '</div><div class="modal-table-wrap" id="all-table-wrap">' + buildModalTable(_allModalData, ALL_COLS, true) + '</div>';
+  document.getElementById('qmodal-body').innerHTML = '<div class="modal-filters-wrap">' + filterHtml + '</div><div class="modal-table-wrap" id="all-table-wrap">' + buildFullSheetTable(_allModalData, _allModalCols) + '</div>';
   document.getElementById('qmodal-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -2969,16 +3040,17 @@ function filterAllSamples() {
   if (clientF) data = data.filter(r=>r.client===clientF);
   if (month)   data = data.filter(r=>{ const d=parseDate(r.tat); return d&&String(d.getMonth()+1)===month; });
   if (year)    data = data.filter(r=>{ const d=parseDate(r.tat); return d&&String(d.getFullYear())===year; });
+  // Every sheet column is on screen now, so search spans all of them (plus Run,
+  // which is a section marker rather than a real column).
   if (q)       data = data.filter(r=>
-    (r.name||'').toLowerCase().includes(q)||(r.test||'').toLowerCase().includes(q)||
-    (r.gen_id||'').toLowerCase().includes(q)||(r.and_id||'').toLowerCase().includes(q)||
     (r.run_text||'').toLowerCase().includes(q)||
-    (r.client||'').toLowerCase().includes(q)||(r.analyst||'').toLowerCase().includes(q)
+    (r._cells||[]).some(c => String(c||'').toLowerCase().includes(q))
   );
 
+  _allModalView = data;
   document.getElementById('qmodal-count').textContent = ` · ${data.length} records`;
   document.getElementById('all-count-label').textContent = `${data.length} samples`;
-  document.getElementById('all-table-wrap').innerHTML = buildModalTable(data, ALL_COLS, true);
+  document.getElementById('all-table-wrap').innerHTML = buildFullSheetTable(data, _allModalCols);
 }
 
 function clearAllSamplesFilters() {
@@ -2987,6 +3059,54 @@ function clearAllSamplesFilters() {
   });
   const q = document.getElementById('all-q'); if (q) q.value = '';
   filterAllSamples();
+}
+
+// Exports exactly what the table is showing — every Sheet1 column, every row in the
+// current view. With no filters applied that is the complete sheet.
+function downloadAllSamplesExcel() {
+  try {
+    if (typeof XLSX === 'undefined') { toast('SheetJS not loaded — refresh the page', 'err'); return; }
+
+    const cols = _allModalCols;
+    const data = _allModalView;
+    if (!cols.length) { toast('Sheet columns not loaded yet — try again after sync', 'warn'); return; }
+    if (!data.length) { toast('No samples to export', 'warn'); return; }
+
+    const wsData = [['Run', ...cols.map(c => c.label)]];
+    data.forEach(r => {
+      // '—' is the table's empty placeholder; an Excel cell should just be blank.
+      const run = (r.run_text || '') === '—' ? '' : (r.run_text || '');
+      wsData.push([run, ...cols.map(c => String((r._cells||[])[c.idx] || ''))]);
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = wsData[0].map((h,i) => {
+      let max = String(h).length;
+      wsData.forEach(row => { if (row[i] && String(row[i]).length > max) max = String(row[i]).length; });
+      return { wch: Math.min(max + 2, 40) };
+    });
+    XLSX.utils.book_append_sheet(wb, ws, 'All Samples');
+
+    const t = new Date();
+    const fname = `All_Samples_${t.getDate().toString().padStart(2,'0')}-${(t.getMonth()+1).toString().padStart(2,'0')}-${t.getFullYear()}.xlsx`;
+
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
+    const buf = new ArrayBuffer(wbout.length);
+    const view = new Uint8Array(buf);
+    for (let i = 0; i < wbout.length; i++) view[i] = wbout.charCodeAt(i) & 0xFF;
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = fname; a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+    toast(`Excel downloaded: ${data.length} rows × ${cols.length + 1} columns`, 'ok');
+  } catch(e) {
+    toast('Download failed: ' + e.message, 'err');
+    console.error('[downloadAllSamplesExcel]', e);
+  }
 }
 
 // Global search on dashboard
@@ -3938,11 +4058,19 @@ document.addEventListener('keydown',e=>{
 // ================================================================
 const STORAGE_KEY = 'tracker_rows_v5';
 
+// Stored as {rows, headers} so a cache-first paint gets real Sheet1 column names for
+// the full-sheet view. A bare array is the older shape and still loads.
 function saveToStorage(data) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ rows: data, headers: sheetHeaders })); } catch(e) {}
 }
 function loadFromStorage() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); } catch(e) { return null; }
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    if (!saved) return null;
+    if (Array.isArray(saved)) return saved;
+    if (Array.isArray(saved.headers)) sheetHeaders = saved.headers;
+    return Array.isArray(saved.rows) ? saved.rows : null;
+  } catch(e) { return null; }
 }
 
 // ================================================================

@@ -1757,10 +1757,6 @@
 //  STATE
 // ================================================================
 let rows   = [];          // parsed report rows
-let sheetHeaders = [];    // Sheet1 header row, verbatim and in sheet order — drives the
-                          // full-sheet view/export in the All Samples modal. mapRow() only
-                          // keeps the columns COL_MAP knows about, so the untouched cells
-                          // ride along on each row as `_cells` (aligned to this array).
 
 // ================================================================
 //  SVG ICONS (inline, no emoji)
@@ -1807,6 +1803,80 @@ const COL_MAP = {
   history:   ['history writeup','history','writeup'],
 };
 
+// ================================================================
+//  SHEET1 SCHEMA — the finalised column set every sample is categorised into
+// ================================================================
+// `label` is the finalised header, shown verbatim in the All Samples view and its
+// Excel export. RUN is derived from the merged run-marker rows rather than being a
+// real column, so it leads the set.
+//
+// Older runs use different header spellings and can omit columns entirely, so each
+// header row in the sheet is matched against `aliases` independently (see
+// resolveSchemaMap) — matching is case-insensitive and ignores spaces and
+// punctuation, and anything the sheet lacks resolves to blank rather than shifting
+// the other columns along.
+const SHEET_SCHEMA = [
+  { key:'run',          label:'RUN',                              derived:true },
+  { key:'sno',          label:'S.NO',                             aliases:['sno','serialno','slno','srno','serial'] },
+  { key:'name',         label:'Sample_Name',                      aliases:['samplename','patientname','sample','name'] },
+  { key:'test',         label:'Test',                             aliases:['test','testname','testrequested'] },
+  { key:'gen_id',       label:'Gen_ID',                           aliases:['genid','geneticid'] },
+  { key:'and_id',       label:'Anderson_ID',                      aliases:['andersonid','andid','andersonno'] },
+  { key:'client',       label:'Client',                           aliases:['client','clientname'] },
+  { key:'tat',          label:'TAT(30 Days)',                     aliases:['tat30days','tatdays','tat','turnaround'] },
+  { key:'bioinfo_time', label:'Bioinfo Analysis Time',            aliases:['bioinfoanalysistime','bioinformaticsanalysistime','bioinfotime','bioinfo'] },
+  { key:'rep_exp',      label:'Repeat Expansion',                 aliases:['repeatexpansion','repeat'] },
+  { key:'analyst',      label:'ANALYZE BY',                       aliases:['analyzeby','analysedby','analyzedby','analyseby','analystby','analyst'] },
+  { key:'ana_date',     label:'ANALYZE DATE',                     aliases:['analyzedate','analysisdate','analyzeddate','analyseddate','dateofanalysis'] },
+  { key:'pri_rev',      label:'PRIMARY REVIWER  CLINICAL REVIEW', aliases:['primaryreviwerclinicalreview','primaryreviewerclinicalreview','primaryreviwer','primaryreviewer','primaryreview','clinicalreview'] },
+  { key:'remark',       label:'REMARK',                           aliases:['remark','remarks','note','notes'] },
+  { key:'rel_date',     label:'REPORT RELEASE DATE',              aliases:['reportreleasedate','releasedate','releasedon','reportrelease'] },
+  { key:'history',      label:'History writeup',                  aliases:['historywriteup','history','writeup'] },
+];
+
+// Header text → comparison form: case-insensitive, punctuation- and space-blind, so
+// "TAT(30 Days)", "tat (30 days)" and "TAT 30 DAYS" all collapse to "tat30days".
+function normHeader(h) {
+  return String(h == null ? '' : h).toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+// Maps one header row onto the schema, returning { key: columnIndex }.
+// Resolved in three passes — exact, then prefix, then substring — so a precise match
+// anywhere in the row always beats a loose one. A column is claimed by at most one
+// key, which stops a loose alias like 'name' from stealing "Client Name" once
+// 'clientname' has matched Client exactly.
+function resolveSchemaMap(headerRow) {
+  const norm = (headerRow || []).map(normHeader);
+  const map = {};
+  const claimed = new Set();
+  const tests = [
+    (h, a) => h === a,
+    (h, a) => h.startsWith(a),
+    (h, a) => h.includes(a),
+  ];
+  for (const test of tests) {
+    for (const col of SHEET_SCHEMA) {
+      if (col.derived || map[col.key] !== undefined) continue;
+      for (const alias of col.aliases) {
+        const i = norm.findIndex((h, idx) => h && !claimed.has(idx) && test(h, alias));
+        if (i !== -1) { map[col.key] = i; claimed.add(i); break; }
+      }
+    }
+  }
+  return map;
+}
+
+// Pulls one sheet row into the schema's shape: every key present, missing columns blank.
+function canonRow(row, schemaMap, cellVal) {
+  const out = {};
+  for (const col of SHEET_SCHEMA) {
+    if (col.derived) continue;
+    const i = schemaMap[col.key];
+    out[col.key] = i === undefined ? '' : cellVal(row[i] ?? '');
+  }
+  return out;
+}
+
 function extractRunNumber(text) {
   if (!text) return null;
   const m = text.match(/Run[\s-]*(\d+)/i);
@@ -1822,7 +1892,14 @@ function mapRow(raw) {
     }
     return '';
   }
-  const analystRaw = get(COL_MAP.analyst);
+  // SHEET_SCHEMA resolves the finalised headers (and their older spellings); COL_MAP
+  // stays as the fallback for anything it does not place. Needed for more than tidiness:
+  // "PRIMARY REVIWER  CLINICAL REVIEW" matches no COL_MAP alias, and pri_rev drives
+  // getStatus, team workload and the reviewer counts.
+  const canon = raw._canon || {};
+  const pick = (key, aliases) => canon[key] || get(aliases);
+
+  const analystRaw = pick('analyst', COL_MAP.analyst);
   // Extract date embedded in parentheses e.g. "Diwakar(18-2-2026)" → "18-2-2026"
   const assignDateMatch = analystRaw.match(/\(([^)]+)\)/);
   const assignDate = assignDateMatch ? assignDateMatch[1].trim() : '';
@@ -1830,28 +1907,30 @@ function mapRow(raw) {
   const analystClean = normalizeAnalystName(analystRaw);
 
   return {
-    sno:          get(COL_MAP.sno),
-    name:         get(COL_MAP.name),
-    test:         normalizeTestName(get(COL_MAP.test)),
-    gen_id:       get(COL_MAP.gen_id),
-    and_id:       get(COL_MAP.and_id),
-    client:       get(COL_MAP.client),
-    tat:          fmtDate(get(COL_MAP.tat)),
-    rep_exp:      get(COL_MAP.rep_exp),
+    sno:          pick('sno', COL_MAP.sno),
+    name:         pick('name', COL_MAP.name),
+    test:         normalizeTestName(pick('test', COL_MAP.test)),
+    gen_id:       pick('gen_id', COL_MAP.gen_id),
+    and_id:       pick('and_id', COL_MAP.and_id),
+    client:       pick('client', COL_MAP.client),
+    tat:          fmtDate(pick('tat', COL_MAP.tat)),
+    bioinfo_time: canon.bioinfo_time || '',
+    rep_exp:      pick('rep_exp', COL_MAP.rep_exp),
     analyst:      analystClean,
     analyst_raw:  analystRaw,
     assign_date:  assignDate,
-    ana_date:     get(COL_MAP.ana_date),
-    pri_rev:      get(COL_MAP.pri_rev),
+    ana_date:     pick('ana_date', COL_MAP.ana_date),
+    pri_rev:      pick('pri_rev', COL_MAP.pri_rev),
+    // Dropped from the finalised set; still read so older sheets keep working.
     final:        get(COL_MAP.final),
-    remark:       get(COL_MAP.remark),
-    rel_date:     get(COL_MAP.rel_date),
-    history:      get(COL_MAP.history),
+    remark:       pick('remark', COL_MAP.remark),
+    rel_date:     pick('rel_date', COL_MAP.rel_date),
+    history:      pick('history', COL_MAP.history),
     run_number:   raw._run_num || 0,
     run_text:     raw._run_txt || '—',
     is_hidden:    !!raw._hidden,
-    // Every cell of the sheet row, positionally aligned to sheetHeaders.
-    _cells:       raw._cells || [],
+    // Row in the finalised schema's shape — drives the All Samples view and its export.
+    _canon:       canon,
   };
 }
 
@@ -2126,7 +2205,7 @@ function parseBinary(binary) {
 
   const allRows = [];
   let headers = null;
-  let capturedHeaders = [];
+  let schemaMap = {};
   let currentRunTxt = null;
   let currentRunNum = null;
 
@@ -2148,7 +2227,8 @@ function parseBinary(binary) {
 
     if (rowIsHeader) {
       headers = row.map(c => cellVal(c));
-      if (headers.length > capturedHeaders.length) capturedHeaders = headers.slice();
+      // Re-resolved per header row: each run section may name or omit columns differently.
+      schemaMap = resolveSchemaMap(headers);
       continue;
     }
 
@@ -2162,13 +2242,12 @@ function parseBinary(binary) {
 
     if (Object.values(obj).every(v => v === '' || v === currentRunTxt || v === currentRunNum)) continue;
 
-    // After the emptiness check — an array value would never compare equal to ''.
-    obj._cells = row.map(c => cellVal(c));
+    // After the emptiness check — an object value would never compare equal to ''.
+    obj._canon = canonRow(row, schemaMap, cellVal);
 
     allRows.push(obj);
   }
 
-  sheetHeaders = capturedHeaders;
   return allRows.map(mapRow).filter(r => r.name || r.gen_id || r.and_id || r.client || r.test);
 }
 
@@ -2213,7 +2292,7 @@ function parseGrid(grid) {
 
   const allRows = [];
   let headers = null;
-  let capturedHeaders = [];
+  let schemaMap = {};
   let currentRunTxt = null;
   let currentRunNum = null;
 
@@ -2234,7 +2313,8 @@ function parseGrid(grid) {
 
     if (rowIsHeader) {
       headers = row.map(c => cellVal(c));
-      if (headers.length > capturedHeaders.length) capturedHeaders = headers.slice();
+      // Re-resolved per header row: each run section may name or omit columns differently.
+      schemaMap = resolveSchemaMap(headers);
       continue;
     }
     if (!headers) continue;
@@ -2243,12 +2323,11 @@ function parseGrid(grid) {
     obj._run_txt = currentRunTxt;
     obj._run_num = currentRunNum;
     if (Object.values(obj).every(v => v === '' || v === currentRunTxt || v === currentRunNum)) continue;
-    // After the emptiness check — an array value would never compare equal to ''.
-    obj._cells = row.map(c => cellVal(c));
+    // After the emptiness check — an object value would never compare equal to ''.
+    obj._canon = canonRow(row, schemaMap, cellVal);
     allRows.push(obj);
   }
 
-  sheetHeaders = capturedHeaders;
   return allRows.map(mapRow).filter(r => r.name || r.gen_id || r.and_id || r.client || r.test);
 }
 
@@ -2916,44 +2995,32 @@ function buildModalTable(data, cols, applyStatusColors = false) {
 }
 
 // ================================================================
-//  FULL SHEET VIEW — every column of Sheet1, not just the COL_MAP subset
+//  FULL SHEET VIEW — every sample categorised into the finalised SHEET_SCHEMA
 // ================================================================
-// Returns [{idx,label,isName}] for each Sheet1 column worth showing: anything with a
-// header, plus unlabelled columns that still carry data (shown as "Column N"). `idx`
-// is the position within each row's `_cells`. Truly empty spacer columns are dropped.
-function fullSheetCols(data) {
-  const width = (data||[]).reduce((m,r) => Math.max(m, (r._cells||[]).length), sheetHeaders.length);
-  // Only the first name-ish header is the sample name, so "Client Name" isn't styled as one too.
-  const nameIdx = sheetHeaders.findIndex(h => {
-    const l = String(h||'').trim().toLowerCase();
-    return l && COL_MAP.name.some(a => l === a || l.includes(a));
-  });
-  const cols = [];
-  for (let i = 0; i < width; i++) {
-    const label = String(sheetHeaders[i]||'').trim();
-    if (!label && !(data||[]).some(r => String((r._cells||[])[i]||'').trim() !== '')) continue;
-    cols.push({ idx: i, label: label || `Column ${i+1}`, isName: i === nameIdx });
-  }
-  return cols;
+// One cell of a schema row. RUN comes from the merged run-marker rows; everything
+// else was resolved at parse time, so a column the sheet never had is simply blank.
+function schemaCell(r, col) {
+  return col.key === 'run'
+    ? (r.run_text === '—' ? '' : String(r.run_text || ''))
+    : String((r._canon || {})[col.key] || '');
 }
 
-// Run is a section-marker row in the sheet rather than a real column, so it is
-// carried separately and rendered/exported as the leading column.
-function buildFullSheetTable(data, cols) {
+function buildFullSheetTable(data) {
   if (!data.length) return `<div class="empty" style="padding:40px"><div class="ei">${IC.inbox}</div><p>No records</p></div>`;
-  const ths = `<th class="col-w-run">Run</th>` + cols.map(c=>`<th${c.isName?' class="col-w-name"':''}>${esc(c.label)}</th>`).join('');
+  const cls = c => c.key === 'run' ? 'col-w-run' : c.key === 'name' ? 'col-w-name' : '';
+  const ths = SHEET_SCHEMA.map(c=>`<th class="${cls(c)}">${esc(c.label)}</th>`).join('');
   const trs = data.map(r=>{
     const st = getStatus(r);
     const rowClass = st==='Released' ? 'row-status-released' : st==='Ongoing' ? 'row-status-ongoing' : 'row-status-yet';
-    const tds = cols.map(c=>{
-      const v = String((r._cells||[])[c.idx]||'').trim();
-      const attrs = c.isName ? ' class="col-w-name" style="font-weight:600;color:var(--text)"' : '';
+    const tds = SHEET_SCHEMA.map(c=>{
+      const v = schemaCell(r, c);
+      const style = c.key === 'name' ? ' style="font-weight:600;color:var(--text)"' : '';
       // title only where it earns its bytes — the name column ellipsizes, and long
-      // values are worth hovering. 18 columns x ~4k rows makes markup size matter.
-      const tip = (c.isName || v.length > 24) ? ` title="${esc(v)}"` : '';
-      return `<td${attrs}${tip}>${esc(v)||'—'}</td>`;
+      // values are worth hovering. 16 columns x ~4k rows makes markup size matter.
+      const tip = (c.key === 'name' || v.length > 24) ? ` title="${esc(v)}"` : '';
+      return `<td class="${cls(c)}"${style}${tip}>${esc(v)||'—'}</td>`;
     }).join('');
-    return `<tr class="${rowClass}"><td class="col-w-run">${esc(r.run_text)||'—'}</td>${tds}</tr>`;
+    return `<tr class="${rowClass}">${tds}</tr>`;
   }).join('');
   return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
 }
@@ -2962,7 +3029,6 @@ function buildFullSheetTable(data, cols) {
 //  ALL SAMPLES MODAL — with search + filters
 // ================================================================
 let _allModalData = [];
-let _allModalCols = [];   // resolved full-sheet columns for the open modal
 let _allModalView = [];   // rows currently shown (post-filter) — what Download exports
 
 function openAllSamplesModal() {
@@ -3012,12 +3078,11 @@ function openAllSamplesModal() {
       <div class="rel-panel-actions"><button class="rel-clear-btn" onclick="clearAllSamplesFilters()">Clear All</button></div>
     </div>`;
 
-  _allModalCols = fullSheetCols(_allModalData);
   _allModalView = _allModalData;
 
   document.getElementById('qmodal-title').textContent = 'All Samples';
   document.getElementById('qmodal-count').textContent = ` · ${_allModalData.length} records`;
-  document.getElementById('qmodal-body').innerHTML = '<div class="modal-filters-wrap">' + filterHtml + '</div><div class="modal-table-wrap" id="all-table-wrap">' + buildFullSheetTable(_allModalData, _allModalCols) + '</div>';
+  document.getElementById('qmodal-body').innerHTML = '<div class="modal-filters-wrap">' + filterHtml + '</div><div class="modal-table-wrap" id="all-table-wrap">' + buildFullSheetTable(_allModalData) + '</div>';
   document.getElementById('qmodal-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -3040,17 +3105,16 @@ function filterAllSamples() {
   if (clientF) data = data.filter(r=>r.client===clientF);
   if (month)   data = data.filter(r=>{ const d=parseDate(r.tat); return d&&String(d.getMonth()+1)===month; });
   if (year)    data = data.filter(r=>{ const d=parseDate(r.tat); return d&&String(d.getFullYear())===year; });
-  // Every sheet column is on screen now, so search spans all of them (plus Run,
-  // which is a section marker rather than a real column).
+  // The whole schema is on screen, so free-text search spans every column of it,
+  // case-insensitively — including RUN.
   if (q)       data = data.filter(r=>
-    (r.run_text||'').toLowerCase().includes(q)||
-    (r._cells||[]).some(c => String(c||'').toLowerCase().includes(q))
+    SHEET_SCHEMA.some(c => schemaCell(r, c).toLowerCase().includes(q))
   );
 
   _allModalView = data;
   document.getElementById('qmodal-count').textContent = ` · ${data.length} records`;
   document.getElementById('all-count-label').textContent = `${data.length} samples`;
-  document.getElementById('all-table-wrap').innerHTML = buildFullSheetTable(data, _allModalCols);
+  document.getElementById('all-table-wrap').innerHTML = buildFullSheetTable(data);
 }
 
 function clearAllSamplesFilters() {
@@ -3061,23 +3125,18 @@ function clearAllSamplesFilters() {
   filterAllSamples();
 }
 
-// Exports exactly what the table is showing — every Sheet1 column, every row in the
-// current view. With no filters applied that is the complete sheet.
+// Exports exactly what the table is showing — the full finalised column set, every row
+// in the current view. With no filters applied that is the complete sheet.
 function downloadAllSamplesExcel() {
   try {
     if (typeof XLSX === 'undefined') { toast('SheetJS not loaded — refresh the page', 'err'); return; }
 
-    const cols = _allModalCols;
+    const cols = SHEET_SCHEMA;
     const data = _allModalView;
-    if (!cols.length) { toast('Sheet columns not loaded yet — try again after sync', 'warn'); return; }
     if (!data.length) { toast('No samples to export', 'warn'); return; }
 
-    const wsData = [['Run', ...cols.map(c => c.label)]];
-    data.forEach(r => {
-      // '—' is the table's empty placeholder; an Excel cell should just be blank.
-      const run = (r.run_text || '') === '—' ? '' : (r.run_text || '');
-      wsData.push([run, ...cols.map(c => String((r._cells||[])[c.idx] || ''))]);
-    });
+    const wsData = [cols.map(c => c.label)];
+    data.forEach(r => { wsData.push(cols.map(c => schemaCell(r, c))); });
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(wsData);
@@ -3102,7 +3161,7 @@ function downloadAllSamplesExcel() {
     document.body.appendChild(a);
     a.click();
     setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
-    toast(`Excel downloaded: ${data.length} rows × ${cols.length + 1} columns`, 'ok');
+    toast(`Excel downloaded: ${data.length} rows × ${cols.length} columns`, 'ok');
   } catch(e) {
     toast('Download failed: ' + e.message, 'err');
     console.error('[downloadAllSamplesExcel]', e);
@@ -4056,19 +4115,21 @@ document.addEventListener('keydown',e=>{
 // ================================================================
 //  LOCAL STORAGE — persist rows across page refreshes
 // ================================================================
-const STORAGE_KEY = 'tracker_rows_v5';
+// v6: rows carry `_canon` (the finalised schema). A v5 cache predates it and would
+// paint an empty grid until the first sync, so it is dropped rather than read.
+const STORAGE_KEY = 'tracker_rows_v6';
+try { localStorage.removeItem('tracker_rows_v5'); } catch(e) {}
 
-// Stored as {rows, headers} so a cache-first paint gets real Sheet1 column names for
-// the full-sheet view. A bare array is the older shape and still loads.
+// Each row carries its own `_canon`, so the cache needs nothing beyond the rows.
+// Tolerates the {rows, headers} shape a previous version wrote.
 function saveToStorage(data) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ rows: data, headers: sheetHeaders })); } catch(e) {}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
 }
 function loadFromStorage() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
     if (!saved) return null;
     if (Array.isArray(saved)) return saved;
-    if (Array.isArray(saved.headers)) sheetHeaders = saved.headers;
     return Array.isArray(saved.rows) ? saved.rows : null;
   } catch(e) { return null; }
 }

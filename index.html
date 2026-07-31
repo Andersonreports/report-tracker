@@ -1818,7 +1818,7 @@ const COL_MAP = {
 const SHEET_SCHEMA = [
   { key:'run',          label:'RUN',                              derived:true },
   { key:'sno',          label:'S.NO',                             aliases:['sno','serialno','slno','srno','serial'] },
-  { key:'name',         label:'Sample_Name',                      aliases:['samplename','patientname','sample','name'] },
+  { key:'name',         label:'Sample_Name',                      aliases:['samplename','patientname','sample','name'], critical:true },
   { key:'test',         label:'Test',                             aliases:['test','testname','testrequested'] },
   { key:'gen_id',       label:'Gen_ID',                           aliases:['genid','geneticid'] },
   { key:'and_id',       label:'Anderson_ID',                      aliases:['andersonid','andid','andersonno'] },
@@ -1828,7 +1828,15 @@ const SHEET_SCHEMA = [
   { key:'rep_exp',      label:'Repeat Expansion',                 aliases:['repeatexpansion','repeat'] },
   { key:'analyst',      label:'ANALYZE BY',                       aliases:['analyzeby','analysedby','analyzedby','analyseby','analystby','analyst'] },
   { key:'ana_date',     label:'ANALYZE DATE',                     aliases:['analyzedate','analysisdate','analyzeddate','analyseddate','dateofanalysis'] },
-  { key:'pri_rev',      label:'PRIMARY REVIWER  CLINICAL REVIEW', aliases:['primaryreviwerclinicalreview','primaryreviewerclinicalreview','primaryreviwer','primaryreviewer','primaryreview','clinicalreview'] },
+  // The Reviewer behind team workload, sample counts and getStatus — see `critical`.
+  // Aliases run specific → general so a precise header always wins; the bare
+  // reviewer spellings at the end are the safety net. `avoid` keeps a FINAL REVIEW /
+  // FINAL REVIEWER / "Final Clinical Review" column from being taken as this one.
+  { key:'pri_rev',      label:'PRIMARY REVIWER  CLINICAL REVIEW',
+    aliases:['primaryreviwerclinicalreview','primaryreviewerclinicalreview','primaryreviwer',
+             'primaryreviewer','primaryreview','clinicalreviwer','clinicalreview',
+             'reviewer','reviwer','reviewedby','reviewdby','reviewby','review'],
+    avoid:['final'], critical:true },
   { key:'remark',       label:'REMARK',                           aliases:['remark','remarks','note','notes'] },
   { key:'rel_date',     label:'REPORT RELEASE DATE',              aliases:['reportreleasedate','releasedate','releasedon','reportrelease'] },
   { key:'history',      label:'History writeup',                  aliases:['historywriteup','history','writeup'] },
@@ -1844,7 +1852,8 @@ function normHeader(h) {
 // Resolved in three passes — exact, then prefix, then substring — so a precise match
 // anywhere in the row always beats a loose one. A column is claimed by at most one
 // key, which stops a loose alias like 'name' from stealing "Client Name" once
-// 'clientname' has matched Client exactly.
+// 'clientname' has matched Client exactly. A column whose header contains any of
+// `avoid` is never claimed by that key, however well an alias otherwise matches.
 function resolveSchemaMap(headerRow) {
   const norm = (headerRow || []).map(normHeader);
   const map = {};
@@ -1857,13 +1866,42 @@ function resolveSchemaMap(headerRow) {
   for (const test of tests) {
     for (const col of SHEET_SCHEMA) {
       if (col.derived || map[col.key] !== undefined) continue;
+      const blocked = h => (col.avoid || []).some(bad => h.includes(bad));
       for (const alias of col.aliases) {
-        const i = norm.findIndex((h, idx) => h && !claimed.has(idx) && test(h, alias));
+        const i = norm.findIndex((h, idx) => h && !claimed.has(idx) && !blocked(h) && test(h, alias));
         if (i !== -1) { map[col.key] = i; claimed.add(i); break; }
       }
     }
   }
   return map;
+}
+
+// A `critical` column that fails to resolve does not error — it just goes blank, and
+// for pri_rev that quietly empties team workload, the sample counts and the Ongoing
+// status. Record the gap at parse time so it can be surfaced instead of guessed at.
+let schemaWarnings = [];
+
+function noteSchemaGaps(headers, schemaMap, runTxt) {
+  for (const col of SHEET_SCHEMA) {
+    if (!col.critical || schemaMap[col.key] !== undefined) continue;
+    schemaWarnings.push({
+      column: col.label,
+      run: runTxt || '(no run marker)',
+      headerRow: headers.filter(h => String(h).trim()).join(' | '),
+    });
+  }
+}
+
+function reportSchemaWarnings(silent) {
+  if (!schemaWarnings.length) return;
+  const cols = [...new Set(schemaWarnings.map(w => w.column))];
+  const runs = [...new Set(schemaWarnings.map(w => w.run))];
+  console.warn(
+    `[schema] could not resolve ${cols.join(', ')} in ${runs.length} run section(s):`,
+    schemaWarnings
+  );
+  // Only on a visible sync — a silent 30s poll should not nag every half minute.
+  if (!silent) toast(`Sheet1 header not recognised for: ${cols.join(', ')} — check the header row in ${runs.slice(0,3).join(', ')}`, 'warn');
 }
 
 // Pulls one sheet row into the schema's shape: every key present, missing columns blank.
@@ -2206,6 +2244,7 @@ function parseBinary(binary) {
   const allRows = [];
   let headers = null;
   let schemaMap = {};
+  schemaWarnings = [];
   let currentRunTxt = null;
   let currentRunNum = null;
 
@@ -2229,6 +2268,7 @@ function parseBinary(binary) {
       headers = row.map(c => cellVal(c));
       // Re-resolved per header row: each run section may name or omit columns differently.
       schemaMap = resolveSchemaMap(headers);
+      noteSchemaGaps(headers, schemaMap, currentRunTxt);
       continue;
     }
 
@@ -2272,6 +2312,7 @@ async function fetchGoogleSheet(silent) {
     refreshAll();
     setLivePill(true);
     if (!silent) toast(`Synced — ${rows.length} rows from Google Sheet`);
+    reportSchemaWarnings(silent);
   } catch(e) {
     clearTimeout(timer);
     setLivePill(false, e.name === 'AbortError' ? 'Request timed out' : e.message);
@@ -2293,6 +2334,7 @@ function parseGrid(grid) {
   const allRows = [];
   let headers = null;
   let schemaMap = {};
+  schemaWarnings = [];
   let currentRunTxt = null;
   let currentRunNum = null;
 
@@ -2315,6 +2357,7 @@ function parseGrid(grid) {
       headers = row.map(c => cellVal(c));
       // Re-resolved per header row: each run section may name or omit columns differently.
       schemaMap = resolveSchemaMap(headers);
+      noteSchemaGaps(headers, schemaMap, currentRunTxt);
       continue;
     }
     if (!headers) continue;

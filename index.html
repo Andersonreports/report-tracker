@@ -453,10 +453,6 @@
     #qmodal-body{display:flex;flex-direction:column;overflow:hidden;flex:1;padding:0}
     .modal-filters-wrap{flex-shrink:0;padding-bottom:12px;border-bottom:1px solid var(--pb);background:var(--panel);position:sticky;top:0;z-index:20}
     .modal-table-wrap{overflow:auto;flex:1;width:100%}
-    /* A date that needs fixing in Sheet1 — never silently corrected, just marked. */
-    .date-warn{background:rgba(239,68,68,.14);color:#b91c1c;font-weight:700;
-      padding:2px 7px;border-radius:5px;border:1px solid rgba(239,68,68,.3);cursor:help;
-      white-space:nowrap}
     #qmodal-body table{border-collapse:collapse;font-size:12.5px;width:max-content;min-width:100%}
     #qmodal-body th{
       position:sticky;top:0;background:var(--panel);z-index:10;
@@ -1830,12 +1826,11 @@ const SHEET_SCHEMA = [
   { key:'gen_id',       label:'Gen_ID',                           aliases:['genid','geneticid'] },
   { key:'and_id',       label:'Anderson_ID',                      aliases:['andersonid','andid','andersonno'] },
   { key:'client',       label:'Client',                           aliases:['client','clientname'] },
-  // Shown verbatim, exactly as the sheet has it.
   { key:'tat',          label:'TAT(30 Days)',                     aliases:['tat30days','tatdays','tat','turnaround'] },
   { key:'bioinfo_time', label:'Bioinfo Analysis Time',            aliases:['bioinfoanalysistime','bioinformaticsanalysistime','bioinfotime','bioinfo'] },
   { key:'rep_exp',      label:'Repeat Expansion',                 aliases:['repeatexpansion','repeat'] },
   { key:'analyst',      label:'ANALYZE BY',                       aliases:['analyzeby','analysedby','analyzedby','analyseby','analystby','analyst'] },
-  { key:'ana_date',     label:'ANALYZE DATE',                     aliases:['analyzedate','analysisdate','analyzeddate','analyseddate','dateofanalysis'], date:true, futureIsError:true },
+  { key:'ana_date',     label:'ANALYZE DATE',                     aliases:['analyzedate','analysisdate','analyzeddate','analyseddate','dateofanalysis'] },
   // Reviewer and Clinical Reviewer are two separate columns.
   //
   // Reviewer (= Primary Reviewer) is the one behind team workload, the sample counts
@@ -1857,7 +1852,7 @@ const SHEET_SCHEMA = [
     fallbackAliases:['finalclinicalreviewer','finalclinicalreview','finalreviewer',
                      'finalreviwer','finalreview','finalreviw','final'] },
   { key:'remark',       label:'REMARK',                           aliases:['remark','remarks','note','notes'] },
-  { key:'rel_date',     label:'REPORT RELEASE DATE',              aliases:['reportreleasedate','releasedate','releasedon','reportrelease'], date:true, futureIsError:true },
+  { key:'rel_date',     label:'REPORT RELEASE DATE',              aliases:['reportreleasedate','releasedate','releasedon','reportrelease'] },
   { key:'history',      label:'History writeup',                  aliases:['historywriteup','history','writeup'] },
 ];
 
@@ -1922,26 +1917,6 @@ function noteSchemaGaps(headers, schemaMap, runTxt) {
       headerRow: headers.filter(h => String(h).trim()).join(' | '),
     });
   }
-}
-
-// Highlighting alone is easy to miss in 4000 rows, so a visible sync also reports how
-// many dates need attention. Counted from the parsed rows, not corrected — fixing them
-// is the user's call, at source. Suppressed on the silent 30s poll.
-function reportDateWarnings(silent) {
-  if (silent || !rows.length) return;
-  let future = 0, invalid = 0;
-  rows.forEach(r => {
-    ['rel_date', 'ana_date'].forEach(k => {
-      const issue = dateIssue(r[k], { future: true, malformed: true });
-      if (!issue) return;
-      if (issue.indexOf('future') !== -1) future++; else invalid++;
-    });
-  });
-  if (!future && !invalid) return;
-  const parts = [];
-  if (future)  parts.push(`${future} dated in the future`);
-  if (invalid) parts.push(`${invalid} not a valid date`);
-  toast(`${parts.join(' · ')} — shown in red in the tables, fix them in Sheet1`, 'warn');
 }
 
 function reportSchemaWarnings(silent) {
@@ -2060,11 +2035,7 @@ function mapRow(raw) {
     gen_id:       pick('gen_id', COL_MAP.gen_id),
     and_id:       pick('and_id', COL_MAP.and_id),
     client:       pick('client', COL_MAP.client),
-    // Verbatim, exactly as the sheet has it — no reformatting. fmtDate would rewrite
-    // "1/7/2026" to "01-07-2026" and mangle "2026-07-30" into "2026-07-2030", and the
-    // column can hold a day count rather than a date anyway. parseDate still reads all
-    // these forms, so the overdue maths and the month/year filters are unaffected.
-    tat:          pick('tat', COL_MAP.tat),
+    tat:          fmtDate(pick('tat', COL_MAP.tat)),
     bioinfo_time: canon.bioinfo_time || '',
     rep_exp:      pick('rep_exp', COL_MAP.rep_exp),
     analyst:      analystClean,
@@ -2149,8 +2120,8 @@ function parseDate(v) {
     if (month !== -1) return new Date(year, month, day);
   }
 
-  // Format: DD-MM-YYYY or DD/MM/YYYY or DD-MM-YY or DD.MM.YYYY or DD_MM_YY
-  const parts = s.split(/[\-\/\._]/);
+  // Format: DD-MM-YYYY or DD/MM/YYYY or DD-MM-YY or DD.MM.YYYY
+  const parts = s.split(/[\-\/\.]/);
   if (parts.length >= 3) {
     const day = parseInt(parts[0], 10);
     const month = parseInt(parts[1], 10) - 1;
@@ -2170,12 +2141,6 @@ function parseDate(v) {
       return new Date(year, month, day);
     }
   }
-
-  // A bare number is never a date. Left unparsed rather than guessed at: a spreadsheet
-  // serial like 46357 does convert to a real date, but in the one cell holding one that
-  // date contradicts every neighbouring TAT, so interpreting it would invent plausible
-  // wrong data. dateIssue() flags it for the user to reformat at source instead.
-  if (/^\d+$/.test(s)) return null;
 
   // Fallback to native JS parser if all else fails
   const d = new Date(s);
@@ -2461,7 +2426,6 @@ async function fetchGoogleSheet(silent) {
     setLivePill(true);
     if (!silent) toast(`Synced — ${rows.length} rows from Google Sheet`);
     reportSchemaWarnings(silent);
-    reportDateWarnings(silent);
   } catch(e) {
     clearTimeout(timer);
     setLivePill(false, e.name === 'AbortError' ? 'Request timed out' : e.message);
@@ -3209,11 +3173,11 @@ function buildModalTable(data, cols, applyStatusColors = false) {
     if (c==='gen_id'||c==='and_id') return `<td class="${cls}" title="${esc(v)}"><span class="col-mono">${esc(v)||'—'}</span></td>`;
     if (c==='analyst') return `<td class="${cls}">${v?`<span class="analyst-pill">${IC.user} ${esc(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
     if (c==='assign_date') return `<td class="${cls} col-date">${v?fmtDate(v):'<span class="muted-val">—</span>'}</td>`;
-    if (c==='rel_date') return `<td class="${cls} col-date">${dateCellHtml(v,{future:true,malformed:true})}</td>`;
-    if (c==='ana_date') return `<td class="${cls} col-date">${dateCellHtml(v,{future:true,malformed:true})}</td>`;
-    if (c==='tat') return `<td class="${cls} muted-val">${esc(v)||'—'}</td>`;   // verbatim, as the sheet has it
+    if (c==='rel_date') return `<td class="${cls} col-date">${fmtRelDate(v, r)}</td>`;
+    if (c==='ana_date') return `<td class="${cls} col-date">${fmtDate(v)}</td>`;
+    if (c==='tat') return `<td class="${cls} muted-val">${fmtDate(v)}</td>`;
     if (c==='_status') { const st=getStatus(r); return `<td class="${cls}">${badgeHtml(st)}</td>`; }
-    if (c==='_rel') { const st=getStatus(r); return `<td class="${cls} col-date">${st==='Released'?dateCellHtml(r.rel_date,{future:true,malformed:true}):'<span class="muted-val">—</span>'}</td>`; }
+    if (c==='_rel') { const st=getStatus(r); return `<td class="${cls} col-date">${st==='Released'?fmtRelDate(r.rel_date,r):'<span class="muted-val">—</span>'}</td>`; }
     return `<td class="${cls}" title="${esc(v)}">${esc(v)||'—'}</td>`;
     }).join('')}</tr>`; }).join('');
   return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
@@ -3239,7 +3203,6 @@ function buildFullSheetTable(data) {
     const rowClass = st==='Released' ? 'row-status-released' : st==='Ongoing' ? 'row-status-ongoing' : 'row-status-yet';
     const tds = SHEET_COLS.map(c=>{
       const v = schemaCell(r, c);
-      if (c.date) return `<td class="${cls(c)} col-date">${dateCellHtml(v, c.futureIsError ? {future:true,malformed:true} : {})}</td>`;
       const style = c.key === 'name' ? ' style="font-weight:600;color:var(--text)"' : '';
       // title only where it earns its bytes — the name column ellipsizes, and long
       // values are worth hovering. 16 columns x ~4k rows makes markup size matter.
@@ -3362,9 +3325,7 @@ function downloadAllSamplesExcel() {
     if (!data.length) { toast('No samples to export', 'warn'); return; }
 
     const wsData = [cols.map(c => c.label)];
-    // Dates normalised the same way the table shows them; a spreadsheet cannot carry
-    // the highlight, so problem dates simply read as their true value.
-    data.forEach(r => { wsData.push(cols.map(c => c.date ? fmtDate(schemaCell(r, c)) : schemaCell(r, c))); });
+    data.forEach(r => { wsData.push(cols.map(c => schemaCell(r, c))); });
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(wsData);
@@ -3437,7 +3398,7 @@ function performGlobalSearch() {
       if (c==='test'||c==='client'||c==='run_text') return `<td class="${cls}" style="padding:10px 14px;border-right:1px solid var(--pb)" title="${esc(v)}">${esc(v)||'—'}</td>`;
       if (c==='gen_id'||c==='and_id') return `<td class="${cls}" style="padding:10px 14px;border-right:1px solid var(--pb)" title="${esc(v)}"><span class="col-mono">${esc(v)||'—'}</span></td>`;
       if (c==='_status') { const st=getStatus(r); return `<td class="${cls}" style="padding:10px 14px;border-right:1px solid var(--pb)">${badgeHtml(st)}</td>`; }
-      if (c==='rel_date') return `<td class="${cls} col-date" style="padding:10px 14px">${dateCellHtml(v,{future:true,malformed:true})}</td>`;
+      if (c==='rel_date') return `<td class="${cls} col-date" style="padding:10px 14px">${fmtRelDate(v, r)}</td>`;
       return `<td class="${cls}" style="padding:10px 14px;border-right:1px solid var(--pb)" title="${esc(v)}">${esc(v)||'—'}</td>`;
     }).join('')}</tr>`).join('');
 
@@ -3601,14 +3562,16 @@ function renderTable(key) {
     (r.pri_rev||'').toLowerCase().includes(q)
   );
 
-  // Sort descending — most recent first, on the sheet's own dates
-  const dateSortDesc = (aVal, bVal) => {
-    const da = parseDate(aVal), db = parseDate(bVal);
+  // Sort descending — most recent/relevant first (uses clamped dates for 'released' to fix Excel autocorrect errors)
+  const dateSortDesc = (aVal, bVal, aRow, bRow, isRel) => {
+    const sA = isRel ? fmtRelDate(aVal, aRow) : aVal;
+    const sB = isRel ? fmtRelDate(bVal, bRow) : bVal;
+    const da = parseDate(sA), db = parseDate(sB);
     return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
   };
-  if (key === 'released')  data = data.slice().sort((a,b) => dateSortDesc(a.rel_date, b.rel_date));
-  if (key === 'yet')       data = data.slice().sort((a,b) => dateSortDesc(a.tat, b.tat));
-  if (key === 'assigned')  data = data.slice().sort((a,b) => dateSortDesc(a.assign_date, b.assign_date));
+  if (key === 'released')  data = data.slice().sort((a,b) => dateSortDesc(a.rel_date,    b.rel_date,    a, b, true));
+  if (key === 'yet')       data = data.slice().sort((a,b) => dateSortDesc(a.tat,          b.tat,          a, b, false));
+  if (key === 'assigned')  data = data.slice().sort((a,b) => dateSortDesc(a.assign_date,  b.assign_date,  a, b, false));
 
   const tblId = { yet:'tbl-yet', assigned:'tbl-asgn', released:'tbl-rel' }[key];
   const el = document.getElementById(tblId);
@@ -3631,10 +3594,10 @@ function renderTable(key) {
     if (c==='analyst_raw') return `<td class="${cls}">${v?`<span class="analyst-pill">${IC.user} ${esc(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
     if (c==='analyst_txt') { const av = r.analyst||''; return `<td class="${cls}" style="font-size:13px;color:var(--text)" title="${esc(av)}">${esc(av)||'<span class="muted-val">—</span>'}</td>`; }
     if (c==='assign_date') return `<td class="${cls} col-date">${v?fmtDate(v):'<span class="muted-val">—</span>'}</td>`;
-    if (c==='rel_date') return `<td class="${cls} col-date">${dateCellHtml(v,{future:true,malformed:true})}</td>`;
-    if (c==='ana_date') return `<td class="${cls} col-date">${dateCellHtml(v,{future:true,malformed:true})}</td>`;
+    if (c==='rel_date') return `<td class="${cls} col-date">${fmtRelDate(v, r)}</td>`;
+    if (c==='ana_date') return `<td class="${cls} col-date">${fmtDate(v)}</td>`;
     if (c==='pri_rev'||c==='final') return `<td class="${cls}">${v?`<span class="badge b-cmp">${IC.check} ${fmtDate(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
-    if (c==='tat') return `<td class="${cls} muted-val">${esc(v)||'—'}</td>`;   // verbatim, as the sheet has it
+    if (c==='tat') return `<td class="${cls} muted-val">${fmtDate(v)}</td>`;
     if (c==='_remove') return `<td class="${cls}"><button type="button" class="rel-remove-btn" title="Remove from Released"
         data-gen-id="${esc(r.gen_id)}" data-and-id="${esc(r.and_id)}" data-run-text="${esc(r.run_text)}" data-sno="${esc(r.sno)}"
         onclick="event.stopPropagation();removeFromReleased(this)">
@@ -4105,7 +4068,7 @@ function renderOverdue() {
     const cls = getColClass(c);
     if (c==='name')    return `<td class="${cls} col-name" title="${esc(v)}">${esc(v)||'—'}</td>`;
     if (c==='gen_id'||c==='and_id') return `<td class="${cls}" title="${esc(v)}"><span class="col-mono">${esc(v)||'—'}</span></td>`;
-    if (c==='tat')     return `<td class="${cls} muted-val">${esc(v)||'—'}</td>`;   // verbatim, as the sheet has it
+    if (c==='tat')     return `<td class="${cls} muted-val">${fmtDate(v)}</td>`;
     if (c==='_status') { const st=getStatus(r); return `<td class="${cls}">${badgeHtml(st)}</td>`; }
     if (c==='_overdue_days') return `<td class="${cls}"><span style="background:rgba(239,68,68,.15);color:#b91c1c;padding:2px 8px;border-radius:6px;font-weight:600;font-size:12px">${r._overdue_days}d</span></td>`;
     if (c==='pri_rev') return `<td class="${cls}">${v?`<span class="analyst-pill">${IC.user} ${esc(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
@@ -4255,68 +4218,71 @@ document.addEventListener('click', e => {
 });
 
 function fmtDate(v) {
-  // Cosmetic only. Renders a date as DD-MM-YYYY without ever changing the date it
-  // represents: "12.3.26", "12-3-2026", "12/03/2026", "12/3/26" and "2026-03-12" all
-  // display as 12-03-2026. Anything that is not a date — a TAT day count like "30",
-  // free text — passes through untouched, and an out-of-range date is left exactly as
-  // entered rather than coerced into a plausible one. Nothing here adjusts a date;
-  // values that look wrong are flagged by dateIssue() for the user to fix at source.
-  const s = String(v == null ? '' : v).trim();
-  if (!s || s === '-' || s === '—') return '—';
+  if (!v) return '—';
+  const s = String(v).trim();
+  if (s === '-' || s === '—') return '—';
 
-  const pad = n => String(n).padStart(2, '0');
-  const build = (dd, mm, yy) =>
-    (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) ? `${pad(dd)}-${pad(mm)}-${yy}` : s;
-
-  // ISO, year first: 2026-03-12
-  let m = s.match(/^(\d{4})[-/._](\d{1,2})[-/._](\d{1,2})$/);
-  if (m) return build(+m[3], +m[2], +m[1]);
-
-  // Day first: 12-03-2026, 12/3/26, 12.3.26, 23_05_26
-  m = s.match(/^(\d{1,2})[-/._](\d{1,2})[-/._](\d{2,4})$/);
-  if (m) return build(+m[1], +m[2], m[3].length <= 2 ? 2000 + +m[3] : +m[3]);
-
-
-  // Month name: 15 Jul 2026, 15-Jul-26
-  m = s.match(/^(\d{1,2})[\s-]+([A-Za-z]{3,})[\s-]+(\d{2,4})$/);
-  if (m) {
-    const MON = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
-    const mi = MON.indexOf(m[2].slice(0,3).toLowerCase());
-    if (mi !== -1) return build(+m[1], mi + 1, m[3].length <= 2 ? 2000 + +m[3] : +m[3]);
+  const parts = s.split(/[\-\/\.]/);
+  if (parts.length >= 3) {
+    const d = parts[0].padStart(2, '0');
+    const m = parts[1].padStart(2, '0');
+    let y = parts[2].substring(0, 4);
+    if (y.length === 2) y = String(parseInt(y, 10) + 2000);
+    return `${d}-${m}-${y}`;
   }
 
-  return s;   // not a date — leave exactly as entered
+  return s;
 }
 
 // Flags a date the user should correct at source, instead of the app quietly adjusting
 // it. A release or analysis date later than today cannot have happened; a non-empty
 // value that is not a date at all is a typo. TAT is never checked for being in the
 // future — it is a deadline, so that is normal. Returns '' when nothing is wrong.
-function dateIssue(v, opts) {
-  const s = String(v == null ? '' : v).trim();
-  if (!s || s === '-' || s === '—') return '';
-  const o = opts || {};
-  const d = parseDate(s);
-  if (d) {
-    if (o.future) {
-      const end = new Date(); end.setHours(23, 59, 59, 999);
-      if (d > end) return 'Dated in the future — fix this cell in Sheet1';
-    }
-    return '';
-  }
-  // Not a date. These columns legitimately carry notes ("No need to release report"),
-  // so only something built purely from digits and separators was clearly meant to be a
-  // date and got mistyped. Never applied to TAT, where a bare day count is valid.
-  if (/^\d{5}$/.test(s)) return 'Looks like a spreadsheet serial number — reformat this cell as a date in Sheet1';
-  if (o.malformed && /^[\d\s._/-]+$/.test(s)) return 'Does not read as a date — check this cell in Sheet1';
-  return '';
-}
+function fmtRelDate(v, r) {
+  const f = fmtDate(v);
+  if (f === '—' || !r || !r.tat) return f;
 
-// A date for display: normalised, and visibly marked when it needs fixing.
-function dateCellHtml(v, opts) {
-  const txt = esc(fmtDate(v));
-  const issue = dateIssue(v, opts);
-  return issue ? `<span class="date-warn" title="${esc(issue)}">${txt}</span>` : txt;
+  const relD = parseDate(f);
+  const tatD = parseDate(fmtDate(r.tat));
+  const now = new Date();
+
+  // If the Extracted Excel date is mathematically strictly in the future
+  if (relD && tatD && relD > now) {
+    let y = relD.getFullYear();
+    let m = relD.getMonth();
+    let d = relD.getDate();
+
+    // 1. If year is explicitly > current year (e.g. 2027), snap immediately to TAT year
+    if (y > now.getFullYear()) {
+      y = tatD.getFullYear();
+    }
+
+    let corr = new Date(y, m, d);
+    // 2. If it is still in the future (e.g. July 2026 vs Today Mar 2026)
+    if (corr > now) {
+      if (y > tatD.getFullYear()) {
+         y = tatD.getFullYear(); // pull it back completely to TAT year
+         corr = new Date(y, m, d);
+      }
+      
+      if (corr > now) {
+        // Clamp month to TAT month
+        m = tatD.getMonth();
+        corr = new Date(y, m, d);
+        if (corr > now) {
+          // Clamp day to TAT day+1 if still in future
+          d = tatD.getDate();
+          if (d < 28) d += 1; // careful of month boundary
+          corr = new Date(y, m, d);
+        }
+      }
+    }
+    
+    // Avoid printing impossible days like Feb 31 by relying on Date math bounds
+    const finalDate = new Date(y, m, d);
+    return `${String(finalDate.getDate()).padStart(2,'0')}-${String(finalDate.getMonth()+1).padStart(2,'0')}-${finalDate.getFullYear()}`;
+  }
+  return f;
 }
 
 // User requested released dates use the exact same DD-MM-YYYY format
@@ -5020,7 +4986,7 @@ function downloadReviewerSamples(label, period) {
   // Add data rows
   reviewerSamples.forEach(r => {
     excelData.push(RELEASED_COLS.map(c => {
-      if (c === 'rel_date') return fmtDate(r[c]);
+      if (c === 'rel_date') return fmtRelDate(r[c], r);
       if (c === 'tat') return fmtDate(r[c]);
       return r[c] || '';
     }));

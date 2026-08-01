@@ -1831,23 +1831,26 @@ const SHEET_SCHEMA = [
   { key:'rep_exp',      label:'Repeat Expansion',                 aliases:['repeatexpansion','repeat'] },
   { key:'analyst',      label:'ANALYZE BY',                       aliases:['analyzeby','analysedby','analyzedby','analyseby','analystby','analyst'] },
   { key:'ana_date',     label:'ANALYZE DATE',                     aliases:['analyzedate','analysisdate','analyzeddate','analyseddate','dateofanalysis'] },
-  // The Reviewer behind team workload, sample counts and getStatus — see `critical`.
-  // Primary Reviewer and plain Reviewer are the same thing, so both spellings are
-  // normal aliases. Order runs specific → general, so a precise header always wins
-  // and the bare reviewer spellings act as a safety net.
+  // Reviewer and Clinical Reviewer are two separate columns.
   //
-  // Final Reviewer is the same thing as Clinical Reviewer, so an older section
-  // carrying only FINAL REVIEW(ER) still yields a reviewer. Those spellings sit in
-  // `fallbackAliases`, consulted only once the normal aliases have had their turn — so
-  // a section with both PRIMARY REVIWER and FINAL REVIEW takes the primary column, and
-  // Final Reviewer is used only where there is no primary column at all.
-  { key:'pri_rev',      label:'PRIMARY REVIWER  CLINICAL REVIEW',
+  // Reviewer (= Primary Reviewer) is the one behind team workload, the sample counts
+  // and getStatus, hence `critical`. `avoid` is a prefix test: it stops the deliberately
+  // greedy bare spellings ('reviewer', 'review') from claiming a Clinical or Final
+  // column, which would silently swap the two. The combined
+  // "PRIMARY REVIWER  CLINICAL REVIEW" header some sheets still use begins with
+  // 'primary', so it is not blocked and continues to resolve here.
+  { key:'pri_rev',      label:'PRIMARY REVIWER',
     aliases:['primaryreviwerclinicalreview','primaryreviewerclinicalreview','primaryreviwer',
-             'primaryreviewer','primaryreview','clinicalreviewer','clinicalreviwer',
-             'clinicalreview','reviewer','reviwer','reviewedby','reviewdby','reviewby','review'],
+             'primaryreviewer','primaryreview','reviewer','reviwer','reviewedby',
+             'reviewdby','reviewby','review'],
+    avoid:['clinical','final'], critical:true },
+  // Clinical Reviewer (= Final Reviewer) — the older FINAL REVIEW column is this one,
+  // so those spellings sit in `fallbackAliases` and are only tried once the clinical
+  // spellings have had their turn. Not `critical`: older runs legitimately lack it.
+  { key:'clin_rev',     label:'CLINICAL REVIEW',
+    aliases:['clinicalreviewer','clinicalreviwer','clinicalreview'],
     fallbackAliases:['finalclinicalreviewer','finalclinicalreview','finalreviewer',
-                     'finalreviwer','finalreview','finalreviw','final'],
-    critical:true },
+                     'finalreviwer','finalreview','finalreviw','final'] },
   { key:'remark',       label:'REMARK',                           aliases:['remark','remarks','note','notes'] },
   { key:'rel_date',     label:'REPORT RELEASE DATE',              aliases:['reportreleasedate','releasedate','releasedon','reportrelease'] },
   { key:'history',      label:'History writeup',                  aliases:['historywriteup','history','writeup'] },
@@ -1871,6 +1874,9 @@ function normHeader(h) {
 // key, which stops a loose alias like 'name' from stealing "Client Name" once
 // 'clientname' has matched Client exactly. The whole sequence then repeats for any
 // `fallbackAliases`, so those only apply to a key nothing else could resolve.
+//
+// A key's `avoid` prefixes are never claimed by it, however well an alias matches —
+// that is what keeps Reviewer and Clinical Reviewer from swapping places.
 function resolveSchemaMap(headerRow) {
   const norm = (headerRow || []).map(normHeader);
   const map = {};
@@ -1886,8 +1892,9 @@ function resolveSchemaMap(headerRow) {
         if (col.derived || map[col.key] !== undefined) continue;
         const list = useFallback ? col.fallbackAliases : col.aliases;
         if (!list) continue;
+        const blocked = h => (col.avoid || []).some(bad => h.startsWith(bad));
         for (const alias of list) {
-          const i = norm.findIndex((h, idx) => h && !claimed.has(idx) && test(h, alias));
+          const i = norm.findIndex((h, idx) => h && !claimed.has(idx) && !blocked(h) && test(h, alias));
           if (i !== -1) { map[col.key] = i; claimed.add(i); break; }
         }
       }
@@ -1983,8 +1990,10 @@ function mapRow(raw) {
     assign_date:  assignDate,
     ana_date:     pick('ana_date', COL_MAP.ana_date),
     pri_rev:      pick('pri_rev', COL_MAP.pri_rev),
-    // Dropped from the finalised set; still read so older sheets keep working.
-    final:        get(COL_MAP.final),
+    // Clinical Reviewer — a separate column from the Reviewer above.
+    clin_rev:     canon.clin_rev || '',
+    // Legacy alias of clin_rev, kept for older sheets that only had FINAL REVIEW.
+    final:        canon.clin_rev || get(COL_MAP.final),
     remark:       pick('remark', COL_MAP.remark),
     rel_date:     pick('rel_date', COL_MAP.rel_date),
     history:      pick('history', COL_MAP.history),

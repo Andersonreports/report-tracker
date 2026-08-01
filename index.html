@@ -2000,7 +2000,8 @@ function mapRow(raw) {
 
   // Release date judged against the corrected TAT — see resolveRelDate.
   const relFixed = RELDATE_FIX[genId] || RELDATE_FIX[andId] ||
-                   resolveRelDate(pick('rel_date', COL_MAP.rel_date), tatFixed);
+                   resolveRelDate(pick('rel_date', COL_MAP.rel_date), tatFixed,
+                                  parseInt(raw._run_num || 0, 10) || 0);
   if (canon.rel_date) canon.rel_date = relFixed;
 
   const remarkRaw = pick('remark', COL_MAP.remark);
@@ -2143,12 +2144,10 @@ const RELDATE_FIX = {
 // Restoring the old _relOrTat fallback, which counted a missing release date in its TAT
 // month, scored worse at 63 and would count samples that were never released, so it was
 // not brought back.
-function resolveRelDate(v, tatText) {
+function resolveRelDate(v, tatText, runNum) {
   const s = String(v == null ? '' : v).trim();
   const m = s.match(/^(\d{1,2})([-/._])(\d{1,2})\2(\d{2,4})$/);
   if (!m) return s;
-  const tat = parseDate(tatText);
-  if (!tat) return s;
   const a = parseInt(m[1], 10), b = parseInt(m[3], 10);
   const y = m[4].length <= 2 ? 2000 + parseInt(m[4], 10) : parseInt(m[4], 10);
   const real = (d, mo) => {
@@ -2160,17 +2159,28 @@ function resolveRelDate(v, tatText) {
   const pad = n => String(n).padStart(2, '0');
   const flipped = `${pad(b)}-${pad(a)}-${y}`;
   if (!dayFirst) return monthFirst ? flipped : s;
-  if (!monthFirst) return fmtDate(s);
-
   const DAY = 86400000;
+
+  // A release sits from its run's date to about four months after — never before the run
+  // and never further out. Checked on 267 confirmed June/July releases: the median lands
+  // 8 days after its run, three quarters within 14, the furthest 113, and none past 120.
+  // So a reading outside that window while the other fits is the wrong way round. This is
+  // what catches Run 13 reading 09-02-2025 when Run 13 itself sits in September 2025.
+  //
+  // Run number alone is not enough: 37 of those confirmed releases come from runs below
+  // 87, as far back as Run 63, so an old run is not by itself evidence of a swap.
+  const runDate = expectedTat(runNum);
+  if (runDate && monthFirst) {
+    const fits = d => { const g = (d - runDate) / DAY; return g >= -30 && g <= 120; };
+    if (!fits(dayFirst) && fits(monthFirst)) return flipped;
+  }
+
+  const tat = parseDate(tatText);
+  if (!tat) return fmtDate(s);
   const gapDay = (dayFirst - tat) / DAY, gapMonth = (monthFirst - tat) / DAY;
   const sane = gap => gap >= -15 && gap <= 150;
-  // Exactly one reading can be a release at all — take it.
   if (sane(gapDay) && !sane(gapMonth)) return fmtDate(s);
   if (sane(gapMonth) && !sane(gapDay)) return flipped;
-  // Both could be: the release sits nearer its own TAT. This is what separates
-  // 03/07/2026 on a March run — 7 March, days after its TAT — from 3 July, four
-  // months later, which the sane window alone was wide enough to accept.
   return Math.abs(gapMonth) < Math.abs(gapDay) ? flipped : fmtDate(s);
 }
 

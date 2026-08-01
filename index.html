@@ -453,6 +453,21 @@
     #qmodal-body{display:flex;flex-direction:column;overflow:hidden;flex:1;padding:0}
     .modal-filters-wrap{flex-shrink:0;padding-bottom:12px;border-bottom:1px solid var(--pb);background:var(--panel);position:sticky;top:0;z-index:20}
     .modal-table-wrap{overflow:auto;flex:1;width:100%}
+    /* Frozen first column. The cell needs its own background or the scrolling
+       columns show through it, and the header corner has to sit above both the
+       sticky header row and the sticky column. */
+    .froz table td:first-child,
+    .froz table th:first-child{position:sticky;left:0;z-index:2;background:var(--card)}
+    .froz table thead th:first-child{z-index:4}
+    .froz table td:first-child{box-shadow:1px 0 0 var(--line)}
+    .froz table tbody tr.row-status-released td:first-child{background:var(--rel-bg,#eafaf1)}
+    .froz table tbody tr.row-status-ongoing td:first-child{background:var(--ong-bg,#fff8e1)}
+    .froz table tbody tr.row-status-yet td:first-child{background:var(--yet-bg,#fdecea)}
+    .tbl-opt-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border-radius:8px;
+      border:1px solid var(--line);background:var(--card);color:var(--muted);font-size:11.5px;
+      font-weight:700;cursor:pointer;white-space:nowrap}
+    .tbl-opt-btn:hover{border-color:var(--pri);color:var(--pri)}
+    .tbl-opt-btn.on{background:var(--pri);border-color:var(--pri);color:#fff}
     #qmodal-body table{border-collapse:collapse;font-size:12.5px;width:max-content;min-width:100%}
     #qmodal-body th{
       position:sticky;top:0;background:var(--panel);z-index:10;
@@ -1408,6 +1423,8 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/></svg>
         Released <span class="rc-num" id="rel-count-num">0</span>
       </div>
+      <span id="rel-order-btn"></span>
+      <span id="rel-freeze-btn"></span>
     </div>
     <!-- Collapsible filter panel -->
     <div class="rel-panel glass" id="rel-panel">
@@ -1449,7 +1466,7 @@
         <button class="rel-clear-btn" onclick="clearRelFilters()">Clear All Filters</button>
       </div>
     </div>
-    <div class="tbl-wrap glass"><div id="tbl-rel"></div></div>
+    <div class="tbl-wrap glass"><div id="tbl-rel" style="overflow:auto"></div></div>
   </div>
 
   <!-- ══ TAT OVERDUE (all) ══ -->
@@ -4146,6 +4163,50 @@ function getColClass(c) {
   return classMap[c]||'';
 }
 
+// Table view options. Both are per-table so turning one on in All Samples does not
+// change the Released tab, and both survive a re-render because the render functions
+// read them back out of here.
+const TBL_OPTS = {
+  frozen: {},        // wrapper id -> first column pinned while scrolling sideways
+  oldestFirst: {}    // table key  -> release date ascending instead of descending
+};
+
+function toggleFreeze(wrapId, btn) {
+  TBL_OPTS.frozen[wrapId] = !TBL_OPTS.frozen[wrapId];
+  applyFreeze(wrapId);
+  if (btn) btn.classList.toggle('on', TBL_OPTS.frozen[wrapId]);
+}
+
+// Re-applied after every render, since the wrapper's innerHTML is rebuilt.
+function applyFreeze(wrapId) {
+  const el = document.getElementById(wrapId);
+  if (el) el.classList.toggle('froz', !!TBL_OPTS.frozen[wrapId]);
+}
+
+function freezeBtnHtml(wrapId) {
+  const on = !!TBL_OPTS.frozen[wrapId];
+  return `<button class="tbl-opt-btn${on ? ' on' : ''}" onclick="toggleFreeze('${wrapId}', this)"
+    title="Keep the first column in view while scrolling sideways">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+    ${on ? 'Column frozen' : 'Freeze column'}</button>`;
+}
+
+// Newest release first by default; the toggle flips to oldest first.
+function toggleRelOrder(tableKey, rerender) {
+  TBL_OPTS.oldestFirst[tableKey] = !TBL_OPTS.oldestFirst[tableKey];
+  if (typeof rerender === 'function') rerender();
+}
+
+function relOrderBtnHtml(tableKey, rerenderCall) {
+  const oldest = !!TBL_OPTS.oldestFirst[tableKey];
+  return `<button class="tbl-opt-btn" onclick="${rerenderCall}"
+    title="Switch between newest and oldest release first">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${
+      oldest ? '<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>'
+             : '<line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>'}</svg>
+    ${oldest ? 'Oldest release first' : 'Newest release first'}</button>`;
+}
+
 function buildModalTable(data, cols, applyStatusColors = false) {
   if (!data.length) return `<div class="empty" style="padding:40px"><div class="ei">${IC.inbox}</div><p>No records</p></div>`;
   const visibleCols = cols.filter(c=>COL_LABELS[c]&&COL_LABELS[c].trim());
@@ -4252,6 +4313,7 @@ function openAllSamplesModal() {
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Download Excel
       </button>
+      ${freezeBtnHtml('all-table-wrap')}
     </div>
     <div class="rel-panel" id="all-filter-panel" style="margin:8px 22px 0;padding:10px 14px">
       <div class="rel-panel-grid">
@@ -4271,6 +4333,7 @@ function openAllSamplesModal() {
   document.getElementById('qmodal-title').textContent = 'All Samples';
   document.getElementById('qmodal-count').textContent = ` · ${_allModalData.length} records`;
   document.getElementById('qmodal-body').innerHTML = '<div class="modal-filters-wrap">' + filterHtml + '</div><div class="modal-table-wrap" id="all-table-wrap">' + buildFullSheetTable(_allModalData) + '</div>';
+  applyFreeze('all-table-wrap');
   document.getElementById('qmodal-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -4303,6 +4366,7 @@ function filterAllSamples() {
   document.getElementById('qmodal-count').textContent = ` · ${data.length} records`;
   document.getElementById('all-count-label').textContent = `${data.length} samples`;
   document.getElementById('all-table-wrap').innerHTML = buildFullSheetTable(data);
+  applyFreeze('all-table-wrap');
 }
 
 function clearAllSamplesFilters() {
@@ -4568,12 +4632,33 @@ function renderTable(key) {
     const da = parseDate(sA), db = parseDate(sB);
     return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
   };
-  if (key === 'released')  data = data.slice().sort((a,b) => dateSortDesc(a.rel_date,    b.rel_date,    a, b, true));
+  if (key === 'released') {
+    // Newest release first unless the user has flipped the order. Rows with no readable
+    // release date stay at the bottom either way — negating the comparator would other-
+    // wise float them to the top, since they compare as 0.
+    const oldest = !!TBL_OPTS.oldestFirst.released;
+    data = data.slice().sort((a,b) => {
+      const da = parseDate(fmtRelDate(a.rel_date, a));
+      const db = parseDate(fmtRelDate(b.rel_date, b));
+      if (!da && !db) return 0;
+      if (!da) return 1;
+      if (!db) return -1;
+      return oldest ? da.getTime() - db.getTime() : db.getTime() - da.getTime();
+    });
+  }
   if (key === 'yet')       data = data.slice().sort((a,b) => dateSortDesc(a.tat,          b.tat,          a, b, false));
   if (key === 'assigned')  data = data.slice().sort((a,b) => dateSortDesc(a.assign_date,  b.assign_date,  a, b, false));
 
   const tblId = { yet:'tbl-yet', assigned:'tbl-asgn', released:'tbl-rel' }[key];
   const el = document.getElementById(tblId);
+
+  if (key === 'released') {
+    const ob = document.getElementById('rel-order-btn');
+    if (ob) ob.innerHTML = relOrderBtnHtml('released', "toggleRelOrder('released', () => render('released'))");
+    const fb = document.getElementById('rel-freeze-btn');
+    if (fb) fb.innerHTML = freezeBtnHtml('tbl-rel');
+    applyFreeze('tbl-rel');
+  }
 
   if (!data.length) {
     el.innerHTML=`<div class="empty"><div class="ei">${IC.search}</div><p>${rows.filter(r=>getStatus(r)===cfg.status).length===0?'No reports in this category':'No results match your search'}</p></div>`;
@@ -5891,7 +5976,10 @@ function openReviewerRingModal(key, label) {
     return yearMatch && monthMatch && reviewerMatch;
   }).sort((a, b) => {
     const da = parseDate(a.rel_date), db = parseDate(b.rel_date);
-    return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
+    if (!da && !db) return 0;
+    if (!da) return 1;                       // undated last in both directions
+    if (!db) return -1;
+    return TBL_OPTS.oldestFirst.reviewer ? da.getTime() - db.getTime() : db.getTime() - da.getTime();
   });
 
   const period = (year === 'All' && month === 'All') ? 'All time' : `${month === 'All' ? '' : month + ' '}${year === 'All' ? '' : year}`.trim();
@@ -5913,11 +6001,14 @@ function openReviewerRingModal(key, label) {
       <button class="btn btn-sm btn-pri" onclick="downloadReviewerSamples('${escapedLabel}', '${escapedPeriod}')">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download Samples
       </button>
+      ${relOrderBtnHtml('reviewer', `toggleRelOrder('reviewer', () => openReviewerRingModal('${key}', '${escapedLabel}'))`)}
+      ${freezeBtnHtml('reviewer-table-wrap')}
       <span style="font-size:12px;color:var(--pri);font-weight:700">${reviewerSamples.length} samples</span>
     </div>
   `;
 
   document.getElementById('qmodal-body').innerHTML = '<div class="modal-filters-wrap">' + filterHtml + '</div><div class="modal-table-wrap" id="reviewer-table-wrap">' + buildModalTable(reviewerSamples, RELEASED_COLS, true) + '</div>';
+  applyFreeze('reviewer-table-wrap');
   document.getElementById('qmodal-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
 }

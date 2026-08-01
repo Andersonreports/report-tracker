@@ -2016,9 +2016,18 @@ function mapRow(raw) {
   if (canon.ana_date) canon.ana_date = anaDate;
 
   // Release date judged against the corrected TAT — see resolveRelDate.
-  const relFixed = RELDATE_FIX[genId] || RELDATE_FIX[andId] ||
-                   resolveRelDate(pick('rel_date', COL_MAP.rel_date), tatFixed,
-                                  parseInt(raw._run_num || 0, 10) || 0);
+  const runNum = parseInt(raw._run_num || 0, 10) || 0;
+  let relFixed = RELDATE_FIX[genId] || RELDATE_FIX[andId] ||
+                 resolveRelDate(pick('rel_date', COL_MAP.rel_date), tatFixed, runNum);
+
+  // Up to Run 54 the release-date column was not kept reliably — 130 of those samples
+  // have nothing in it, yet getStatus already treats every pre-54 run as released. Their
+  // TAT stands in for the release date so they carry one at all, which also puts them in
+  // a month instead of counting nowhere. Only applied where the cell has no readable date
+  // of its own, so a real entry is never overwritten.
+  if (runNum && runNum <= 54 && !parseDate(relFixed) && parseDate(tatFixed)) {
+    relFixed = tatFixed;
+  }
   if (canon.rel_date) canon.rel_date = relFixed;
 
   const remarkRaw = pick('remark', COL_MAP.remark);

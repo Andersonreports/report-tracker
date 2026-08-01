@@ -556,7 +556,6 @@
     .pm-fbtn:hover{border-color:var(--pri);color:var(--pri)}
     .pm-fbtn.active{background:var(--pri);color:#fff;border-color:var(--pri)}
 
-
     /* ── RESPONSIVE ── */
 
     /* Tablet */
@@ -1390,8 +1389,6 @@
     <div class="tbl-wrap glass"><div id="tbl-asgn"></div></div>
   </div>
 
-
-
   <!-- ══ RELEASED ══ -->
   <div id="page-released" class="page">
     <!-- Smart search bar + count -->
@@ -1734,7 +1731,6 @@
     <div class="tbl-wrap glass"><div id="ra-table"></div></div>
   </div>
 
-
 </main>
 
 <!-- ╔═ LOADING OVERLAY ═╗ -->
@@ -2008,25 +2004,12 @@ function mapRow(raw) {
   // Normalize name: strip dates, fix spacing/case, apply aliases (Vamsi→Vamshi etc.)
   const analystClean = normalizeAnalystName(analystRaw);
 
-  // Samples before Run 52 were released before the release date was recorded, so the
-  // TAT date stands in for it. Strictly a fill of blanks — an existing release date is
-  // kept exactly as it is — and only when TAT is a real date, since that column
-  // sometimes holds a day count like "30" rather than a date. Rows with no run marker
-  // count as older here, matching how getStatus already treats them as released.
   const remarkRaw = pick('remark', COL_MAP.remark);
   const priRevRaw = pick('pri_rev', COL_MAP.pri_rev);
   // Held by Siva sir's team: always released, and outside every count, team and overdue
   // list — but still present in the sheet totals and the All Samples table.
   const isSiva = SIVA_RE.test(remarkRaw) || SIVA_RE.test(priRevRaw) || SIVA_RE.test(analystRaw);
   if (isSiva) canon.remark = SIVA_LABEL;
-
-  const runNum = parseInt(raw._run_num || 0, 10) || 0;
-  const relRaw = pick('rel_date', COL_MAP.rel_date);
-  const tatRaw = pick('tat', COL_MAP.tat);
-  const relDate = (!relRaw && runNum < RELDATE_FILL_BEFORE_RUN && parseDate(tatRaw)) ? tatRaw : relRaw;
-  // Keep the schema row in step, so the All Samples view and its export show the same
-  // release date as every other table rather than a blank.
-  canon.rel_date = relDate;
 
   return {
     sno:          pick('sno', COL_MAP.sno),
@@ -2049,7 +2032,7 @@ function mapRow(raw) {
     final:        canon.clin_rev || get(COL_MAP.final),
     remark:       isSiva ? SIVA_LABEL : remarkRaw,
     is_siva:      isSiva,
-    rel_date:     relDate,
+    rel_date:     pick('rel_date', COL_MAP.rel_date),
     history:      pick('history', COL_MAP.history),
     run_number:   raw._run_num || 0,
     run_text:     raw._run_txt || '—',
@@ -2065,10 +2048,6 @@ function mapRow(raw) {
 // Siva-something, and one false positive would drop a real sample from every count.
 const SIVA_RE = /siva\s*sir/i;
 const SIVA_LABEL = 'Siva sir team samples';
-
-// Samples before this run predate the release date being recorded; a blank one falls
-// back to the TAT date. Run 52 onward is left exactly as the sheet has it.
-const RELDATE_FILL_BEFORE_RUN = 52;
 
 // ================================================================
 //  STATUS LOGIC
@@ -3036,20 +3015,6 @@ const TEAM_MAP = {
   'Vamshi':    'Team 6',
   'Nikhil':    'Team 7'
 };
-
-// Teams and per-reviewer counts were only established in March 2026, so anything
-// released before then is outside the counted window. Keeps reviewers who have since
-// left — whose samples all predate the window — out of the team numbers.
-const COUNT_START = new Date(2026, 2, 1);   // 01 March 2026
-
-// A released sample inside the counted window. Reviewer counts are keyed off the
-// report release date, so a sample with no release date is never counted.
-function inCountWindow(r) {
-  if (r.is_siva) return false;          // Siva sir's team sits outside every count
-  if (getStatus(r) !== 'Released') return false;
-  const d = parseDate(r.rel_date);
-  return !!d && d >= COUNT_START;
-}
 
 // The team a reviewer belongs to, or null if they are not a current member. Returning
 // null rather than defaulting matters: the old `|| 'Team 6'` fallback credited every
@@ -4391,8 +4356,6 @@ function filterPriority(month) {
   document.getElementById('pm-table').innerHTML = buildModalTable(filtered, PRIORITY_COLS);
 }
 
-
-
 // ================================================================
 //  ANALYTICS STUDIO
 // ================================================================
@@ -4410,7 +4373,6 @@ const TEAM_MEMBERS = [
   { key: 'nikhil',   label: 'Nikhil',    color: '#8b5cf6' },
 ];
 const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
 
 function normalizeTest(name) {
   if (!name) return null;
@@ -4761,8 +4723,9 @@ function buildReviewerRingsHtml(teamCount, total, month, inThresholdWindow, high
 
 function _chart0Data(year, month) {
   const filtered = rows.filter(r => {
-    if (!inCountWindow(r)) return false;          // counts start March 2026
+    if (getStatus(r) !== 'Released') return false;
     const d = parseDate(r.rel_date);
+    if (!d) return false;
     const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
     const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
     return yearMatch && monthMatch;
@@ -4811,8 +4774,9 @@ function openReviewerRingModal(key, label) {
 
   // Get released samples for this reviewer
   const reviewerSamples = rows.filter(r => {
-    if (!inCountWindow(r)) return false;          // counts start March 2026
+    if (getStatus(r) !== 'Released') return false;
     const d = parseDate(r.rel_date);
+    if (!d) return false;
     const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
     const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
 
@@ -4869,21 +4833,21 @@ function openReviewerRingModal_BackToTeams() {
 
 function downloadReviewerCounts(label, key) {
   // Get all released data
-  const allReleased = rows.filter(inCountWindow);   // counts start March 2026
+  const allReleased = rows.filter(r => getStatus(r) === 'Released');
 
   // Get the team for this reviewer
   const emp = normalizeAnalystName(label) || label;
   let reviewerTeam = null;
   TEAM_MEMBERS.forEach(t => {
     if (t.label === label) {
-      reviewerTeam = teamFor(t.label) || t.label;
+      reviewerTeam = TEAM_MAP[t.label] || 'Team 6';
     }
   });
   if (!reviewerTeam) {
     // Try to find team from key
     TEAM_MEMBERS.forEach(t => {
       if (t.key === key) {
-        reviewerTeam = teamFor(t.label) || t.label;
+        reviewerTeam = TEAM_MAP[t.label] || 'Team 6';
       }
     });
   }
@@ -4957,8 +4921,9 @@ function downloadReviewerSamples(label, period) {
 
   // Get released samples for this reviewer
   const reviewerSamples = rows.filter(r => {
-    if (!inCountWindow(r)) return false;          // counts start March 2026
+    if (getStatus(r) !== 'Released') return false;
     const d = parseDate(r.rel_date);
+    if (!d) return false;
     const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
     const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
 
@@ -5193,8 +5158,9 @@ function downloadChart0Data() {
 
   // Get the filtered data using the same logic as the chart
   const filtered = rows.filter(r => {
-    if (!inCountWindow(r)) return false;          // counts start March 2026
+    if (getStatus(r) !== 'Released') return false;
     const d = parseDate(r.rel_date);
+    if (!d) return false;
     const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
     const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
     return yearMatch && monthMatch;
@@ -5225,7 +5191,7 @@ function downloadChart0Data() {
   let totalAdditional = 0;
 
   TEAM_MEMBERS.forEach(t => {
-    const teamName = teamFor(t.label) || t.label;
+    const teamName = TEAM_MAP[t.label] || 'Team 6';
     const cnt = teamCount[t.key] || 0;
     const target = TEAM_TARGETS[teamName] || 100;
     const additionalCount = Math.max(0, cnt - target);
@@ -5268,7 +5234,6 @@ function downloadChart0Data() {
   XLSX.writeFile(wb, filename);
   toast(`Downloaded: ${filename}`, 'info');
 }
-
 
 // (Auth/idle-logout removed for static GitHub Pages deployment)
 

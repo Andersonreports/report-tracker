@@ -1829,14 +1829,21 @@ const SHEET_SCHEMA = [
   { key:'analyst',      label:'ANALYZE BY',                       aliases:['analyzeby','analysedby','analyzedby','analyseby','analystby','analyst'] },
   { key:'ana_date',     label:'ANALYZE DATE',                     aliases:['analyzedate','analysisdate','analyzeddate','analyseddate','dateofanalysis'] },
   // The Reviewer behind team workload, sample counts and getStatus — see `critical`.
-  // Aliases run specific → general so a precise header always wins; the bare
-  // reviewer spellings at the end are the safety net. `avoid` keeps a FINAL REVIEW /
-  // FINAL REVIEWER / "Final Clinical Review" column from being taken as this one.
+  // Aliases run specific → general so a precise header always wins, with the bare
+  // reviewer spellings as a safety net.
+  //
+  // Final Review is the same thing as Clinical Review, so an older section carrying
+  // only FINAL REVIEW still yields a reviewer. Those spellings sit in
+  // `fallbackAliases`, which is only consulted once the normal aliases have had their
+  // turn — so a section with both PRIMARY REVIWER and FINAL REVIEW takes the primary
+  // column, and Final Review is used only when there is no primary column at all.
   { key:'pri_rev',      label:'PRIMARY REVIWER  CLINICAL REVIEW',
     aliases:['primaryreviwerclinicalreview','primaryreviewerclinicalreview','primaryreviwer',
              'primaryreviewer','primaryreview','clinicalreviwer','clinicalreview',
              'reviewer','reviwer','reviewedby','reviewdby','reviewby','review'],
-    avoid:['final'], critical:true },
+    fallbackAliases:['finalclinicalreview','finalclinicalreviwer','finalreviewer',
+                     'finalreviwer','finalreview','finalreviw','final'],
+    critical:true },
   { key:'remark',       label:'REMARK',                           aliases:['remark','remarks','note','notes'] },
   { key:'rel_date',     label:'REPORT RELEASE DATE',              aliases:['reportreleasedate','releasedate','releasedon','reportrelease'] },
   { key:'history',      label:'History writeup',                  aliases:['historywriteup','history','writeup'] },
@@ -1849,11 +1856,13 @@ function normHeader(h) {
 }
 
 // Maps one header row onto the schema, returning { key: columnIndex }.
+// Matching is case-insensitive and blind to spaces and punctuation (see normHeader).
+//
 // Resolved in three passes — exact, then prefix, then substring — so a precise match
 // anywhere in the row always beats a loose one. A column is claimed by at most one
 // key, which stops a loose alias like 'name' from stealing "Client Name" once
-// 'clientname' has matched Client exactly. A column whose header contains any of
-// `avoid` is never claimed by that key, however well an alias otherwise matches.
+// 'clientname' has matched Client exactly. The whole sequence then repeats for any
+// `fallbackAliases`, so those only apply to a key nothing else could resolve.
 function resolveSchemaMap(headerRow) {
   const norm = (headerRow || []).map(normHeader);
   const map = {};
@@ -1863,13 +1872,16 @@ function resolveSchemaMap(headerRow) {
     (h, a) => h.startsWith(a),
     (h, a) => h.includes(a),
   ];
-  for (const test of tests) {
-    for (const col of SHEET_SCHEMA) {
-      if (col.derived || map[col.key] !== undefined) continue;
-      const blocked = h => (col.avoid || []).some(bad => h.includes(bad));
-      for (const alias of col.aliases) {
-        const i = norm.findIndex((h, idx) => h && !claimed.has(idx) && !blocked(h) && test(h, alias));
-        if (i !== -1) { map[col.key] = i; claimed.add(i); break; }
+  for (const useFallback of [false, true]) {
+    for (const test of tests) {
+      for (const col of SHEET_SCHEMA) {
+        if (col.derived || map[col.key] !== undefined) continue;
+        const list = useFallback ? col.fallbackAliases : col.aliases;
+        if (!list) continue;
+        for (const alias of list) {
+          const i = norm.findIndex((h, idx) => h && !claimed.has(idx) && test(h, alias));
+          if (i !== -1) { map[col.key] = i; claimed.add(i); break; }
+        }
       }
     }
   }

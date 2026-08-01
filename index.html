@@ -4105,10 +4105,16 @@ let _allModalData = [];
 let _allModalView = [];   // rows currently shown (post-filter) — what Download exports
 
 function openAllSamplesModal() {
-  // Sort descending by TAT date
+  // Newest run first, then its A/B batch, then S.No within the run — so the latest work
+  // is at the top and each run stays in its own sheet order rather than being interleaved
+  // by date. Rows with no run marker sort last.
   _allModalData = rows.slice().sort((a,b) => {
-    const da = parseDate(a.tat), db = parseDate(b.tat);
-    return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
+    const ra = parseInt(a.run_number || 0, 10) || 0;
+    const rb = parseInt(b.run_number || 0, 10) || 0;
+    if (rb !== ra) return rb - ra;
+    const ta = String(a.run_text || ''), tb = String(b.run_text || '');
+    if (ta !== tb) return tb.localeCompare(ta);
+    return (parseInt(a.sno || 0, 10) || 0) - (parseInt(b.sno || 0, 10) || 0);
   });
 
   // Build unique filter values from sorted data
@@ -5379,7 +5385,10 @@ function anToggleAll(chartPrefix, checked) {
 function anInitFilters() {
   // 1. Years
   const years = [...new Set(rows.map(r => {
-    const d = parseDate(r.tat) || parseDate(r.rel_date);
+    // Counted by when the report was released, not by its TAT deadline, so a sample
+    // lands in the month it actually went out. Matches the reviewer counts, which have
+    // always keyed off the release date.
+    const d = parseDate(r.rel_date);
     return d ? d.getFullYear() : null;
   }).filter(Boolean))].sort((a, b) => b - a);
 
@@ -5461,7 +5470,10 @@ function anDrawChart1() {
   const checkedTests = Array.from(document.querySelectorAll('#an-f1-test-list input:checked')).map(i => i.value);
 
   const filtered = rows.filter(r => {
-    const d = parseDate(r.tat) || parseDate(r.rel_date);
+    // Counted by when the report was released, not by its TAT deadline, so a sample
+    // lands in the month it actually went out. Matches the reviewer counts, which have
+    // always keyed off the release date.
+    const d = parseDate(r.rel_date);
     if (!d) return false;
     const yearMatch = year === 'All' || String(d.getFullYear()) === year;
     const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
@@ -5492,7 +5504,10 @@ function anDrawChart2() {
   const checkedClients = Array.from(document.querySelectorAll('#an-f2-client-list input:checked')).map(i => i.value);
 
   const filtered = rows.filter(r => {
-    const d = parseDate(r.tat) || parseDate(r.rel_date);
+    // Counted by when the report was released, not by its TAT deadline, so a sample
+    // lands in the month it actually went out. Matches the reviewer counts, which have
+    // always keyed off the release date.
+    const d = parseDate(r.rel_date);
     if (!d) return false;
     const yearMatch = year === 'All' || String(d.getFullYear()) === year;
     const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;

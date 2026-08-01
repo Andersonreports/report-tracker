@@ -1830,9 +1830,8 @@ const SHEET_SCHEMA = [
   { key:'gen_id',       label:'Gen_ID',                           aliases:['genid','geneticid'] },
   { key:'and_id',       label:'Anderson_ID',                      aliases:['andersonid','andid','andersonno'] },
   { key:'client',       label:'Client',                           aliases:['client','clientname'] },
-  // date:true renders via fmtDate for uniform visibility. No future check — TAT is a
-  // deadline, so a date ahead of today is entirely normal there.
-  { key:'tat',          label:'TAT(30 Days)',                     aliases:['tat30days','tatdays','tat','turnaround'], date:true },
+  // Shown verbatim, exactly as the sheet has it.
+  { key:'tat',          label:'TAT(30 Days)',                     aliases:['tat30days','tatdays','tat','turnaround'] },
   { key:'bioinfo_time', label:'Bioinfo Analysis Time',            aliases:['bioinfoanalysistime','bioinformaticsanalysistime','bioinfotime','bioinfo'] },
   { key:'rep_exp',      label:'Repeat Expansion',                 aliases:['repeatexpansion','repeat'] },
   { key:'analyst',      label:'ANALYZE BY',                       aliases:['analyzeby','analysedby','analyzedby','analyseby','analystby','analyst'] },
@@ -2039,6 +2038,13 @@ function mapRow(raw) {
   // kept exactly as it is — and only when TAT is a real date, since that column
   // sometimes holds a day count like "30" rather than a date. Rows with no run marker
   // count as older here, matching how getStatus already treats them as released.
+  const remarkRaw = pick('remark', COL_MAP.remark);
+  const priRevRaw = pick('pri_rev', COL_MAP.pri_rev);
+  // Held by Siva sir's team: always released, and outside every count, team and overdue
+  // list — but still present in the sheet totals and the All Samples table.
+  const isSiva = SIVA_RE.test(remarkRaw) || SIVA_RE.test(priRevRaw) || SIVA_RE.test(analystRaw);
+  if (isSiva) canon.remark = SIVA_LABEL;
+
   const runNum = parseInt(raw._run_num || 0, 10) || 0;
   const relRaw = pick('rel_date', COL_MAP.rel_date);
   const tatRaw = pick('tat', COL_MAP.tat);
@@ -2065,12 +2071,13 @@ function mapRow(raw) {
     analyst_raw:  analystRaw,
     assign_date:  assignDate,
     ana_date:     pick('ana_date', COL_MAP.ana_date),
-    pri_rev:      pick('pri_rev', COL_MAP.pri_rev),
+    pri_rev:      priRevRaw,
     // Clinical Reviewer — a separate column from the Reviewer above.
     clin_rev:     canon.clin_rev || '',
     // Legacy alias of clin_rev, kept for older sheets that only had FINAL REVIEW.
     final:        canon.clin_rev || get(COL_MAP.final),
-    remark:       pick('remark', COL_MAP.remark),
+    remark:       isSiva ? SIVA_LABEL : remarkRaw,
+    is_siva:      isSiva,
     rel_date:     relDate,
     history:      pick('history', COL_MAP.history),
     run_number:   raw._run_num || 0,
@@ -2080,6 +2087,13 @@ function mapRow(raw) {
     _canon:       canon,
   };
 }
+
+// Samples handed to Siva sir's team. The marker is written into REMARK or the reviewer
+// column in several spellings, including a "Semt to" typo, so it is matched on "siva"
+// and "sir" together. Never matched against Sample_Name: 28 patients are named
+// Siva-something, and one false positive would drop a real sample from every count.
+const SIVA_RE = /siva\s*sir/i;
+const SIVA_LABEL = 'Siva sir team samples';
 
 // Samples before this run predate the release date being recorded; a blank one falls
 // back to the TAT date. Run 52 onward is left exactly as the sheet has it.
@@ -2092,6 +2106,9 @@ const RELDATE_FILL_BEFORE_RUN = 52;
 //  Yet to Start → pri_rev empty and no rel_date
 // ================================================================
 function getStatus(r) {
+  // Held by Siva sir's team — always treated as released, so they also drop out of the
+  // overdue list and Team Workload, both of which key off status.
+  if (r.is_siva) return 'Released';
   const run = parseInt(r.run_number || 0, 10);
   const isHidden = !!r.is_hidden;
   const hasRelDate = r.rel_date && r.rel_date !== '—' && r.rel_date !== '-' && String(r.rel_date).trim() !== '';
@@ -2154,16 +2171,11 @@ function parseDate(v) {
     }
   }
 
-  // A bare spreadsheet date serial (e.g. 46357 = 01-12-2026). Handled here as well as in
-  // fmtDate so what is counted always matches what is displayed. Bounded so a TAT day
-  // count is never read as one.
-  if (/^\d{5}$/.test(s)) {
-    const n = parseInt(s, 10);
-    if (n >= 20000 && n <= 80000) {
-      const dt = new Date(Date.UTC(1899, 11, 30) + n * 86400000);
-      return new Date(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate());
-    }
-  }
+  // A bare number is never a date. Left unparsed rather than guessed at: a spreadsheet
+  // serial like 46357 does convert to a real date, but in the one cell holding one that
+  // date contradicts every neighbouring TAT, so interpreting it would invent plausible
+  // wrong data. dateIssue() flags it for the user to reformat at source instead.
+  if (/^\d+$/.test(s)) return null;
 
   // Fallback to native JS parser if all else fails
   const d = new Date(s);
@@ -2883,6 +2895,7 @@ function populateTeamFilter(selectId, data) {
   // Get team names from pri_rev column using TEAM_MAP
   const teamSet = new Set();
   data.forEach(r => {
+    if (r.is_siva) return;        // outside every existing team
     const team = teamFor(normalizeAnalystName(r.pri_rev));
     if (team) teamSet.add(team);   // former/unknown reviewers form no team
   });
@@ -3068,6 +3081,7 @@ const COUNT_START = new Date(2026, 2, 1);   // 01 March 2026
 // A released sample inside the counted window. Reviewer counts are keyed off the
 // report release date, so a sample with no release date is never counted.
 function inCountWindow(r) {
+  if (r.is_siva) return false;          // Siva sir's team sits outside every count
   if (getStatus(r) !== 'Released') return false;
   const d = parseDate(r.rel_date);
   return !!d && d >= COUNT_START;
@@ -3197,7 +3211,7 @@ function buildModalTable(data, cols, applyStatusColors = false) {
     if (c==='assign_date') return `<td class="${cls} col-date">${v?fmtDate(v):'<span class="muted-val">—</span>'}</td>`;
     if (c==='rel_date') return `<td class="${cls} col-date">${dateCellHtml(v,{future:true,malformed:true})}</td>`;
     if (c==='ana_date') return `<td class="${cls} col-date">${dateCellHtml(v,{future:true,malformed:true})}</td>`;
-    if (c==='tat') return `<td class="${cls} muted-val">${esc(fmtDate(v))}</td>`;
+    if (c==='tat') return `<td class="${cls} muted-val">${esc(v)||'—'}</td>`;   // verbatim, as the sheet has it
     if (c==='_status') { const st=getStatus(r); return `<td class="${cls}">${badgeHtml(st)}</td>`; }
     if (c==='_rel') { const st=getStatus(r); return `<td class="${cls} col-date">${st==='Released'?dateCellHtml(r.rel_date,{future:true,malformed:true}):'<span class="muted-val">—</span>'}</td>`; }
     return `<td class="${cls}" title="${esc(v)}">${esc(v)||'—'}</td>`;
@@ -3564,7 +3578,7 @@ function renderTable(key) {
 
   let data = rows.filter(r=>getStatus(r)===cfg.status);
   if (test)     data = data.filter(r=>r.test===test);
-  if (team)     data = data.filter(r=>teamFor(normalizeAnalystName(r.pri_rev)) === team);
+  if (team)     data = data.filter(r=>!r.is_siva && teamFor(normalizeAnalystName(r.pri_rev)) === team);
   if (ana)      data = data.filter(r=>extractAnalysts(r.analyst_raw).includes(ana));
   if (clientF)  data = data.filter(r=>{ const norm = normalizeClient(r.client) || ''; return norm === clientF; });
   if (reviewer) data = data.filter(r=>r.pri_rev===reviewer);
@@ -3620,7 +3634,7 @@ function renderTable(key) {
     if (c==='rel_date') return `<td class="${cls} col-date">${dateCellHtml(v,{future:true,malformed:true})}</td>`;
     if (c==='ana_date') return `<td class="${cls} col-date">${dateCellHtml(v,{future:true,malformed:true})}</td>`;
     if (c==='pri_rev'||c==='final') return `<td class="${cls}">${v?`<span class="badge b-cmp">${IC.check} ${fmtDate(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
-    if (c==='tat') return `<td class="${cls} muted-val">${esc(fmtDate(v))}</td>`;
+    if (c==='tat') return `<td class="${cls} muted-val">${esc(v)||'—'}</td>`;   // verbatim, as the sheet has it
     if (c==='_remove') return `<td class="${cls}"><button type="button" class="rel-remove-btn" title="Remove from Released"
         data-gen-id="${esc(r.gen_id)}" data-and-id="${esc(r.and_id)}" data-run-text="${esc(r.run_text)}" data-sno="${esc(r.sno)}"
         onclick="event.stopPropagation();removeFromReleased(this)">
@@ -3685,7 +3699,7 @@ function updateRelCount() {
 
   let data = rows.filter(r=>getStatus(r)==='Released');
   if (test)     data = data.filter(r=>r.test===test);
-  if (team)     data = data.filter(r=>teamFor(normalizeAnalystName(r.pri_rev)) === team);
+  if (team)     data = data.filter(r=>!r.is_siva && teamFor(normalizeAnalystName(r.pri_rev)) === team);
   if (ana)      data = data.filter(r=>extractAnalysts(r.analyst_raw).includes(ana));
   if (runF)     data = data.filter(r=>r.run_text===runF);
   if (clientF)  data = data.filter(r=>{ const norm = normalizeClient(r.client) || ''; return norm === clientF; });
@@ -4091,7 +4105,7 @@ function renderOverdue() {
     const cls = getColClass(c);
     if (c==='name')    return `<td class="${cls} col-name" title="${esc(v)}">${esc(v)||'—'}</td>`;
     if (c==='gen_id'||c==='and_id') return `<td class="${cls}" title="${esc(v)}"><span class="col-mono">${esc(v)||'—'}</span></td>`;
-    if (c==='tat')     return `<td class="${cls} muted-val">${esc(fmtDate(v))}</td>`;
+    if (c==='tat')     return `<td class="${cls} muted-val">${esc(v)||'—'}</td>`;   // verbatim, as the sheet has it
     if (c==='_status') { const st=getStatus(r); return `<td class="${cls}">${badgeHtml(st)}</td>`; }
     if (c==='_overdue_days') return `<td class="${cls}"><span style="background:rgba(239,68,68,.15);color:#b91c1c;padding:2px 8px;border-radius:6px;font-weight:600;font-size:12px">${r._overdue_days}d</span></td>`;
     if (c==='pri_rev') return `<td class="${cls}">${v?`<span class="analyst-pill">${IC.user} ${esc(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
@@ -4262,15 +4276,6 @@ function fmtDate(v) {
   m = s.match(/^(\d{1,2})[-/._](\d{1,2})[-/._](\d{2,4})$/);
   if (m) return build(+m[1], +m[2], m[3].length <= 2 ? 2000 + +m[3] : +m[3]);
 
-  // A bare spreadsheet date serial (e.g. 46357), which is that date, not a number.
-  // Bounded well away from a TAT day count so "30" is never mistaken for one.
-  if (/^\d{5}$/.test(s)) {
-    const n = +s;
-    if (n >= 20000 && n <= 80000) {
-      const dt = new Date(Date.UTC(1899, 11, 30) + n * 86400000);
-      return `${pad(dt.getUTCDate())}-${pad(dt.getUTCMonth() + 1)}-${dt.getUTCFullYear()}`;
-    }
-  }
 
   // Month name: 15 Jul 2026, 15-Jul-26
   m = s.match(/^(\d{1,2})[\s-]+([A-Za-z]{3,})[\s-]+(\d{2,4})$/);
@@ -4302,6 +4307,7 @@ function dateIssue(v, opts) {
   // Not a date. These columns legitimately carry notes ("No need to release report"),
   // so only something built purely from digits and separators was clearly meant to be a
   // date and got mistyped. Never applied to TAT, where a bare day count is valid.
+  if (/^\d{5}$/.test(s)) return 'Looks like a spreadsheet serial number — reformat this cell as a date in Sheet1';
   if (o.malformed && /^[\d\s._/-]+$/.test(s)) return 'Does not read as a date — check this cell in Sheet1';
   return '';
 }

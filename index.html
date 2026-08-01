@@ -1904,6 +1904,42 @@ function reportSchemaWarnings(silent) {
   if (!silent) toast(`Sheet1 header not recognised for: ${cols.join(', ')} — check the header row in ${runs.slice(0,3).join(', ')}`, 'warn');
 }
 
+// Cheap "this cell holds a date" test, used only to rule a row out as a header.
+const DATEISH_RE = /^\d{1,4}[-/._]\d{1,2}[-/._]\d{2,4}$/;
+
+// How many schema columns a row's cells name outright. Used to recognise a repeated
+// header row by what it contains rather than by its first cell: three rows in Sheet1 are
+// header rows whose S.No cell is blank or, in one section, reads "1", so isHeaderRow()
+// never saw them and all three were parsed as samples — their name read "Sample_Name"
+// and their TAT read "TAT(30 Days)".
+//
+// Exact and prefix matches only, never substring, so a data row cannot accumulate hits
+// from a remark that happens to contain a column word.
+function headerLikeScore(row) {
+  const cells = row || [];
+  // A header row never contains a date. Bailing on one keeps this off the hot path for
+  // the thousands of data rows that do, and is a second guard against ever scoring one.
+  for (let i = 0; i < cells.length; i++) {
+    if (DATEISH_RE.test(String(cells[i] == null ? '' : cells[i]).trim())) return 0;
+  }
+  const norm = cells.map(normHeader);
+  const claimed = new Set();
+  let hits = 0;
+  for (const col of SHEET_SCHEMA) {
+    if (col.derived) continue;
+    const list = (col.aliases || []).concat(col.fallbackAliases || []);
+    for (const alias of list) {
+      const i = norm.findIndex((h, idx) => h && !claimed.has(idx) && (h === alias || h.startsWith(alias)));
+      if (i !== -1) { hits++; claimed.add(i); break; }
+    }
+  }
+  return hits;
+}
+
+// Six is far more than any real data row reaches and far fewer than a header row
+// carries, even one missing a couple of labels.
+const HEADER_MIN_SCORE = 6;
+
 // Pulls one sheet row into the schema's shape: every key present, missing columns blank.
 function canonRow(row, schemaMap, cellVal) {
   const out = {};
@@ -2276,7 +2312,13 @@ function parseBinary(binary) {
     const runCell = row.find(c => /Run-?\d+/i.test(cellVal(c)));
     const foundRunNum = runCell ? extractRunNumber(cellVal(runCell)) : null;
 
-    if (foundRunNum && !rowIsHeader && nonEmpty.length < 5) {
+    // A run marker even when its first cell happens to read "S.No" — in one section the
+    // next run's name was typed into the header cell, and requiring !rowIsHeader meant
+    // that row was taken for a header instead: the run label was lost and the column
+    // mapping was rebuilt from a two-cell row, so the 40 samples after it resolved
+    // nothing and were dropped. A real header row carries a full set of columns, so the
+    // <5 test is what separates them; isHeaderRow() only inspects the first cell.
+    if (foundRunNum && nonEmpty.length < 5) {
       currentRunTxt = cellVal(runCell);
       currentRunNum = foundRunNum;
       continue;
@@ -2289,6 +2331,13 @@ function parseBinary(binary) {
       noteSchemaGaps(headers, schemaMap, currentRunTxt);
       continue;
     }
+
+    // A repeated header row whose S.No cell is blank or mistyped (one section has "1"
+    // there). It is not data, so it must not become a phantom sample — but neither is it
+    // a new layout: those rows carry the same columns as the header already in force with
+    // a label or two left blank, and the data beneath still lines up with it. So skip the
+    // row and keep the current mapping.
+    if (headers && headerLikeScore(row.map(c => cellVal(c))) >= HEADER_MIN_SCORE) continue;
 
     if (!headers) continue;
 
@@ -2365,7 +2414,13 @@ function parseGrid(grid) {
     const runCell = row.find(c => /Run-?\d+/i.test(cellVal(c)));
     const foundRunNum = runCell ? extractRunNumber(cellVal(runCell)) : null;
 
-    if (foundRunNum && !rowIsHeader && nonEmpty.length < 5) {
+    // A run marker even when its first cell happens to read "S.No" — in one section the
+    // next run's name was typed into the header cell, and requiring !rowIsHeader meant
+    // that row was taken for a header instead: the run label was lost and the column
+    // mapping was rebuilt from a two-cell row, so the 40 samples after it resolved
+    // nothing and were dropped. A real header row carries a full set of columns, so the
+    // <5 test is what separates them; isHeaderRow() only inspects the first cell.
+    if (foundRunNum && nonEmpty.length < 5) {
       currentRunTxt = cellVal(runCell);
       currentRunNum = foundRunNum;
       continue;
@@ -2378,6 +2433,13 @@ function parseGrid(grid) {
       noteSchemaGaps(headers, schemaMap, currentRunTxt);
       continue;
     }
+
+    // A repeated header row whose S.No cell is blank or mistyped (one section has "1"
+    // there). It is not data, so it must not become a phantom sample — but neither is it
+    // a new layout: those rows carry the same columns as the header already in force with
+    // a label or two left blank, and the data beneath still lines up with it. So skip the
+    // row and keep the current mapping.
+    if (headers && headerLikeScore(row.map(c => cellVal(c))) >= HEADER_MIN_SCORE) continue;
     if (!headers) continue;
     const obj = {};
     headers.forEach((h, i) => { obj[h] = cellVal(row[i] ?? ''); });

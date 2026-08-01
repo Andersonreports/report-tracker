@@ -2291,7 +2291,12 @@ function parseBinary(binary) {
     const runCell = row.find(c => /Run-?\d+/i.test(cellVal(c)));
     const foundRunNum = runCell ? extractRunNumber(cellVal(runCell)) : null;
 
-    if (foundRunNum && !rowIsHeader && nonEmpty.length < 5) {
+    // A run marker even if its first cell happens to read "S.No" — someone typing the
+    // next section's name into the header cell would otherwise be taken for a header
+    // row, losing both the run label and the real column mapping for everything after
+    // it. A genuine header row has a full set of columns, so the <5 test is what
+    // distinguishes them; isHeaderRow() deliberately does not.
+    if (foundRunNum && nonEmpty.length < 5) {
       currentRunTxt = cellVal(runCell);
       currentRunNum = foundRunNum;
       continue;
@@ -2380,7 +2385,12 @@ function parseGrid(grid) {
     const runCell = row.find(c => /Run-?\d+/i.test(cellVal(c)));
     const foundRunNum = runCell ? extractRunNumber(cellVal(runCell)) : null;
 
-    if (foundRunNum && !rowIsHeader && nonEmpty.length < 5) {
+    // A run marker even if its first cell happens to read "S.No" — someone typing the
+    // next section's name into the header cell would otherwise be taken for a header
+    // row, losing both the run label and the real column mapping for everything after
+    // it. A genuine header row has a full set of columns, so the <5 test is what
+    // distinguishes them; isHeaderRow() deliberately does not.
+    if (foundRunNum && nonEmpty.length < 5) {
       currentRunTxt = cellVal(runCell);
       currentRunNum = foundRunNum;
       continue;

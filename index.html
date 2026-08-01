@@ -1957,6 +1957,43 @@ function reportSchemaWarnings(silent) {
   if (!silent) toast(`Sheet1 header not recognised for: ${cols.join(', ')} — check the header row in ${runs.slice(0,3).join(', ')}`, 'warn');
 }
 
+// Cheap "this cell holds a date" test, used only to rule a row out as a header.
+const DATEISH_RE = /^\d{1,4}[-/._]\d{1,2}[-/._]\d{2,4}$/;
+
+// How many schema columns a row's cells name outright. Used to recognise a header row
+// by what it contains rather than by its first cell: some sections have no S.No column
+// and start at Sample_Name, and in one the S.No header cell reads "1". Both slipped past
+// a first-cell test, so that section's real layout was never read and its rows were
+// mapped against the previous section's columns — shifting every value after a column
+// the two sections did not share.
+//
+// Exact and prefix matches only, never substring, so a data row cannot accumulate hits
+// from a remark that happens to contain a column word.
+function headerLikeScore(row) {
+  const cells = row || [];
+  // A header row never contains a date. Bailing on one keeps this off the hot path for
+  // the thousands of data rows that do, and is a second guard against ever scoring one.
+  for (let i = 0; i < cells.length; i++) {
+    if (DATEISH_RE.test(String(cells[i] == null ? '' : cells[i]).trim())) return 0;
+  }
+  const norm = cells.map(normHeader);
+  const claimed = new Set();
+  let hits = 0;
+  for (const col of SHEET_SCHEMA) {
+    if (col.derived) continue;
+    const list = (col.aliases || []).concat(col.fallbackAliases || []);
+    for (const alias of list) {
+      const i = norm.findIndex((h, idx) => h && !claimed.has(idx) && (h === alias || h.startsWith(alias)));
+      if (i !== -1) { hits++; claimed.add(i); break; }
+    }
+  }
+  return hits;
+}
+
+// Six of them is far more than any real data row reaches and far fewer than a header
+// row carries, even a short one.
+const HEADER_MIN_SCORE = 6;
+
 // Pulls one sheet row into the schema's shape: every key present, missing columns blank.
 function canonRow(row, schemaMap, cellVal) {
   const out = {};
@@ -2364,6 +2401,13 @@ function parseBinary(binary) {
       continue;
     }
 
+    // A repeated header row whose S.No cell is blank or mistyped (one section has "1"
+    // there). It is not data, so it must not become a phantom sample — but neither is it
+    // a new layout: those rows are the same columns with a couple of labels missing, and
+    // adopting them would lose S.No and TAT while the data underneath still lines up with
+    // the header already in force. So skip the row and keep the current mapping.
+    if (headers && headerLikeScore(row.map(c => cellVal(c))) >= HEADER_MIN_SCORE) continue;
+
     if (!headers) continue;
 
     const obj = {};
@@ -2421,7 +2465,7 @@ function parseGrid(grid) {
 
   function isHeaderRow(row) {
     const first = cellVal(row.find(c => cellVal(c) !== '') || '').toLowerCase().replace(/[\s.]/g,'');
-    return ['sno','sno','srno','slno','no','#','serial'].includes(first);
+    return ['sno','srno','slno','no','#','serial'].includes(first);
   }
 
   const allRows = [];
@@ -2458,6 +2502,13 @@ function parseGrid(grid) {
       noteSchemaGaps(headers, schemaMap, currentRunTxt);
       continue;
     }
+
+    // A repeated header row whose S.No cell is blank or mistyped (one section has "1"
+    // there). It is not data, so it must not become a phantom sample — but neither is it
+    // a new layout: those rows are the same columns with a couple of labels missing, and
+    // adopting them would lose S.No and TAT while the data underneath still lines up with
+    // the header already in force. So skip the row and keep the current mapping.
+    if (headers && headerLikeScore(row.map(c => cellVal(c))) >= HEADER_MIN_SCORE) continue;
     if (!headers) continue;
     const obj = {};
     headers.forEach((h, i) => { obj[h] = cellVal(row[i] ?? ''); });

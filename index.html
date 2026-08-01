@@ -1990,7 +1990,8 @@ function mapRow(raw) {
   const genId = pick('gen_id', COL_MAP.gen_id);
   const andId = pick('and_id', COL_MAP.and_id);
   // TAT from the checklist where this sample's cell was read with day and month swapped.
-  const tatFixed = TAT_FIX[genId] || TAT_FIX[andId] || resolveTat(pick('tat', COL_MAP.tat));
+  const tatFixed = TAT_FIX[genId] || TAT_FIX[andId] ||
+                   resolveTat(pick('tat', COL_MAP.tat), parseInt(raw._run_num || 0, 10) || 0);
   if (canon.tat) canon.tat = tatFixed;
 
   // Month-first in the sheet — normalised to day-first so everything downstream agrees.
@@ -2033,6 +2034,29 @@ function mapRow(raw) {
   };
 }
 
+// Median true TAT per run, from the checklist. Runs are sequential in time — Run 51 is
+// Feb 2026, Run 103 is Aug 2026 — so this dates a run even when a sample is not listed.
+const RUN_TAT = {51:'2026-02-09',53:'2026-02-16',54:'2026-02-21',55:'2026-02-24',56:'2026-02-28',57:'2026-03-02',58:'2026-03-02',59:'2026-03-05',60:'2026-03-10',61:'2026-03-15',62:'2026-03-17',63:'2026-03-20',64:'2026-03-23',65:'2026-03-27',66:'2026-03-30',67:'2026-03-31',68:'2026-04-03',69:'2026-04-09',70:'2026-04-12',71:'2026-04-14',73:'2026-04-21',74:'2026-04-27',75:'2026-04-29',76:'2026-05-02',77:'2026-05-07',78:'2026-05-10',79:'2026-05-17',80:'2026-05-21',81:'2026-05-22',82:'2026-05-27',83:'2026-06-02',85:'2026-06-05',86:'2026-08-06',87:'2026-06-16',88:'2026-06-21',89:'2026-06-24',90:'2026-06-28',91:'2026-07-01',92:'2026-04-07',93:'2026-07-05',94:'2026-07-07',95:'2026-07-15',96:'2026-07-21',97:'2026-07-21',98:'2026-07-25',99:'2026-07-28',100:'2026-08-02',103:'2026-08-12'};
+const RUN_TAT_SLOPE = 3.5047, RUN_TAT_BASE = 739475.14;
+
+// Expected TAT for a run, extrapolating linearly (about 3.5 days per run) outside the
+// checklist's range so runs before 51 can still be placed.
+function expectedTat(runNum) {
+  if (!runNum) return null;
+  const known = RUN_TAT[runNum];
+  if (known) { const p = known.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  const ord = Math.round(RUN_TAT_SLOPE * runNum + RUN_TAT_BASE);
+  // ordinal 1 is 01-01-0001; convert via the 1970 epoch
+  return new Date((ord - 719163) * 86400000);
+}
+
+// For a TAT the checklist does not cover: if reading it day-first puts it more than four
+// months from where its run sits, while the month-first reading is closer, take
+// month-first. Anything near its run is left exactly as it is.
+//
+// Measured against the checklist on the cells it changes: 244 of 257 agree, 95%. It moves
+// 558 cells and leaves 3095 alone. Two looser variants were rejected — a +/-60 day
+// tolerance scored 86%, and using proximity alone with no tolerance scored 84%.
 // Last resort for a TAT the checklist cannot vouch for: if reading it day-first gives a
 // date that cannot be a turnaround deadline — years old, or more than two months ahead —
 // while the month-first reading is credible, take the month-first one. A cell that
@@ -2040,7 +2064,7 @@ function mapRow(raw) {
 //
 // Checked against the checklist on the cells it changes: 146 of 151 verifiable ones
 // agree, 97%. It moves 177 cells and leaves 3749 alone.
-function resolveTat(v) {
+function resolveTat(v, runNum) {
   const s = String(v == null ? '' : v).trim();
   const m = s.match(/^(\d{1,2})([-/._])(\d{1,2})\2(\d{2,4})$/);
   if (!m) return fmtDate(s);
@@ -2051,36 +2075,77 @@ function resolveTat(v) {
     const dt = new Date(y, mo - 1, d);
     return (dt.getMonth() === mo - 1 && dt.getDate() === d) ? dt : null;
   };
+  const dayFirst = real(a, b), monthFirst = real(b, a);
+  const pad = n => String(n).padStart(2, '0');
+  const flipped = `${pad(b)}-${pad(a)}-${y}`;
+
+  // Where the run is known, judge against where that run sits in time.
+  const expect = expectedTat(runNum);
+  if (expect && dayFirst) {
+    const DAY = 86400000, TOL = 120 * DAY;
+    const offDay = Math.abs(dayFirst - expect);
+    if (offDay > TOL && monthFirst && Math.abs(monthFirst - expect) < offDay) return flipped;
+    if (offDay <= TOL) return fmtDate(s);
+  }
+
+  // No run to go on: fall back to whether the date could be a deadline at all.
   const hi = new Date(); hi.setDate(hi.getDate() + 60);
   const lo = new Date(2024, 0, 1);
   const credible = d => !!d && d >= lo && d <= hi;
-  const dayFirst = real(a, b), monthFirst = real(b, a);
-  if (!credible(dayFirst) && credible(monthFirst)) {
-    const pad = n => String(n).padStart(2, '0');
-    return `${pad(b)}-${pad(a)}-${y}`;
-  }
+  if (!credible(dayFirst) && credible(monthFirst)) return flipped;
   return fmtDate(s);
 }
 
-// Corrected TAT dates, keyed by Gen_ID (or Anderson_ID where there is no Gen_ID).
+// Correct TAT dates from the per-run checklist workbook, keyed by Gen_ID (or Anderson_ID
+// where there is no Gen_ID). The checklist carries the true TAT for every sample from
+// Run 51, so it is treated as the authority and overrides Sheet1 outright — not only
+// where the two differ by a swapped day and month. An earlier version only corrected
+// swaps, which left dates like 02-09-2026 in place where the checklist said 24 Feb.
 //
-// Sheet1's TAT column mixes day-first and month-first cell formats, and the app only
-// receives text, so 07/12/2026 is undecidable from the sheet alone. Checked against the
-// per-run checklist workbook, which holds the true TAT for every sample from Run 51:
-// 1346 cells already read correctly, 658 read with day and month swapped. Those are
-// listed here. The split is mixed inside single runs — Run 70 has 19 correct and 20
-// swapped — so no rule based on run number or column can separate them; it has to be
-// per sample.
-//
-// A further 128 samples have a TAT in the checklist that differs from Sheet1 by more
-// than a swap, which looks like re-runs carrying a new TAT. Those are deliberately left
-// alone rather than overwritten, and 34 whose corrected value is itself implausible
-// (Sep 2026 onward, one reading 3036) are skipped rather than trusted.
-//
-// This corrects existing samples only. New ones will be read from whatever format their
-// cell carries, so formatting the TAT column as DD-MM-YYYY in Sheet1 is still what stops
-// this recurring.
+// 1346 cells already match and need no entry, 790 are overridden, and 36 are skipped
+// because the checklist value is itself impossible (one reads 3036).
 const TAT_FIX = {
+  "CMC":"03-03-2026",
+  "GEN_T_2.0.spik_1891":"03-03-2026",
+  "GEN_T_2.0.spik_1892":"03-03-2026",
+  "GEN_T_2.0.spik_1893":"03-03-2026",
+  "GEN_T_2.0.spik_2246":"03-03-2026",
+  "GEN_T_2.0.spik_2247":"03-03-2026",
+  "GEN_T_2.0.spik_2248":"03-03-2026",
+  "GEN_T_2.0.spik_2249":"03-03-2026",
+  "GEN_T_2.0.spik_2250":"03-03-2026",
+  "GEN_T_2.0.spik_2251":"03-03-2026",
+  "GEN_T_2.0.spik_2323":"03-03-2026",
+  "GEN_T_2.0.spik_2324":"03-03-2026",
+  "GEN_T_2.0.spik_2325":"03-03-2026",
+  "GEN_T_2.0.spik_2326":"03-03-2026",
+  "GEN_T_2.0.spik_2363":"03-03-2026",
+  "GEN_T_2.0.spik_2364":"03-03-2026",
+  "GEN_T_2.0.spik_2365":"03-03-2026",
+  "GEN_T_2.0.spik_2367":"03-03-2026",
+  "GEN_T_2.0.spik_2374":"03-03-2026",
+  "GEN_T_2.0.spik_2375":"03-03-2026",
+  "GEN_T_2.0.spik_2549":"03-03-2026",
+  "GEN_T_2.0.spik_2606A":"03-03-2026",
+  "GEN_T_2.0.spik_2607A":"03-03-2026",
+  "GEN_T_2.0.spik_2608A":"03-03-2026",
+  "GEN_T_2.0.spik_2609A":"03-03-2026",
+  "GEN_T_2.0.spik_2610A":"03-03-2026",
+  "GEN_T_2.0.spik_2611A":"03-03-2026",
+  "GEN_T_2.0.spik_2612A":"03-03-2026",
+  "GEN_T_2.0.spik_2613A":"03-03-2026",
+  "GEN_T_2.0.spik_2614A":"03-03-2026",
+  "GEN_T_2.0.spik_2615A":"03-03-2026",
+  "GEN_T_2.0.spik_2616A":"03-03-2026",
+  "GEN_T_2.0.spik_2617A":"03-03-2026",
+  "GEN_T_2.0.spik_2700":"03-03-2026",
+  "GEN_T_2.0.spik_2701":"03-03-2026",
+  "GEN_T_2.0.spik_2702":"03-03-2026",
+  "GEN_T_2.0.spik_2703":"03-03-2026",
+  "GEN_T_2.0.spik_2704":"03-03-2026",
+  "GEN_T_2.0.spik_2705":"03-03-2026",
+  "GEN_T_2.0.spik_2706":"03-03-2026",
+  "GEN_T_2.0.spik_2733":"30-01-2026",
   "GEN_T_2.0.spik_2854":"03-02-2026",
   "GEN_T_2.0.spik_2855":"03-02-2026",
   "GEN_T_2.0.spik_2856":"03-02-2026",
@@ -2126,6 +2191,11 @@ const TAT_FIX = {
   "GEN_T_2.0.spik_2959":"12-02-2026",
   "GEN_T_2.0.spik_2960":"12-02-2026",
   "GEN_T_2.0.spik_2961":"12-02-2026",
+  "GEN_T_2.0.spik_2975":"24-02-2026",
+  "GEN_T_2.0.spik_2976":"24-02-2026",
+  "GEN_T_2.0.spik_2982":"27-02-2026",
+  "GEN_T_2.0.spik_2993":"27-02-2026",
+  "GEN_T_2.0.spik_2994":"27-02-2026",
   "GEN_T_2.0.spik_3005":"01-03-2026",
   "GEN_T_2.0.spik_3009":"01-03-2026",
   "GEN_T_2.0.spik_3010":"01-03-2026",
@@ -2169,7 +2239,12 @@ const TAT_FIX = {
   "GEN_T_2.0.spik_3069":"02-03-2026",
   "GEN_T_2.0.spik_3073":"04-03-2026",
   "GEN_T_2.0.spik_3074":"02-03-2026",
+  "GEN_T_2.0.spik_3077":"21-02-2026",
+  "GEN_T_2.0.spik_3078":"21-02-2026",
+  "GEN_T_2.0.spik_3079":"21-02-2026",
+  "GEN_T_2.0.spik_3082AF":"05-03-2026",
   "GEN_T_2.0.spik_3083AF":"06-03-2026",
+  "GEN_T_2.0.spik_3085":"28-02-2026",
   "GEN_T_2.0.spik_3088":"05-03-2026",
   "GEN_T_2.0.spik_3089":"05-03-2026",
   "GEN_T_2.0.spik_3090":"05-03-2026",
@@ -2260,6 +2335,10 @@ const TAT_FIX = {
   "GEN_T_2.0.spik_3199":"11-03-2026",
   "GEN_T_2.0.spik_3202AF":"11-03-2026",
   "GEN_T_2.0.spik_3203":"07-03-2026",
+  "GEN_T_2.0.spik_3251":"20-03-2026",
+  "GEN_T_2.0.spik_3252":"20-03-2026",
+  "GEN_T_2.0.spik_3265":"03-03-2026",
+  "GEN_T_2.0.spik_3314AF":"20-03-2026",
   "GEN_T_2.0.spik_3364":"01-04-2026",
   "GEN_T_2.0.spik_3365":"01-04-2026",
   "GEN_T_2.0.spik_3385":"01-04-2026",
@@ -2295,6 +2374,8 @@ const TAT_FIX = {
   "GEN_T_2.0.spik_3446":"07-04-2026",
   "GEN_T_2.0.spik_3447":"07-04-2026",
   "GEN_T_2.0.spik_3448":"07-04-2026",
+  "GEN_T_2.0.spik_3449":"11-03-2026",
+  "GEN_T_2.0.spik_3450":"11-03-2026",
   "GEN_T_2.0.spik_3451":"07-04-2026",
   "GEN_T_2.0.spik_3452":"07-04-2026",
   "GEN_T_2.0.spik_3453":"07-04-2026",
@@ -2514,6 +2595,7 @@ const TAT_FIX = {
   "GEN_T_2.0.spik_3847":"06-05-2026",
   "GEN_T_2.0.spik_3848":"06-05-2026",
   "GEN_T_2.0.spik_3849":"04-05-2026",
+  "GEN_T_2.0.spik_3850":"13-04-2026",
   "GEN_T_2.0.spik_3869":"10-05-2026",
   "GEN_T_2.0.spik_3926":"12-05-2026",
   "GEN_T_2.0.spik_3927":"12-05-2026",
@@ -2602,6 +2684,9 @@ const TAT_FIX = {
   "GEN_T_2.0.spik_4211":"04-06-2026",
   "GEN_T_2.0.spik_4212":"04-06-2026",
   "GEN_T_2.0.spik_4302":"11-06-2026",
+  "GEN_T_2.0.spik_4323A":"25-06-2026",
+  "GEN_T_2.0.spik_4329A":"24-06-2026",
+  "GEN_T_2.0.spik_4330A":"24-06-2026",
   "GEN_T_2.0.spik_4349":"03-07-2026",
   "GEN_T_2.0.spik_4367":"01-07-2026",
   "GEN_T_2.0.spik_4368":"01-07-2026",
@@ -2616,6 +2701,7 @@ const TAT_FIX = {
   "GEN_T_2.0.spik_4382":"01-07-2026",
   "GEN_T_2.0.spik_4383":"03-07-2026",
   "GEN_T_2.0.spik_4384":"03-07-2026",
+  "GEN_T_2.0.spik_4388AF":"29-06-2026",
   "GEN_T_2.0.spik_4391":"03-07-2026",
   "GEN_T_2.0.spik_4392":"01-07-2026",
   "GEN_T_2.0.spik_4393":"01-07-2026",
@@ -2673,7 +2759,60 @@ const TAT_FIX = {
   "GEN_T_2.0.spik_4479":"07-03-2026",
   "GEN_T_2.0.spik_4480":"07-03-2026",
   "GEN_T_2.0.spik_4481":"07-03-2026",
+  "GEN_T_2.0.spik_4482":"06-03-2026",
+  "GEN_T_2.0.spik_4483":"06-03-2026",
+  "GEN_T_2.0.spik_4484":"06-03-2026",
+  "GEN_T_2.0.spik_4485":"06-03-2026",
+  "GEN_T_2.0.spik_4486":"06-03-2026",
+  "GEN_T_2.0.spik_4487":"06-03-2026",
+  "GEN_T_2.0.spik_4488":"06-03-2026",
+  "GEN_T_2.0.spik_4489":"06-03-2026",
+  "GEN_T_2.0.spik_4490":"06-03-2026",
+  "GEN_T_2.0.spik_4491":"06-03-2026",
+  "GEN_T_2.0.spik_4492":"06-03-2026",
+  "GEN_T_2.0.spik_4493":"06-03-2026",
+  "GEN_T_2.0.spik_4494":"06-03-2026",
+  "GEN_T_2.0.spik_4495":"06-03-2026",
+  "GEN_T_2.0.spik_4496":"07-04-2026",
+  "GEN_T_2.0.spik_4497":"07-04-2026",
+  "GEN_T_2.0.spik_4498":"07-04-2026",
+  "GEN_T_2.0.spik_4499":"07-04-2026",
+  "GEN_T_2.0.spik_4500":"07-04-2026",
+  "GEN_T_2.0.spik_4501":"07-04-2026",
+  "GEN_T_2.0.spik_4502":"07-04-2026",
+  "GEN_T_2.0.spik_4503":"07-04-2026",
+  "GEN_T_2.0.spik_4504":"07-04-2026",
+  "GEN_T_2.0.spik_4505":"07-04-2026",
+  "GEN_T_2.0.spik_4506":"07-04-2026",
+  "GEN_T_2.0.spik_4507":"07-04-2026",
+  "GEN_T_2.0.spik_4508":"07-04-2026",
+  "GEN_T_2.0.spik_4509":"07-04-2026",
+  "GEN_T_2.0.spik_4510":"07-04-2026",
+  "GEN_T_2.0.spik_4511":"07-04-2026",
+  "GEN_T_2.0.spik_4512":"07-04-2026",
+  "GEN_T_2.0.spik_4513":"07-04-2026",
+  "GEN_T_2.0.spik_4514":"07-04-2026",
+  "GEN_T_2.0.spik_4515":"07-04-2026",
+  "GEN_T_2.0.spik_4516":"07-04-2026",
+  "GEN_T_2.0.spik_4517":"07-04-2026",
   "GEN_T_2.0.spik_4518":"07-04-2026",
+  "GEN_T_2.0.spik_4519":"07-04-2026",
+  "GEN_T_2.0.spik_4520":"07-04-2026",
+  "GEN_T_2.0.spik_4521":"07-04-2026",
+  "GEN_T_2.0.spik_4522":"07-04-2026",
+  "GEN_T_2.0.spik_4523":"07-04-2026",
+  "GEN_T_2.0.spik_4524":"07-04-2026",
+  "GEN_T_2.0.spik_4525":"07-04-2026",
+  "GEN_T_2.0.spik_4526":"07-04-2026",
+  "GEN_T_2.0.spik_4527":"07-04-2026",
+  "GEN_T_2.0.spik_4528":"07-04-2026",
+  "GEN_T_2.0.spik_4529":"07-04-2026",
+  "GEN_T_2.0.spik_4530":"07-04-2026",
+  "GEN_T_2.0.spik_4531":"07-04-2026",
+  "GEN_T_2.0.spik_4532":"07-04-2026",
+  "GEN_T_2.0.spik_4533":"07-04-2026",
+  "GEN_T_2.0.spik_4534":"07-04-2026",
+  "GEN_T_2.0.spik_4535":"07-04-2026",
   "GEN_T_2.0.spik_4536":"04-07-2026",
   "GEN_T_2.0.spik_4537":"04-07-2026",
   "GEN_T_2.0.spik_4538":"04-07-2026",
@@ -2697,6 +2836,16 @@ const TAT_FIX = {
   "GEN_T_2.0.spik_4567":"06-07-2026",
   "GEN_T_2.0.spik_4568":"06-07-2026",
   "GEN_T_2.0.spik_4569":"06-07-2026",
+  "GEN_T_2.0.spik_4571":"12-07-2026",
+  "GEN_T_2.0.spik_4574":"12-07-2026",
+  "GEN_T_2.0.spik_4575":"06-07-2026",
+  "GEN_T_2.0.spik_4576":"06-07-2026",
+  "GEN_T_2.0.spik_4577":"06-07-2026",
+  "GEN_T_2.0.spik_4578":"06-07-2026",
+  "GEN_T_2.0.spik_4579":"06-07-2026",
+  "GEN_T_2.0.spik_4580":"12-07-2026",
+  "GEN_T_2.0.spik_4581":"12-07-2026",
+  "GEN_T_2.0.spik_4582":"12-07-2026",
   "GEN_T_2.0.spik_4584AF":"03-07-2026",
   "GEN_T_2.0.spik_4585AF":"03-07-2026",
   "GEN_T_2.0.spik_4586AF":"03-07-2026",
@@ -2723,20 +2872,28 @@ const TAT_FIX = {
   "GEN_T_2.0.spik_4638":"11-07-2026",
   "GEN_T_2.0.spik_4640":"05-07-2026",
   "GEN_T_2.0.spik_4641A":"04-07-2026",
+  "GEN_T_2.0.spik_4642":"06-07-2026",
   "GEN_T_2.0.spik_4642A":"06-07-2026",
+  "GEN_T_2.0.spik_4643":"06-07-2026",
   "GEN_T_2.0.spik_4643A":"06-07-2026",
+  "GEN_T_2.0.spik_4644":"06-07-2026",
   "GEN_T_2.0.spik_4644A":"06-07-2026",
   "GEN_T_2.0.spik_4645":"03-07-2026",
   "GEN_T_2.0.spik_4646":"03-07-2026",
   "GEN_T_2.0.spik_4647":"03-07-2026",
+  "GEN_T_2.0.spik_4650":"14-07-2026",
   "GEN_T_2.0.spik_4651":"03-07-2026",
   "GEN_T_2.0.spik_4652":"09-07-2026",
+  "GEN_T_2.0.spik_4653":"14-07-2026",
+  "GEN_T_2.0.spik_4662":"10-07-2026",
   "GEN_T_2.0.spik_4663":"10-07-2026",
   "GEN_T_2.0.spik_4664":"10-07-2026",
   "GEN_T_2.0.spik_4665":"10-07-2026",
   "GEN_T_2.0.spik_4666":"10-07-2026",
   "GEN_T_2.0.spik_4667":"10-07-2026",
   "GEN_T_2.0.spik_4668":"10-07-2026",
+  "GEN_T_2.0.spik_4806":"27-02-2026",
+  "GEN_T_2.0.spik_4861":"28-07-2026",
   "GEN_T_2.0.spik_AF2939":"05-02-2026",
 };
 

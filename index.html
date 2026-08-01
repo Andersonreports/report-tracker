@@ -1971,6 +1971,19 @@ function mapRow(raw) {
   // Normalize name: strip dates, fix spacing/case, apply aliases (Vamsi→Vamshi etc.)
   const analystClean = normalizeAnalystName(analystRaw);
 
+  // Samples before Run 52 were released before the release date was recorded, so the
+  // TAT date stands in for it. Strictly a fill of blanks — an existing release date is
+  // kept exactly as it is — and only when TAT is a real date, since that column
+  // sometimes holds a day count like "30" rather than a date. Rows with no run marker
+  // count as older here, matching how getStatus already treats them as released.
+  const runNum = parseInt(raw._run_num || 0, 10) || 0;
+  const relRaw = pick('rel_date', COL_MAP.rel_date);
+  const tatRaw = pick('tat', COL_MAP.tat);
+  const relDate = (!relRaw && runNum < RELDATE_FILL_BEFORE_RUN && parseDate(tatRaw)) ? tatRaw : relRaw;
+  // Keep the schema row in step, so the All Samples view and its export show the same
+  // release date as every other table rather than a blank.
+  canon.rel_date = relDate;
+
   return {
     sno:          pick('sno', COL_MAP.sno),
     name:         pick('name', COL_MAP.name),
@@ -1995,7 +2008,7 @@ function mapRow(raw) {
     // Legacy alias of clin_rev, kept for older sheets that only had FINAL REVIEW.
     final:        canon.clin_rev || get(COL_MAP.final),
     remark:       pick('remark', COL_MAP.remark),
-    rel_date:     pick('rel_date', COL_MAP.rel_date),
+    rel_date:     relDate,
     history:      pick('history', COL_MAP.history),
     run_number:   raw._run_num || 0,
     run_text:     raw._run_txt || '—',
@@ -2004,6 +2017,10 @@ function mapRow(raw) {
     _canon:       canon,
   };
 }
+
+// Samples before this run predate the release date being recorded; a blank one falls
+// back to the TAT date. Run 52 onward is left exactly as the sheet has it.
+const RELDATE_FILL_BEFORE_RUN = 52;
 
 // ================================================================
 //  STATUS LOGIC

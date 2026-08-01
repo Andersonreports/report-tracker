@@ -2767,9 +2767,8 @@ function populateTeamFilter(selectId, data) {
   // Get team names from pri_rev column using TEAM_MAP
   const teamSet = new Set();
   data.forEach(r => {
-    const emp = normalizeAnalystName(r.pri_rev) || 'Unassigned';
-    const team = TEAM_MAP[emp] || 'Team 6';
-    teamSet.add(team);
+    const team = teamFor(normalizeAnalystName(r.pri_rev));
+    if (team) teamSet.add(team);   // former/unknown reviewers form no team
   });
   const vals = [...teamSet].sort((a,b) => {
     const numA = parseInt((a.match(/\d+/)||['6'])[0], 10);
@@ -2945,6 +2944,26 @@ const TEAM_MAP = {
   'Nikhil':    'Team 7'
 };
 
+// Teams and per-reviewer counts were only established in March 2026, so anything
+// released before then is outside the counted window. Keeps reviewers who have since
+// left — whose samples all predate the window — out of the team numbers.
+const COUNT_START = new Date(2026, 2, 1);   // 01 March 2026
+
+// A released sample inside the counted window. Reviewer counts are keyed off the
+// report release date, so a sample with no release date is never counted.
+function inCountWindow(r) {
+  if (getStatus(r) !== 'Released') return false;
+  const d = parseDate(r.rel_date);
+  return !!d && d >= COUNT_START;
+}
+
+// The team a reviewer belongs to, or null if they are not a current member. Returning
+// null rather than defaulting matters: the old `|| 'Team 6'` fallback credited every
+// unrecognised reviewer, including former staff, to Vamshi's real team.
+function teamFor(name) {
+  return TEAM_MAP[name] || null;
+}
+
 // Reverse mapping: Team name to leader name
 const TEAM_LEADER_MAP = {
   'Team 1': 'Naveen',
@@ -2987,7 +3006,7 @@ function renderTeamWorkload(containerId, data) {
   // Order teams by TEAM_MEMBERS order
   const orderedTeams = TEAM_MEMBERS.filter(t => byEmp[t.label]).map(t => [t.label, byEmp[t.label]]);
   el.innerHTML = orderedTeams.map(([emp, reports])=>{
-    const teamTitle = TEAM_MAP[emp] || 'Team 6';
+    const teamTitle = teamFor(emp) || emp;
     const tc = teamColorFor(teamTitle);
     const cardStyle = `--accent-1:${tc.c1};--accent-2:${tc.c2};--accent-shadow:${tc.shadow};--accent-pill-bg:${tc.pillBg};--accent-pill-text:${tc.pillText};--accent-pill-border:${tc.pillBorder}`;
     return `
@@ -3426,7 +3445,7 @@ function renderTable(key) {
 
   let data = rows.filter(r=>getStatus(r)===cfg.status);
   if (test)     data = data.filter(r=>r.test===test);
-  if (team)     data = data.filter(r=>{ const emp = normalizeAnalystName(r.pri_rev) || 'Unassigned'; return (TEAM_MAP[emp] || 'Team 6') === team; });
+  if (team)     data = data.filter(r=>teamFor(normalizeAnalystName(r.pri_rev)) === team);
   if (ana)      data = data.filter(r=>extractAnalysts(r.analyst_raw).includes(ana));
   if (clientF)  data = data.filter(r=>{ const norm = normalizeClient(r.client) || ''; return norm === clientF; });
   if (reviewer) data = data.filter(r=>r.pri_rev===reviewer);
@@ -3549,7 +3568,7 @@ function updateRelCount() {
 
   let data = rows.filter(r=>getStatus(r)==='Released');
   if (test)     data = data.filter(r=>r.test===test);
-  if (team)     data = data.filter(r=>{ const emp = normalizeAnalystName(r.pri_rev) || 'Unassigned'; return (TEAM_MAP[emp] || 'Team 6') === team; });
+  if (team)     data = data.filter(r=>teamFor(normalizeAnalystName(r.pri_rev)) === team);
   if (ana)      data = data.filter(r=>extractAnalysts(r.analyst_raw).includes(ana));
   if (runF)     data = data.filter(r=>r.run_text===runF);
   if (clientF)  data = data.filter(r=>{ const norm = normalizeClient(r.client) || ''; return norm === clientF; });
@@ -4644,9 +4663,8 @@ function buildReviewerRingsHtml(teamCount, total, month, inThresholdWindow, high
 
 function _chart0Data(year, month) {
   const filtered = rows.filter(r => {
-    if (getStatus(r) !== 'Released') return false;
+    if (!inCountWindow(r)) return false;          // counts start March 2026
     const d = parseDate(r.rel_date);
-    if (!d) return false;
     const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
     const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
     return yearMatch && monthMatch;
@@ -4695,9 +4713,8 @@ function openReviewerRingModal(key, label) {
 
   // Get released samples for this reviewer
   const reviewerSamples = rows.filter(r => {
-    if (getStatus(r) !== 'Released') return false;
+    if (!inCountWindow(r)) return false;          // counts start March 2026
     const d = parseDate(r.rel_date);
-    if (!d) return false;
     const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
     const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
 
@@ -4754,21 +4771,21 @@ function openReviewerRingModal_BackToTeams() {
 
 function downloadReviewerCounts(label, key) {
   // Get all released data
-  const allReleased = rows.filter(r => getStatus(r) === 'Released');
+  const allReleased = rows.filter(inCountWindow);   // counts start March 2026
 
   // Get the team for this reviewer
   const emp = normalizeAnalystName(label) || label;
   let reviewerTeam = null;
   TEAM_MEMBERS.forEach(t => {
     if (t.label === label) {
-      reviewerTeam = TEAM_MAP[t.label] || 'Team 6';
+      reviewerTeam = teamFor(t.label) || t.label;
     }
   });
   if (!reviewerTeam) {
     // Try to find team from key
     TEAM_MEMBERS.forEach(t => {
       if (t.key === key) {
-        reviewerTeam = TEAM_MAP[t.label] || 'Team 6';
+        reviewerTeam = teamFor(t.label) || t.label;
       }
     });
   }
@@ -4842,9 +4859,8 @@ function downloadReviewerSamples(label, period) {
 
   // Get released samples for this reviewer
   const reviewerSamples = rows.filter(r => {
-    if (getStatus(r) !== 'Released') return false;
+    if (!inCountWindow(r)) return false;          // counts start March 2026
     const d = parseDate(r.rel_date);
-    if (!d) return false;
     const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
     const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
 
@@ -5079,9 +5095,8 @@ function downloadChart0Data() {
 
   // Get the filtered data using the same logic as the chart
   const filtered = rows.filter(r => {
-    if (getStatus(r) !== 'Released') return false;
+    if (!inCountWindow(r)) return false;          // counts start March 2026
     const d = parseDate(r.rel_date);
-    if (!d) return false;
     const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
     const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
     return yearMatch && monthMatch;
@@ -5112,7 +5127,7 @@ function downloadChart0Data() {
   let totalAdditional = 0;
 
   TEAM_MEMBERS.forEach(t => {
-    const teamName = TEAM_MAP[t.label] || 'Team 6';
+    const teamName = teamFor(t.label) || t.label;
     const cnt = teamCount[t.key] || 0;
     const target = TEAM_TARGETS[teamName] || 100;
     const additionalCount = Math.max(0, cnt - target);

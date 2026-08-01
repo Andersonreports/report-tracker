@@ -1999,7 +1999,8 @@ function mapRow(raw) {
   if (canon.ana_date) canon.ana_date = anaDate;
 
   // Release date judged against the corrected TAT — see resolveRelDate.
-  const relFixed = resolveRelDate(pick('rel_date', COL_MAP.rel_date), tatFixed);
+  const relFixed = RELDATE_FIX[genId] || RELDATE_FIX[andId] ||
+                   resolveRelDate(pick('rel_date', COL_MAP.rel_date), tatFixed);
   if (canon.rel_date) canon.rel_date = relFixed;
 
   const remarkRaw = pick('remark', COL_MAP.remark);
@@ -2037,6 +2038,99 @@ function mapRow(raw) {
     _canon:       canon,
   };
 }
+
+// Confirmed release dates from Team-wise-released-june-july.xlsx, keyed by Gen_ID or
+// Anderson_ID. That workbook lists only samples released in June and July 2026, and that
+// constraint resolves each of its own date cells: of the two readings of 06/08/2026, only
+// 8 June falls in the window, so the ambiguity disappears. Three entries whose year was
+// mistyped as 2027 are recovered the same way.
+//
+// Compared against Sheet1: 189 already agree and 81 do not, and those 81 are listed here.
+// They are overwhelmingly month-first cells the app was reading day-first — 06/08/2026 as
+// 6 August rather than 8 June — which is what moved them out of the month they belong to.
+const RELDATE_FIX = {
+  "GEN_T_2.0.spik_3885":"04-06-2026",
+  "GEN_T_2.0.spik_3896":"27-06-2026",
+  "GEN_T_2.0.spik_3904":"11-06-2026",
+  "GEN_T_2.0.spik_3905":"11-06-2026",
+  "GEN_T_2.0.spik_3916":"03-06-2026",
+  "GEN_T_2.0.spik_3928":"01-06-2026",
+  "GEN_T_2.0.spik_3949":"08-06-2026",
+  "GEN_T_2.0.spik_3953":"02-06-2026",
+  "GEN_T_2.0.spik_3957":"04-06-2026",
+  "GEN_T_2.0.spik_3968":"04-06-2026",
+  "GEN_T_2.0.spik_3969":"04-06-2026",
+  "GEN_T_2.0.spik_3991":"04-06-2026",
+  "GEN_T_2.0.spik_4001":"08-06-2026",
+  "GEN_T_2.0.spik_4004":"09-06-2026",
+  "GEN_T_2.0.spik_4008":"04-06-2026",
+  "GEN_T_2.0.spik_4031":"01-06-2026",
+  "GEN_T_2.0.spik_4037":"09-06-2026",
+  "GEN_T_2.0.spik_4044":"09-06-2026",
+  "GEN_T_2.0.spik_4109AF":"02-06-2026",
+  "GEN_T_2.0.spik_4148AF":"09-06-2026",
+  "GEN_T_2.0.spik_4189":"01-07-2026",
+  "GEN_T_2.0.spik_4220":"18-06-2026",
+  "GEN_T_2.0.spik_4227":"02-07-2026",
+  "GEN_T_2.0.spik_4246":"01-07-2026",
+  "GEN_T_2.0.spik_4257":"02-07-2026",
+  "GEN_T_2.0.spik_4258":"02-07-2026",
+  "GEN_T_2.0.spik_4303":"10-07-2026",
+  "GEN_T_2.0.spik_4310":"10-07-2026",
+  "GEN_T_2.0.spik_4312":"01-07-2026",
+  "GEN_T_2.0.spik_4313":"24-06-2026",
+  "GEN_T_2.0.spik_4314":"11-07-2026",
+  "GEN_T_2.0.spik_4319":"10-07-2026",
+  "GEN_T_2.0.spik_4322":"13-07-2026",
+  "GEN_T_2.0.spik_4323":"04-07-2026",
+  "GEN_T_2.0.spik_4324A":"04-07-2026",
+  "GEN_T_2.0.spik_4325A":"04-07-2026",
+  "GEN_T_2.0.spik_4335":"02-07-2026",
+  "GEN_T_2.0.spik_4349":"03-07-2026",
+  "GEN_T_2.0.spik_4350":"07-07-2026",
+  "GEN_T_2.0.spik_4352":"08-07-2026",
+  "GEN_T_2.0.spik_4354":"07-07-2026",
+  "GEN_T_2.0.spik_4356":"08-07-2026",
+  "GEN_T_2.0.spik_4357":"08-07-2026",
+  "GEN_T_2.0.spik_4359":"06-07-2026",
+  "GEN_T_2.0.spik_4360":"01-07-2026",
+  "GEN_T_2.0.spik_4363":"10-07-2026",
+  "GEN_T_2.0.spik_4364":"10-07-2026",
+  "GEN_T_2.0.spik_4369":"06-07-2026",
+  "GEN_T_2.0.spik_4370":"06-07-2026",
+  "GEN_T_2.0.spik_4388AF":"09-07-2026",
+  "GEN_T_2.0.spik_4388AF_A":"09-07-2026",
+  "GEN_T_2.0.spik_4390AF":"02-07-2026",
+  "GEN_T_2.0.spik_4415":"07-07-2026",
+  "GEN_T_2.0.spik_4453":"06-07-2026",
+  "GEN_T_2.0.spik_4454":"06-07-2026",
+  "GEN_T_2.0.spik_4455":"06-07-2026",
+  "GEN_T_2.0.spik_4456":"06-07-2026",
+  "GEN_T_2.0.spik_4457":"06-07-2026",
+  "GEN_T_2.0.spik_4458":"06-07-2026",
+  "GEN_T_2.0.spik_4460AF":"02-07-2026",
+  "GEN_T_2.0.spik_4461":"06-07-2026",
+  "GEN_T_2.0.spik_4462":"06-07-2026",
+  "GEN_T_2.0.spik_4513":"09-07-2026",
+  "GEN_T_2.0.spik_4558":"03-07-2026",
+  "GEN_T_2.0.spik_4571":"17-07-2026",
+  "GEN_T_2.0.spik_4586AF":"03-07-2026",
+  "GEN_T_2.0.spik_4589AF":"02-07-2026",
+  "GEN_T_2.0.spik_4642":"11-07-2026",
+  "GEN_T_2.0.spik_4645":"17-07-2026",
+  "GEN_T_2.0.spik_4697":"31-07-2026",
+  "GEN_T_2.0.spik_4704AF":"10-07-2026",
+  "GEN_T_2.0.spik_4705AF":"10-07-2026",
+  "GEN_T_2.0.spik_4706AF":"10-07-2026",
+  "GEN_T_2.0.spik_4737":"27-07-2026",
+  "GEN_T_2.0.spik_4738":"27-07-2026",
+  "GEN_T_2.0.spik_4777":"13-07-2026",
+  "GEN_T_2.0.spik_4783AF":"17-07-2026",
+  "GEN_T_2.0.spik_4811AF":"16-07-2026",
+  "GEN_T_2.0.spik_4967":"25-07-2026",
+  "GEN_T_2.0.spik_4968":"25-07-2026",
+  "GEN_T_2.0.spik_4969":"25-07-2026",
+};
 
 // A report is released on or after its own TAT, and in practice within a few months of
 // it — never two months before. So the TAT, now 98% right against the checklist, dates

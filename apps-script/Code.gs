@@ -18,13 +18,44 @@ function doGet(e) {
 
   // Unknown sheet → return an empty grid instead of throwing, so a missing
   // Re-analysis sheet never breaks the caller.
-  var data = sheet ? sheet.getDataRange().getDisplayValues() : [];
+  var data = sheet ? readGridDayFirst(sheet) : [];
 
   var output = JSON.stringify(data);
 
   return ContentService
     .createTextOutput(output)
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// Returns the sheet as text, but with every genuine date cell written day-first as
+// dd-MM-yyyy regardless of how that cell happens to be formatted.
+//
+// getDisplayValues() alone returns each cell exactly as the sheet renders it, and the
+// date columns do not share one format: a comparison against a pre-edit copy of the
+// workbook found 1797 date cells rendering day-first and 700 rendering month-first, all
+// 700 in ANALYZE DATE. The frontend reads a slash date day-first, so those 700 came
+// through with day and month swapped — 04/09/2026 read as 4 Sep when the cell held
+// 9 April. Nothing in the sheet was wrong; only the format differed.
+//
+// Formatting the real Date objects here removes the ambiguity at the source, so no cell
+// format can mislead the app again in any column. dd-MM-yyyy is deliberate: it is what
+// the frontend already expects, so this needs no matching change there. Cells holding
+// text rather than a date are passed through untouched.
+function readGridDayFirst(sheet) {
+  var range   = sheet.getDataRange();
+  var display = range.getDisplayValues();   // text, as rendered
+  var typed   = range.getValues();          // real types, so Dates are recognisable
+  var tz      = sheet.getParent().getSpreadsheetTimeZone();
+
+  for (var r = 0; r < typed.length; r++) {
+    for (var c = 0; c < typed[r].length; c++) {
+      var v = typed[r][c];
+      if (v instanceof Date && !isNaN(v.getTime())) {
+        display[r][c] = Utilities.formatDate(v, tz, 'dd-MM-yyyy');
+      }
+    }
+  }
+  return display;
 }
 
 // Routes writes coming from the Release Date picker on the Dashboard and the

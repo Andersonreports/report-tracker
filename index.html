@@ -1817,7 +1817,10 @@ const COL_MAP = {
 // the other columns along.
 const SHEET_SCHEMA = [
   { key:'run',          label:'RUN',                              derived:true },
-  { key:'sno',          label:'S.NO',                             aliases:['sno','serialno','slno','srno','serial'] },
+  // Dropped from the view and the export, but still resolved: S.No is part of the row
+  // identity sent back to Apps Script when writing Release Date and Remarks, and
+  // claiming the column here also keeps another key from matching it by accident.
+  { key:'sno',          label:'S.NO',                             aliases:['sno','serialno','slno','srno','serial'], hidden:true },
   { key:'name',         label:'Sample_Name',                      aliases:['samplename','patientname','sample','name'], critical:true },
   { key:'test',         label:'Test',                             aliases:['test','testname','testrequested'] },
   { key:'gen_id',       label:'Gen_ID',                           aliases:['genid','geneticid'] },
@@ -1829,25 +1832,30 @@ const SHEET_SCHEMA = [
   { key:'analyst',      label:'ANALYZE BY',                       aliases:['analyzeby','analysedby','analyzedby','analyseby','analystby','analyst'] },
   { key:'ana_date',     label:'ANALYZE DATE',                     aliases:['analyzedate','analysisdate','analyzeddate','analyseddate','dateofanalysis'] },
   // The Reviewer behind team workload, sample counts and getStatus — see `critical`.
-  // Aliases run specific → general so a precise header always wins, with the bare
-  // reviewer spellings as a safety net.
+  // Primary Reviewer and plain Reviewer are the same thing, so both spellings are
+  // normal aliases. Order runs specific → general, so a precise header always wins
+  // and the bare reviewer spellings act as a safety net.
   //
-  // Final Review is the same thing as Clinical Review, so an older section carrying
-  // only FINAL REVIEW still yields a reviewer. Those spellings sit in
-  // `fallbackAliases`, which is only consulted once the normal aliases have had their
-  // turn — so a section with both PRIMARY REVIWER and FINAL REVIEW takes the primary
-  // column, and Final Review is used only when there is no primary column at all.
+  // Final Reviewer is the same thing as Clinical Reviewer, so an older section
+  // carrying only FINAL REVIEW(ER) still yields a reviewer. Those spellings sit in
+  // `fallbackAliases`, consulted only once the normal aliases have had their turn — so
+  // a section with both PRIMARY REVIWER and FINAL REVIEW takes the primary column, and
+  // Final Reviewer is used only where there is no primary column at all.
   { key:'pri_rev',      label:'PRIMARY REVIWER  CLINICAL REVIEW',
     aliases:['primaryreviwerclinicalreview','primaryreviewerclinicalreview','primaryreviwer',
-             'primaryreviewer','primaryreview','clinicalreviwer','clinicalreview',
-             'reviewer','reviwer','reviewedby','reviewdby','reviewby','review'],
-    fallbackAliases:['finalclinicalreview','finalclinicalreviwer','finalreviewer',
+             'primaryreviewer','primaryreview','clinicalreviewer','clinicalreviwer',
+             'clinicalreview','reviewer','reviwer','reviewedby','reviewdby','reviewby','review'],
+    fallbackAliases:['finalclinicalreviewer','finalclinicalreview','finalreviewer',
                      'finalreviwer','finalreview','finalreviw','final'],
     critical:true },
   { key:'remark',       label:'REMARK',                           aliases:['remark','remarks','note','notes'] },
   { key:'rel_date',     label:'REPORT RELEASE DATE',              aliases:['reportreleasedate','releasedate','releasedon','reportrelease'] },
   { key:'history',      label:'History writeup',                  aliases:['historywriteup','history','writeup'] },
 ];
+
+// What the All Samples table and its Excel export actually show. Hidden columns are
+// still resolved and still carried on every row — they just aren't displayed.
+const SHEET_COLS = SHEET_SCHEMA.filter(c => !c.hidden);
 
 // Header text → comparison form: case-insensitive, punctuation- and space-blind, so
 // "TAT(30 Days)", "tat (30 days)" and "TAT 30 DAYS" all collapse to "tat30days".
@@ -1963,7 +1971,11 @@ function mapRow(raw) {
     gen_id:       pick('gen_id', COL_MAP.gen_id),
     and_id:       pick('and_id', COL_MAP.and_id),
     client:       pick('client', COL_MAP.client),
-    tat:          fmtDate(pick('tat', COL_MAP.tat)),
+    // Verbatim, exactly as the sheet has it — no reformatting. fmtDate would rewrite
+    // "1/7/2026" to "01-07-2026" and mangle "2026-07-30" into "2026-07-2030", and the
+    // column can hold a day count rather than a date anyway. parseDate still reads all
+    // these forms, so the overdue maths and the month/year filters are unaffected.
+    tat:          pick('tat', COL_MAP.tat),
     bioinfo_time: canon.bioinfo_time || '',
     rep_exp:      pick('rep_exp', COL_MAP.rep_exp),
     analyst:      analystClean,
@@ -3041,7 +3053,7 @@ function buildModalTable(data, cols, applyStatusColors = false) {
     if (c==='assign_date') return `<td class="${cls} col-date">${v?fmtDate(v):'<span class="muted-val">—</span>'}</td>`;
     if (c==='rel_date') return `<td class="${cls} col-date">${fmtRelDate(v, r)}</td>`;
     if (c==='ana_date') return `<td class="${cls} col-date">${fmtDate(v)}</td>`;
-    if (c==='tat') return `<td class="${cls} muted-val">${fmtDate(v)}</td>`;
+    if (c==='tat') return `<td class="${cls} muted-val">${esc(v)||'—'}</td>`;   // verbatim, as the sheet has it
     if (c==='_status') { const st=getStatus(r); return `<td class="${cls}">${badgeHtml(st)}</td>`; }
     if (c==='_rel') { const st=getStatus(r); return `<td class="${cls} col-date">${st==='Released'?fmtRelDate(r.rel_date,r):'<span class="muted-val">—</span>'}</td>`; }
     return `<td class="${cls}" title="${esc(v)}">${esc(v)||'—'}</td>`;
@@ -3063,11 +3075,11 @@ function schemaCell(r, col) {
 function buildFullSheetTable(data) {
   if (!data.length) return `<div class="empty" style="padding:40px"><div class="ei">${IC.inbox}</div><p>No records</p></div>`;
   const cls = c => c.key === 'run' ? 'col-w-run' : c.key === 'name' ? 'col-w-name' : '';
-  const ths = SHEET_SCHEMA.map(c=>`<th class="${cls(c)}">${esc(c.label)}</th>`).join('');
+  const ths = SHEET_COLS.map(c=>`<th class="${cls(c)}">${esc(c.label)}</th>`).join('');
   const trs = data.map(r=>{
     const st = getStatus(r);
     const rowClass = st==='Released' ? 'row-status-released' : st==='Ongoing' ? 'row-status-ongoing' : 'row-status-yet';
-    const tds = SHEET_SCHEMA.map(c=>{
+    const tds = SHEET_COLS.map(c=>{
       const v = schemaCell(r, c);
       const style = c.key === 'name' ? ' style="font-weight:600;color:var(--text)"' : '';
       // title only where it earns its bytes — the name column ellipsizes, and long
@@ -3163,7 +3175,7 @@ function filterAllSamples() {
   // The whole schema is on screen, so free-text search spans every column of it,
   // case-insensitively — including RUN.
   if (q)       data = data.filter(r=>
-    SHEET_SCHEMA.some(c => schemaCell(r, c).toLowerCase().includes(q))
+    SHEET_COLS.some(c => schemaCell(r, c).toLowerCase().includes(q))
   );
 
   _allModalView = data;
@@ -3186,7 +3198,7 @@ function downloadAllSamplesExcel() {
   try {
     if (typeof XLSX === 'undefined') { toast('SheetJS not loaded — refresh the page', 'err'); return; }
 
-    const cols = SHEET_SCHEMA;
+    const cols = SHEET_COLS;
     const data = _allModalView;
     if (!data.length) { toast('No samples to export', 'warn'); return; }
 
@@ -3463,7 +3475,7 @@ function renderTable(key) {
     if (c==='rel_date') return `<td class="${cls} col-date">${fmtRelDate(v, r)}</td>`;
     if (c==='ana_date') return `<td class="${cls} col-date">${fmtDate(v)}</td>`;
     if (c==='pri_rev'||c==='final') return `<td class="${cls}">${v?`<span class="badge b-cmp">${IC.check} ${fmtDate(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;
-    if (c==='tat') return `<td class="${cls} muted-val">${fmtDate(v)}</td>`;
+    if (c==='tat') return `<td class="${cls} muted-val">${esc(v)||'—'}</td>`;   // verbatim, as the sheet has it
     if (c==='_remove') return `<td class="${cls}"><button type="button" class="rel-remove-btn" title="Remove from Released"
         data-gen-id="${esc(r.gen_id)}" data-and-id="${esc(r.and_id)}" data-run-text="${esc(r.run_text)}" data-sno="${esc(r.sno)}"
         onclick="event.stopPropagation();removeFromReleased(this)">
@@ -3934,7 +3946,7 @@ function renderOverdue() {
     const cls = getColClass(c);
     if (c==='name')    return `<td class="${cls} col-name" title="${esc(v)}">${esc(v)||'—'}</td>`;
     if (c==='gen_id'||c==='and_id') return `<td class="${cls}" title="${esc(v)}"><span class="col-mono">${esc(v)||'—'}</span></td>`;
-    if (c==='tat')     return `<td class="${cls} muted-val">${fmtDate(v)}</td>`;
+    if (c==='tat')     return `<td class="${cls} muted-val">${esc(v)||'—'}</td>`;   // verbatim, as the sheet has it
     if (c==='_status') { const st=getStatus(r); return `<td class="${cls}">${badgeHtml(st)}</td>`; }
     if (c==='_overdue_days') return `<td class="${cls}"><span style="background:rgba(239,68,68,.15);color:#b91c1c;padding:2px 8px;border-radius:6px;font-weight:600;font-size:12px">${r._overdue_days}d</span></td>`;
     if (c==='pri_rev') return `<td class="${cls}">${v?`<span class="analyst-pill">${IC.user} ${esc(v)}</span>`:`<span class="muted-val">—</span>`}</td>`;

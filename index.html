@@ -1817,7 +1817,10 @@ const COL_MAP = {
 // the other columns along.
 const SHEET_SCHEMA = [
   { key:'run',          label:'RUN',                              derived:true },
-  { key:'sno',          label:'S.NO',                             aliases:['sno','serialno','slno','srno','serial'] },
+  // Dropped from the view and the export, but still resolved: r.sno is part of the row
+  // identity posted back to Apps Script when writing Release Date and Remarks, and
+  // claiming the column here also stops another key matching it by accident.
+  { key:'sno',          label:'S.NO',                             aliases:['sno','serialno','slno','srno','serial'], hidden:true },
   { key:'name',         label:'Sample_Name',                      aliases:['samplename','patientname','sample','name'], critical:true },
   { key:'test',         label:'Test',                             aliases:['test','testname','testrequested'] },
   { key:'gen_id',       label:'Gen_ID',                           aliases:['genid','geneticid'] },
@@ -1841,6 +1844,10 @@ const SHEET_SCHEMA = [
   { key:'rel_date',     label:'REPORT RELEASE DATE',              aliases:['reportreleasedate','releasedate','releasedon','reportrelease'] },
   { key:'history',      label:'History writeup',                  aliases:['historywriteup','history','writeup'] },
 ];
+
+// What the All Samples table and its Excel export show. Hidden columns are still
+// resolved and still carried on every row — they just are not displayed.
+const SHEET_COLS = SHEET_SCHEMA.filter(c => !c.hidden);
 
 // Header text → comparison form: case-insensitive, punctuation- and space-blind, so
 // "TAT(30 Days)", "tat (30 days)" and "TAT 30 DAYS" all collapse to "tat30days".
@@ -2031,14 +2038,15 @@ function mapRow(raw) {
 // Sheet1's TAT column mixes day-first and month-first cell formats, and the app only
 // receives text, so 07/12/2026 is undecidable from the sheet alone. Checked against the
 // per-run checklist workbook, which holds the true TAT for every sample from Run 51:
-// 1347 cells already read correctly, 690 read with day and month swapped. Those 690 are
+// 1346 cells already read correctly, 658 read with day and month swapped. Those are
 // listed here. The split is mixed inside single runs — Run 70 has 19 correct and 20
 // swapped — so no rule based on run number or column can separate them; it has to be
 // per sample.
 //
 // A further 128 samples have a TAT in the checklist that differs from Sheet1 by more
 // than a swap, which looks like re-runs carrying a new TAT. Those are deliberately left
-// alone rather than overwritten.
+// alone rather than overwritten, and 34 whose corrected value is itself implausible
+// (Sep 2026 onward, one reading 3036) are skipped rather than trusted.
 //
 // This corrects existing samples only. New ones will be read from whatever format their
 // cell carries, so formatting the TAT column as DD-MM-YYYY in Sheet1 is still what stops
@@ -2074,7 +2082,6 @@ const TAT_FIX = {
   "GEN_T_2.0.spik_2881":"12-02-2026",
   "GEN_T_2.0.spik_2882":"12-02-2026",
   "GEN_T_2.0.spik_2883":"12-02-2026",
-  "GEN_T_2.0.spik_2923":"03-02-2026",
   "GEN_T_2.0.spik_2926":"10-02-2026",
   "GEN_T_2.0.spik_2927":"10-02-2026",
   "GEN_T_2.0.spik_2928":"10-02-2026",
@@ -2481,7 +2488,6 @@ const TAT_FIX = {
   "GEN_T_2.0.spik_3869":"10-05-2026",
   "GEN_T_2.0.spik_3926":"12-05-2026",
   "GEN_T_2.0.spik_3927":"12-05-2026",
-  "GEN_T_2.0.spik_3941AF":"07-04-2026",
   "GEN_T_2.0.spik_3946":"01-06-2026",
   "GEN_T_2.0.spik_3947":"01-06-2026",
   "GEN_T_2.0.spik_3948":"01-06-2026",
@@ -2541,28 +2547,17 @@ const TAT_FIX = {
   "GEN_T_2.0.spik_4085":"06-07-2026",
   "GEN_T_2.0.spik_4086":"06-08-2026",
   "GEN_T_2.0.spik_4087":"06-08-2026",
-  "GEN_T_2.0.spik_4088":"06-10-2026",
   "GEN_T_2.0.spik_4089":"06-08-2026",
-  "GEN_T_2.0.spik_4090":"06-10-2026",
-  "GEN_T_2.0.spik_4091":"06-10-2026",
   "GEN_T_2.0.spik_4092":"06-04-2026",
   "GEN_T_2.0.spik_4093":"06-04-2026",
   "GEN_T_2.0.spik_4094":"06-04-2026",
   "GEN_T_2.0.spik_4095":"06-04-2026",
   "GEN_T_2.0.spik_4096":"06-04-2026",
   "GEN_T_2.0.spik_4097":"06-04-2026",
-  "GEN_T_2.0.spik_4098":"06-10-2026",
-  "GEN_T_2.0.spik_4099":"06-10-2026",
-  "GEN_T_2.0.spik_4100":"06-10-2026",
   "GEN_T_2.0.spik_4101":"06-05-2026",
-  "GEN_T_2.0.spik_4102":"06-11-2026",
-  "GEN_T_2.0.spik_4103":"06-11-2026",
   "GEN_T_2.0.spik_4106":"06-05-2026",
   "GEN_T_2.0.spik_4107":"06-05-2026",
   "GEN_T_2.0.spik_4108":"06-05-2026",
-  "GEN_T_2.0.spik_4148AF":"06-12-2026",
-  "GEN_T_2.0.spik_4150":"06-10-2026",
-  "GEN_T_2.0.spik_4151":"06-12-2026",
   "GEN_T_2.0.spik_4152":"06-08-2026",
   "GEN_T_2.0.spik_4153":"06-03-2026",
   "GEN_T_2.0.spik_4154":"06-03-2026",
@@ -2573,27 +2568,7 @@ const TAT_FIX = {
   "GEN_T_2.0.spik_4159":"06-08-2026",
   "GEN_T_2.0.spik_4160":"06-08-2026",
   "GEN_T_2.0.spik_4161":"06-08-2026",
-  "GEN_T_2.0.spik_4164":"06-12-2026",
-  "GEN_T_2.0.spik_4165":"06-12-2026",
-  "GEN_T_2.0.spik_4166":"06-12-2026",
-  "GEN_T_2.0.spik_4167":"06-12-2026",
-  "GEN_T_2.0.spik_4168":"06-12-2026",
-  "GEN_T_2.0.spik_4169":"06-12-2026",
   "GEN_T_2.0.spik_4171":"06-09-2026",
-  "GEN_T_2.0.spik_4179":"06-10-2026",
-  "GEN_T_2.0.spik_4180":"06-10-2026",
-  "GEN_T_2.0.spik_4181":"06-10-2026",
-  "GEN_T_2.0.spik_4182":"06-10-2026",
-  "GEN_T_2.0.spik_4183":"06-10-2026",
-  "GEN_T_2.0.spik_4185":"06-12-2026",
-  "GEN_T_2.0.spik_4190":"06-12-2026",
-  "GEN_T_2.0.spik_4191":"06-12-2026",
-  "GEN_T_2.0.spik_4192":"06-12-2026",
-  "GEN_T_2.0.spik_4193":"06-12-2026",
-  "GEN_T_2.0.spik_4194":"06-12-2026",
-  "GEN_T_2.0.spik_4195":"06-12-2026",
-  "GEN_T_2.0.spik_4196":"06-12-2026",
-  "GEN_T_2.0.spik_4197":"06-12-2026",
   "GEN_T_2.0.spik_4210":"04-06-2026",
   "GEN_T_2.0.spik_4211":"04-06-2026",
   "GEN_T_2.0.spik_4212":"04-06-2026",
@@ -3879,11 +3854,11 @@ function schemaCell(r, col) {
 function buildFullSheetTable(data) {
   if (!data.length) return `<div class="empty" style="padding:40px"><div class="ei">${IC.inbox}</div><p>No records</p></div>`;
   const cls = c => c.key === 'run' ? 'col-w-run' : c.key === 'name' ? 'col-w-name' : '';
-  const ths = SHEET_SCHEMA.map(c=>`<th class="${cls(c)}">${esc(c.label)}</th>`).join('');
+  const ths = SHEET_COLS.map(c=>`<th class="${cls(c)}">${esc(c.label)}</th>`).join('');
   const trs = data.map(r=>{
     const st = getStatus(r);
     const rowClass = st==='Released' ? 'row-status-released' : st==='Ongoing' ? 'row-status-ongoing' : 'row-status-yet';
-    const tds = SHEET_SCHEMA.map(c=>{
+    const tds = SHEET_COLS.map(c=>{
       const v = schemaCell(r, c);
       const style = c.key === 'name' ? ' style="font-weight:600;color:var(--text)"' : '';
       // title only where it earns its bytes — the name column ellipsizes, and long
@@ -3979,7 +3954,7 @@ function filterAllSamples() {
   // The whole schema is on screen, so free-text search spans every column of it,
   // case-insensitively — including RUN.
   if (q)       data = data.filter(r=>
-    SHEET_SCHEMA.some(c => schemaCell(r, c).toLowerCase().includes(q))
+    SHEET_COLS.some(c => schemaCell(r, c).toLowerCase().includes(q))
   );
 
   _allModalView = data;
@@ -4002,7 +3977,7 @@ function downloadAllSamplesExcel() {
   try {
     if (typeof XLSX === 'undefined') { toast('SheetJS not loaded — refresh the page', 'err'); return; }
 
-    const cols = SHEET_SCHEMA;
+    const cols = SHEET_COLS;
     const data = _allModalView;
     if (!data.length) { toast('No samples to export', 'warn'); return; }
 
@@ -5462,6 +5437,22 @@ function buildReviewerRingsHtml(teamCount, total, month, inThresholdWindow, high
   }).join('');
 }
 
+// A Single Gene test is a third of a report's work, so three of them count as one.
+// Matched after normalizeTestName has title-cased the value, which folds the four
+// spellings in the sheet into the same form.
+const SINGLE_GENE_RE = /single\s*gene/i;
+const SINGLE_GENE_PER_COUNT = 3;
+
+function isSingleGene(r) {
+  return SINGLE_GENE_RE.test(String((r && r.test) || ''));
+}
+
+// Whole reports plus completed Single Gene groups. Floor division, matching the
+// Re-analysis rule: a leftover one or two do not count until the group of three is full.
+function countWithSingleGene(whole, singleGene) {
+  return whole + Math.floor(singleGene / SINGLE_GENE_PER_COUNT);
+}
+
 function _chart0Data(year, month) {
   const filtered = rows.filter(r => {
     if (getStatus(r) !== 'Released') return false;
@@ -5472,12 +5463,19 @@ function _chart0Data(year, month) {
     return yearMatch && monthMatch;
   });
 
-  const teamCount = {};
-  TEAM_MEMBERS.forEach(t => { teamCount[t.key] = 0; });
+  // Single Gene tests are tallied apart so three of them can count as one.
+  const whole = {}, singleGene = {};
+  TEAM_MEMBERS.forEach(t => { whole[t.key] = 0; singleGene[t.key] = 0; });
   filtered.forEach(r => {
     const rv = String(r.pri_rev || '').toLowerCase().trim();
-    TEAM_MEMBERS.forEach(t => { if (rv.includes(t.key)) teamCount[t.key]++; });
+    const sg = isSingleGene(r);
+    TEAM_MEMBERS.forEach(t => {
+      if (!rv.includes(t.key)) return;
+      if (sg) singleGene[t.key]++; else whole[t.key]++;
+    });
   });
+  const teamCount = {};
+  TEAM_MEMBERS.forEach(t => { teamCount[t.key] = countWithSingleGene(whole[t.key], singleGene[t.key]); });
 
   const THRESHOLD_YEAR = 2026, THRESHOLD_MONTH_IDX = MONTH_LABELS.indexOf('Jun');
   const yearNum = parseInt(year, 10);
@@ -5485,7 +5483,11 @@ function _chart0Data(year, month) {
   const inThresholdWindow = year !== 'All' && month !== 'All' &&
     (yearNum > THRESHOLD_YEAR || (yearNum === THRESHOLD_YEAR && monthIdx >= THRESHOLD_MONTH_IDX));
 
-  return { total: filtered.length, teamCount: foldVikram(teamCount, year, month), inThresholdWindow };
+  // Total counted the same way, so it stays comparable with the rings.
+  const sgTotal = filtered.filter(isSingleGene).length;
+  const total = countWithSingleGene(filtered.length - sgTotal, sgTotal);
+
+  return { total, teamCount: foldVikram(teamCount, year, month), inThresholdWindow };
 }
 
 function anDrawChart0() {
@@ -5908,12 +5910,19 @@ function downloadChart0Data() {
   });
 
   // Build team count data
-  const teamCount = {};
-  TEAM_MEMBERS.forEach(t => { teamCount[t.key] = 0; });
+  // Single Gene tests are tallied apart so three of them can count as one.
+  const whole = {}, singleGene = {};
+  TEAM_MEMBERS.forEach(t => { whole[t.key] = 0; singleGene[t.key] = 0; });
   filtered.forEach(r => {
     const rv = String(r.pri_rev || '').toLowerCase().trim();
-    TEAM_MEMBERS.forEach(t => { if (rv.includes(t.key)) teamCount[t.key]++; });
+    const sg = isSingleGene(r);
+    TEAM_MEMBERS.forEach(t => {
+      if (!rv.includes(t.key)) return;
+      if (sg) singleGene[t.key]++; else whole[t.key]++;
+    });
   });
+  const teamCount = {};
+  TEAM_MEMBERS.forEach(t => { teamCount[t.key] = countWithSingleGene(whole[t.key], singleGene[t.key]); });
 
   // Prepare data for Excel
   const excelData = [];

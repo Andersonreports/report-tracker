@@ -5752,10 +5752,13 @@ function showsVikram(year, month) {
 
 // Folds Vikram into Nikhil for any period after the change, so the rings always add up
 // to the total no matter which month is selected.
+// From July 2026 Vikram no longer has his own ring. His samples are NOT added to
+// Nikhil's: the rings count one reviewer's own work, and crediting Vikram's reviews to
+// Nikhil inflated him — 75 against the 68 he actually reviewed in July. His remaining
+// samples still count in the period total, they just belong to no ring.
 function foldVikram(teamCount, year, month) {
   if (showsVikram(year, month)) return teamCount;
   const out = { ...teamCount };
-  out.nikhil = (out.nikhil || 0) + (out.vikram || 0);
   delete out.vikram;
   return out;
 }

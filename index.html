@@ -2073,8 +2073,11 @@ function parseDate(v) {
     if (month !== -1) return new Date(year, month, day);
   }
 
-  // Format: DD-MM-YYYY or DD/MM/YYYY or DD-MM-YY or DD.MM.YYYY
-  const parts = s.split(/[\-\/\.]/);
+  // Format: DD-MM-YYYY or DD/MM/YYYY or DD-MM-YY or DD.MM.YYYY or DD_MM_YY
+  // Underscore included because 54 release dates are written 19_06_26; without it they
+  // parse as nothing and the sample is counted in no month at all. Day-first order is
+  // unchanged — this only makes a previously unreadable date readable.
+  const parts = s.split(/[\-\/\._]/);
   if (parts.length >= 3) {
     const day = parseInt(parts[0], 10);
     const month = parseInt(parts[1], 10) - 1;
@@ -2990,7 +2993,10 @@ const TEAM_MAP = {
   'Diwakar':   'Team 4',
   'Gayathri':  'Team 5',
   'Vamshi':    'Team 6',
-  'Nikhil':    'Team 7'
+  'Nikhil':    'Team 7',
+  // Vikram sits in Nikhil's team. He is shown as his own ring up to June 2026 and folded
+  // into Nikhil's count from July, when the team structure became the current seven.
+  'Vikram':    'Team 7'
 };
 
 // Reverse mapping: Team name to leader name
@@ -4157,7 +4163,7 @@ function fmtDate(v) {
   const s = String(v).trim();
   if (s === '-' || s === '—') return '—';
 
-  const parts = s.split(/[\-\/\.]/);
+  const parts = s.split(/[\-\/\._]/);
   if (parts.length >= 3) {
     const d = parts[0].padStart(2, '0');
     const m = parts[1].padStart(2, '0');
@@ -4339,6 +4345,7 @@ const TEAM_MEMBERS = [
   { key: 'gayathri', label: 'Gayathri',  color: '#ec4899' },
   { key: 'vamshi',   label: 'Vamshi',    color: '#f97316' },
   { key: 'nikhil',   label: 'Nikhil',    color: '#8b5cf6' },
+  { key: 'vikram',   label: 'Vikram',    color: '#0ea5e9', untilJun2026: true },
 ];
 const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -4662,8 +4669,32 @@ const TARGET_BADGE_HTML = `<div class="ata-badge"><svg width="13" height="13" vi
 
 // Shared by the main chart and the click-through modal: one DNA helix ring per
 // team member. `highlightKey` (optional) outlines that one reviewer's card.
-function buildReviewerRingsHtml(teamCount, total, month, inThresholdWindow, highlightKey) {
-  return TEAM_MEMBERS.map(t => {
+// Vikram reviewed up to June 2026; from July the teams are the current seven, so his
+// ring is dropped and his samples counted under Nikhil, whose team he belongs to. A
+// period that spans or predates the change still shows him, so his work is never hidden.
+function showsVikram(year, month) {
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  if (year === 'All') return true;
+  const y = parseInt(year, 10);
+  if (isNaN(y) || y < 2026) return true;
+  if (y > 2026) return false;
+  if (month === 'All') return true;
+  const mi = MON.indexOf(month);
+  return mi === -1 ? true : mi <= 5;          // Jan..Jun 2026
+}
+
+// Folds Vikram into Nikhil for any period after the change, so the rings always add up
+// to the total no matter which month is selected.
+function foldVikram(teamCount, year, month) {
+  if (showsVikram(year, month)) return teamCount;
+  const out = { ...teamCount };
+  out.nikhil = (out.nikhil || 0) + (out.vikram || 0);
+  delete out.vikram;
+  return out;
+}
+
+function buildReviewerRingsHtml(teamCount, total, month, inThresholdWindow, highlightKey, year) {
+  return TEAM_MEMBERS.filter(t => !t.untilJun2026 || showsVikram(year === undefined ? 'All' : year, month)).map(t => {
     const cnt = teamCount[t.key] || 0;
     // Fixed 100-sample target only applies to a single selected month; when
     // viewing "All" months, fall back to share-of-total so the ring still
@@ -4713,7 +4744,7 @@ function _chart0Data(year, month) {
   const inThresholdWindow = year !== 'All' && month !== 'All' &&
     (yearNum > THRESHOLD_YEAR || (yearNum === THRESHOLD_YEAR && monthIdx >= THRESHOLD_MONTH_IDX));
 
-  return { total: filtered.length, teamCount, inThresholdWindow };
+  return { total: filtered.length, teamCount: foldVikram(teamCount, year, month), inThresholdWindow };
 }
 
 function anDrawChart0() {
@@ -4728,7 +4759,7 @@ function anDrawChart0() {
 
   chartBody.innerHTML = `
     <div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:space-evenly;align-items:flex-start;padding:24px 16px">
-      ${buildReviewerRingsHtml(teamCount, total, month, inThresholdWindow, null)}
+      ${buildReviewerRingsHtml(teamCount, total, month, inThresholdWindow, null, year)}
     </div>`;
 
   // Clear old legend — info is inside donuts
@@ -4796,7 +4827,7 @@ function openReviewerRingModal_BackToTeams() {
   document.getElementById('qmodal-count').textContent = ` · all teams`;
   document.getElementById('qmodal-body').innerHTML = `
     <div style="display:flex;flex-wrap:wrap;gap:24px;justify-content:center;align-items:flex-start;padding:28px;overflow:auto">
-      ${buildReviewerRingsHtml(teamCount, total, month, inThresholdWindow, null)}
+      ${buildReviewerRingsHtml(teamCount, total, month, inThresholdWindow, null, year)}
     </div>`;
 }
 

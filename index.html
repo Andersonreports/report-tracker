@@ -2007,7 +2007,7 @@ function mapRow(raw) {
   const genId = pick('gen_id', COL_MAP.gen_id);
   const andId = pick('and_id', COL_MAP.and_id);
   // TAT from the checklist where this sample's cell was read with day and month swapped.
-  const tatFixed = TAT_FIX[genId] || TAT_FIX[andId] ||
+  const tatFixed = fixFor(TAT_FIX, genId, andId) ||
                    resolveTat(pick('tat', COL_MAP.tat), parseInt(raw._run_num || 0, 10) || 0);
   if (canon.tat) canon.tat = tatFixed;
 
@@ -2017,7 +2017,7 @@ function mapRow(raw) {
 
   // Release date judged against the corrected TAT — see resolveRelDate.
   const runNum = parseInt(raw._run_num || 0, 10) || 0;
-  let relFixed = RELDATE_FIX[genId] || RELDATE_FIX[andId] ||
+  let relFixed = fixFor(RELDATE_FIX, genId, andId) ||
                  resolveRelDate(pick('rel_date', COL_MAP.rel_date), tatFixed, runNum);
 
   // Up to Run 54 the release-date column was not kept reliably — 130 of those samples
@@ -2270,6 +2270,17 @@ function resolveTat(v, runNum) {
   const credible = d => !!d && d >= lo && d <= hi;
   if (!credible(dayFirst) && credible(monthFirst)) return flipped;
   return fmtDate(s);
+}
+
+// Both correction tables are keyed by Gen_ID where the sample has one and by Anderson_ID
+// only where it does not. So a row that has a Gen_ID must never fall back to its
+// Anderson_ID: that key can only belong to a different sample. Some rows carry a
+// placeholder there rather than an ID — "CMC", "cmc endocrinology", "Internal",
+// "sachin sir case will be billed" — and 12 Run-63B rows were taking their TAT from
+// whichever CMC row happened to define the key, turning 16/03/2026 into 03-03-2026.
+function fixFor(table, genId, andId) {
+  if (genId) return table[genId];
+  return table[andId];
 }
 
 // Correct TAT dates from the per-run checklist workbook, keyed by Gen_ID (or Anderson_ID

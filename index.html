@@ -5752,15 +5752,23 @@ function showsVikram(year, month) {
 
 // Folds Vikram into Nikhil for any period after the change, so the rings always add up
 // to the total no matter which month is selected.
-// From July 2026 Vikram no longer has his own ring. His samples are NOT added to
-// Nikhil's: the rings count one reviewer's own work, and crediting Vikram's reviews to
-// Nikhil inflated him — 75 against the 68 he actually reviewed in July. His remaining
-// samples still count in the period total, they just belong to no ring.
+// From July 2026 Vikram has no ring of his own and his samples belong to Nikhil's team,
+// so his count is added to Nikhil's.
 function foldVikram(teamCount, year, month) {
   if (showsVikram(year, month)) return teamCount;
   const out = { ...teamCount };
+  out.nikhil = (out.nikhil || 0) + (out.vikram || 0);
   delete out.vikram;
   return out;
+}
+
+// Which reviewer cells a ring covers. Nikhil's ring absorbs Vikram once Vikram stops
+// having his own, so the sample list behind the ring has to match: without this the
+// August ring read 2 while clicking it showed no records, because both samples were
+// Vikram's and the list only looked for Nikhil.
+function ringReviewerKeys(key, year, month) {
+  if (key === 'nikhil' && !showsVikram(year, month)) return ['nikhil', 'vikram'];
+  return [key];
 }
 
 function buildReviewerRingsHtml(teamCount, total, month, inThresholdWindow, highlightKey, year) {
@@ -5878,7 +5886,7 @@ function openReviewerRingModal(key, label) {
     const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
 
     const rv = String(r.pri_rev || '').toLowerCase().trim();
-    const reviewerMatch = rv.includes(key);
+    const reviewerMatch = ringReviewerKeys(key, year, month).some(k => rv.includes(k));
 
     return yearMatch && monthMatch && reviewerMatch;
   }).sort((a, b) => {
@@ -6025,7 +6033,7 @@ function downloadReviewerSamples(label, period) {
     const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
 
     const rv = String(r.pri_rev || '').toLowerCase().trim();
-    const reviewerMatch = rv.includes(key);
+    const reviewerMatch = ringReviewerKeys(key, year, month).some(k => rv.includes(k));
 
     return yearMatch && monthMatch && reviewerMatch;
   }).sort((a, b) => {

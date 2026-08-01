@@ -556,6 +556,7 @@
     .pm-fbtn:hover{border-color:var(--pri);color:var(--pri)}
     .pm-fbtn.active{background:var(--pri);color:#fff;border-color:var(--pri)}
 
+
     /* ── RESPONSIVE ── */
 
     /* Tablet */
@@ -1389,6 +1390,8 @@
     <div class="tbl-wrap glass"><div id="tbl-asgn"></div></div>
   </div>
 
+
+
   <!-- ══ RELEASED ══ -->
   <div id="page-released" class="page">
     <!-- Smart search bar + count -->
@@ -1731,6 +1734,7 @@
     <div class="tbl-wrap glass"><div id="ra-table"></div></div>
   </div>
 
+
 </main>
 
 <!-- ╔═ LOADING OVERLAY ═╗ -->
@@ -1813,10 +1817,7 @@ const COL_MAP = {
 // the other columns along.
 const SHEET_SCHEMA = [
   { key:'run',          label:'RUN',                              derived:true },
-  // Dropped from the view and the export, but still resolved: S.No is part of the row
-  // identity sent back to Apps Script when writing Release Date and Remarks, and
-  // claiming the column here also keeps another key from matching it by accident.
-  { key:'sno',          label:'S.NO',                             aliases:['sno','serialno','slno','srno','serial'], hidden:true },
+  { key:'sno',          label:'S.NO',                             aliases:['sno','serialno','slno','srno','serial'] },
   { key:'name',         label:'Sample_Name',                      aliases:['samplename','patientname','sample','name'], critical:true },
   { key:'test',         label:'Test',                             aliases:['test','testname','testrequested'] },
   { key:'gen_id',       label:'Gen_ID',                           aliases:['genid','geneticid'] },
@@ -1827,34 +1828,19 @@ const SHEET_SCHEMA = [
   { key:'rep_exp',      label:'Repeat Expansion',                 aliases:['repeatexpansion','repeat'] },
   { key:'analyst',      label:'ANALYZE BY',                       aliases:['analyzeby','analysedby','analyzedby','analyseby','analystby','analyst'] },
   { key:'ana_date',     label:'ANALYZE DATE',                     aliases:['analyzedate','analysisdate','analyzeddate','analyseddate','dateofanalysis'] },
-  // Reviewer and Clinical Reviewer are two separate columns.
-  //
-  // Reviewer (= Primary Reviewer) is the one behind team workload, the sample counts
-  // and getStatus, hence `critical`. `avoid` is a prefix test: it stops the deliberately
-  // greedy bare spellings ('reviewer', 'review') from claiming a Clinical or Final
-  // column, which would silently swap the two. The combined
-  // "PRIMARY REVIWER  CLINICAL REVIEW" header some sheets still use begins with
-  // 'primary', so it is not blocked and continues to resolve here.
-  { key:'pri_rev',      label:'PRIMARY REVIWER',
+  // The Reviewer behind team workload, sample counts and getStatus — see `critical`.
+  // Aliases run specific → general so a precise header always wins; the bare
+  // reviewer spellings at the end are the safety net. `avoid` keeps a FINAL REVIEW /
+  // FINAL REVIEWER / "Final Clinical Review" column from being taken as this one.
+  { key:'pri_rev',      label:'PRIMARY REVIWER  CLINICAL REVIEW',
     aliases:['primaryreviwerclinicalreview','primaryreviewerclinicalreview','primaryreviwer',
-             'primaryreviewer','primaryreview','reviewer','reviwer','reviewedby',
-             'reviewdby','reviewby','review'],
-    avoid:['clinical','final'], critical:true },
-  // Clinical Reviewer (= Final Reviewer) — the older FINAL REVIEW column is this one,
-  // so those spellings sit in `fallbackAliases` and are only tried once the clinical
-  // spellings have had their turn. Not `critical`: older runs legitimately lack it.
-  { key:'clin_rev',     label:'CLINICAL REVIEW',
-    aliases:['clinicalreviewer','clinicalreviwer','clinicalreview'],
-    fallbackAliases:['finalclinicalreviewer','finalclinicalreview','finalreviewer',
-                     'finalreviwer','finalreview','finalreviw','final'] },
+             'primaryreviewer','primaryreview','clinicalreviwer','clinicalreview',
+             'reviewer','reviwer','reviewedby','reviewdby','reviewby','review'],
+    avoid:['final'], critical:true },
   { key:'remark',       label:'REMARK',                           aliases:['remark','remarks','note','notes'] },
   { key:'rel_date',     label:'REPORT RELEASE DATE',              aliases:['reportreleasedate','releasedate','releasedon','reportrelease'] },
   { key:'history',      label:'History writeup',                  aliases:['historywriteup','history','writeup'] },
 ];
-
-// What the All Samples table and its Excel export actually show. Hidden columns are
-// still resolved and still carried on every row — they just aren't displayed.
-const SHEET_COLS = SHEET_SCHEMA.filter(c => !c.hidden);
 
 // Header text → comparison form: case-insensitive, punctuation- and space-blind, so
 // "TAT(30 Days)", "tat (30 days)" and "TAT 30 DAYS" all collapse to "tat30days".
@@ -1863,16 +1849,11 @@ function normHeader(h) {
 }
 
 // Maps one header row onto the schema, returning { key: columnIndex }.
-// Matching is case-insensitive and blind to spaces and punctuation (see normHeader).
-//
 // Resolved in three passes — exact, then prefix, then substring — so a precise match
 // anywhere in the row always beats a loose one. A column is claimed by at most one
 // key, which stops a loose alias like 'name' from stealing "Client Name" once
-// 'clientname' has matched Client exactly. The whole sequence then repeats for any
-// `fallbackAliases`, so those only apply to a key nothing else could resolve.
-//
-// A key's `avoid` prefixes are never claimed by it, however well an alias matches —
-// that is what keeps Reviewer and Clinical Reviewer from swapping places.
+// 'clientname' has matched Client exactly. A column whose header contains any of
+// `avoid` is never claimed by that key, however well an alias otherwise matches.
 function resolveSchemaMap(headerRow) {
   const norm = (headerRow || []).map(normHeader);
   const map = {};
@@ -1882,17 +1863,13 @@ function resolveSchemaMap(headerRow) {
     (h, a) => h.startsWith(a),
     (h, a) => h.includes(a),
   ];
-  for (const useFallback of [false, true]) {
-    for (const test of tests) {
-      for (const col of SHEET_SCHEMA) {
-        if (col.derived || map[col.key] !== undefined) continue;
-        const list = useFallback ? col.fallbackAliases : col.aliases;
-        if (!list) continue;
-        const blocked = h => (col.avoid || []).some(bad => h.startsWith(bad));
-        for (const alias of list) {
-          const i = norm.findIndex((h, idx) => h && !claimed.has(idx) && !blocked(h) && test(h, alias));
-          if (i !== -1) { map[col.key] = i; claimed.add(i); break; }
-        }
+  for (const test of tests) {
+    for (const col of SHEET_SCHEMA) {
+      if (col.derived || map[col.key] !== undefined) continue;
+      const blocked = h => (col.avoid || []).some(bad => h.includes(bad));
+      for (const alias of col.aliases) {
+        const i = norm.findIndex((h, idx) => h && !claimed.has(idx) && !blocked(h) && test(h, alias));
+        if (i !== -1) { map[col.key] = i; claimed.add(i); break; }
       }
     }
   }
@@ -1926,43 +1903,6 @@ function reportSchemaWarnings(silent) {
   // Only on a visible sync — a silent 30s poll should not nag every half minute.
   if (!silent) toast(`Sheet1 header not recognised for: ${cols.join(', ')} — check the header row in ${runs.slice(0,3).join(', ')}`, 'warn');
 }
-
-// Cheap "this cell holds a date" test, used only to rule a row out as a header.
-const DATEISH_RE = /^\d{1,4}[-/._]\d{1,2}[-/._]\d{2,4}$/;
-
-// How many schema columns a row's cells name outright. Used to recognise a header row
-// by what it contains rather than by its first cell: some sections have no S.No column
-// and start at Sample_Name, and in one the S.No header cell reads "1". Both slipped past
-// a first-cell test, so that section's real layout was never read and its rows were
-// mapped against the previous section's columns — shifting every value after a column
-// the two sections did not share.
-//
-// Exact and prefix matches only, never substring, so a data row cannot accumulate hits
-// from a remark that happens to contain a column word.
-function headerLikeScore(row) {
-  const cells = row || [];
-  // A header row never contains a date. Bailing on one keeps this off the hot path for
-  // the thousands of data rows that do, and is a second guard against ever scoring one.
-  for (let i = 0; i < cells.length; i++) {
-    if (DATEISH_RE.test(String(cells[i] == null ? '' : cells[i]).trim())) return 0;
-  }
-  const norm = cells.map(normHeader);
-  const claimed = new Set();
-  let hits = 0;
-  for (const col of SHEET_SCHEMA) {
-    if (col.derived) continue;
-    const list = (col.aliases || []).concat(col.fallbackAliases || []);
-    for (const alias of list) {
-      const i = norm.findIndex((h, idx) => h && !claimed.has(idx) && (h === alias || h.startsWith(alias)));
-      if (i !== -1) { hits++; claimed.add(i); break; }
-    }
-  }
-  return hits;
-}
-
-// Six of them is far more than any real data row reaches and far fewer than a header
-// row carries, even a short one.
-const HEADER_MIN_SCORE = 6;
 
 // Pulls one sheet row into the schema's shape: every key present, missing columns blank.
 function canonRow(row, schemaMap, cellVal) {
@@ -2006,8 +1946,8 @@ function mapRow(raw) {
 
   const remarkRaw = pick('remark', COL_MAP.remark);
   const priRevRaw = pick('pri_rev', COL_MAP.pri_rev);
-  // Held by Siva sir's team: always released, and outside every count, team and overdue
-  // list — but still present in the sheet totals and the All Samples table.
+  // Held by Siva sir's team: always released, and outside every count, team and the
+  // overdue list — but still present in the sheet totals and the All Samples table.
   const isSiva = SIVA_RE.test(remarkRaw) || SIVA_RE.test(priRevRaw) || SIVA_RE.test(analystRaw);
   if (isSiva) canon.remark = SIVA_LABEL;
 
@@ -2026,10 +1966,8 @@ function mapRow(raw) {
     assign_date:  assignDate,
     ana_date:     pick('ana_date', COL_MAP.ana_date),
     pri_rev:      priRevRaw,
-    // Clinical Reviewer — a separate column from the Reviewer above.
-    clin_rev:     canon.clin_rev || '',
-    // Legacy alias of clin_rev, kept for older sheets that only had FINAL REVIEW.
-    final:        canon.clin_rev || get(COL_MAP.final),
+    // Dropped from the finalised set; still read so older sheets keep working.
+    final:        get(COL_MAP.final),
     remark:       isSiva ? SIVA_LABEL : remarkRaw,
     is_siva:      isSiva,
     rel_date:     pick('rel_date', COL_MAP.rel_date),
@@ -2338,12 +2276,7 @@ function parseBinary(binary) {
     const runCell = row.find(c => /Run-?\d+/i.test(cellVal(c)));
     const foundRunNum = runCell ? extractRunNumber(cellVal(runCell)) : null;
 
-    // A run marker even if its first cell happens to read "S.No" — someone typing the
-    // next section's name into the header cell would otherwise be taken for a header
-    // row, losing both the run label and the real column mapping for everything after
-    // it. A genuine header row has a full set of columns, so the <5 test is what
-    // distinguishes them; isHeaderRow() deliberately does not.
-    if (foundRunNum && nonEmpty.length < 5) {
+    if (foundRunNum && !rowIsHeader && nonEmpty.length < 5) {
       currentRunTxt = cellVal(runCell);
       currentRunNum = foundRunNum;
       continue;
@@ -2356,13 +2289,6 @@ function parseBinary(binary) {
       noteSchemaGaps(headers, schemaMap, currentRunTxt);
       continue;
     }
-
-    // A repeated header row whose S.No cell is blank or mistyped (one section has "1"
-    // there). It is not data, so it must not become a phantom sample — but neither is it
-    // a new layout: those rows are the same columns with a couple of labels missing, and
-    // adopting them would lose S.No and TAT while the data underneath still lines up with
-    // the header already in force. So skip the row and keep the current mapping.
-    if (headers && headerLikeScore(row.map(c => cellVal(c))) >= HEADER_MIN_SCORE) continue;
 
     if (!headers) continue;
 
@@ -2420,7 +2346,7 @@ function parseGrid(grid) {
 
   function isHeaderRow(row) {
     const first = cellVal(row.find(c => cellVal(c) !== '') || '').toLowerCase().replace(/[\s.]/g,'');
-    return ['sno','srno','slno','no','#','serial'].includes(first);
+    return ['sno','sno','srno','slno','no','#','serial'].includes(first);
   }
 
   const allRows = [];
@@ -2439,12 +2365,7 @@ function parseGrid(grid) {
     const runCell = row.find(c => /Run-?\d+/i.test(cellVal(c)));
     const foundRunNum = runCell ? extractRunNumber(cellVal(runCell)) : null;
 
-    // A run marker even if its first cell happens to read "S.No" — someone typing the
-    // next section's name into the header cell would otherwise be taken for a header
-    // row, losing both the run label and the real column mapping for everything after
-    // it. A genuine header row has a full set of columns, so the <5 test is what
-    // distinguishes them; isHeaderRow() deliberately does not.
-    if (foundRunNum && nonEmpty.length < 5) {
+    if (foundRunNum && !rowIsHeader && nonEmpty.length < 5) {
       currentRunTxt = cellVal(runCell);
       currentRunNum = foundRunNum;
       continue;
@@ -2457,13 +2378,6 @@ function parseGrid(grid) {
       noteSchemaGaps(headers, schemaMap, currentRunTxt);
       continue;
     }
-
-    // A repeated header row whose S.No cell is blank or mistyped (one section has "1"
-    // there). It is not data, so it must not become a phantom sample — but neither is it
-    // a new layout: those rows are the same columns with a couple of labels missing, and
-    // adopting them would lose S.No and TAT while the data underneath still lines up with
-    // the header already in force. So skip the row and keep the current mapping.
-    if (headers && headerLikeScore(row.map(c => cellVal(c))) >= HEADER_MIN_SCORE) continue;
     if (!headers) continue;
     const obj = {};
     headers.forEach((h, i) => { obj[h] = cellVal(row[i] ?? ''); });
@@ -2839,8 +2753,9 @@ function populateTeamFilter(selectId, data) {
   const teamSet = new Set();
   data.forEach(r => {
     if (r.is_siva) return;        // outside every existing team
-    const team = teamFor(normalizeAnalystName(r.pri_rev));
-    if (team) teamSet.add(team);   // former/unknown reviewers form no team
+    const emp = normalizeAnalystName(r.pri_rev) || 'Unassigned';
+    const team = TEAM_MAP[emp] || 'Team 6';
+    teamSet.add(team);
   });
   const vals = [...teamSet].sort((a,b) => {
     const numA = parseInt((a.match(/\d+/)||['6'])[0], 10);
@@ -3013,17 +2928,8 @@ const TEAM_MAP = {
   'Diwakar':   'Team 4',
   'Gayathri':  'Team 5',
   'Vamshi':    'Team 6',
-  'Nikhil':    'Team 7',
-  // Vikram reviews alongside Nikhil, so he shares Team 7 while keeping his own ring.
-  'Vikram':    'Team 7'
+  'Nikhil':    'Team 7'
 };
-
-// The team a reviewer belongs to, or null if they are not a current member. Returning
-// null rather than defaulting matters: the old `|| 'Team 6'` fallback credited every
-// unrecognised reviewer, including former staff, to Vamshi's real team.
-function teamFor(name) {
-  return TEAM_MAP[name] || null;
-}
 
 // Reverse mapping: Team name to leader name
 const TEAM_LEADER_MAP = {
@@ -3067,7 +2973,7 @@ function renderTeamWorkload(containerId, data) {
   // Order teams by TEAM_MEMBERS order
   const orderedTeams = TEAM_MEMBERS.filter(t => byEmp[t.label]).map(t => [t.label, byEmp[t.label]]);
   el.innerHTML = orderedTeams.map(([emp, reports])=>{
-    const teamTitle = teamFor(emp) || emp;
+    const teamTitle = TEAM_MAP[emp] || 'Team 6';
     const tc = teamColorFor(teamTitle);
     const cardStyle = `--accent-1:${tc.c1};--accent-2:${tc.c2};--accent-shadow:${tc.shadow};--accent-pill-bg:${tc.pillBg};--accent-pill-text:${tc.pillText};--accent-pill-border:${tc.pillBorder}`;
     return `
@@ -3164,11 +3070,11 @@ function schemaCell(r, col) {
 function buildFullSheetTable(data) {
   if (!data.length) return `<div class="empty" style="padding:40px"><div class="ei">${IC.inbox}</div><p>No records</p></div>`;
   const cls = c => c.key === 'run' ? 'col-w-run' : c.key === 'name' ? 'col-w-name' : '';
-  const ths = SHEET_COLS.map(c=>`<th class="${cls(c)}">${esc(c.label)}</th>`).join('');
+  const ths = SHEET_SCHEMA.map(c=>`<th class="${cls(c)}">${esc(c.label)}</th>`).join('');
   const trs = data.map(r=>{
     const st = getStatus(r);
     const rowClass = st==='Released' ? 'row-status-released' : st==='Ongoing' ? 'row-status-ongoing' : 'row-status-yet';
-    const tds = SHEET_COLS.map(c=>{
+    const tds = SHEET_SCHEMA.map(c=>{
       const v = schemaCell(r, c);
       const style = c.key === 'name' ? ' style="font-weight:600;color:var(--text)"' : '';
       // title only where it earns its bytes — the name column ellipsizes, and long
@@ -3264,7 +3170,7 @@ function filterAllSamples() {
   // The whole schema is on screen, so free-text search spans every column of it,
   // case-insensitively — including RUN.
   if (q)       data = data.filter(r=>
-    SHEET_COLS.some(c => schemaCell(r, c).toLowerCase().includes(q))
+    SHEET_SCHEMA.some(c => schemaCell(r, c).toLowerCase().includes(q))
   );
 
   _allModalView = data;
@@ -3287,7 +3193,7 @@ function downloadAllSamplesExcel() {
   try {
     if (typeof XLSX === 'undefined') { toast('SheetJS not loaded — refresh the page', 'err'); return; }
 
-    const cols = SHEET_COLS;
+    const cols = SHEET_SCHEMA;
     const data = _allModalView;
     if (!data.length) { toast('No samples to export', 'warn'); return; }
 
@@ -3506,7 +3412,7 @@ function renderTable(key) {
 
   let data = rows.filter(r=>getStatus(r)===cfg.status);
   if (test)     data = data.filter(r=>r.test===test);
-  if (team)     data = data.filter(r=>!r.is_siva && teamFor(normalizeAnalystName(r.pri_rev)) === team);
+  if (team)     data = data.filter(r=>{ if (r.is_siva) return false; const emp = normalizeAnalystName(r.pri_rev) || 'Unassigned'; return (TEAM_MAP[emp] || 'Team 6') === team; });
   if (ana)      data = data.filter(r=>extractAnalysts(r.analyst_raw).includes(ana));
   if (clientF)  data = data.filter(r=>{ const norm = normalizeClient(r.client) || ''; return norm === clientF; });
   if (reviewer) data = data.filter(r=>r.pri_rev===reviewer);
@@ -3629,7 +3535,7 @@ function updateRelCount() {
 
   let data = rows.filter(r=>getStatus(r)==='Released');
   if (test)     data = data.filter(r=>r.test===test);
-  if (team)     data = data.filter(r=>!r.is_siva && teamFor(normalizeAnalystName(r.pri_rev)) === team);
+  if (team)     data = data.filter(r=>{ if (r.is_siva) return false; const emp = normalizeAnalystName(r.pri_rev) || 'Unassigned'; return (TEAM_MAP[emp] || 'Team 6') === team; });
   if (ana)      data = data.filter(r=>extractAnalysts(r.analyst_raw).includes(ana));
   if (runF)     data = data.filter(r=>r.run_text===runF);
   if (clientF)  data = data.filter(r=>{ const norm = normalizeClient(r.client) || ''; return norm === clientF; });
@@ -4201,10 +4107,8 @@ function fmtDate(v) {
   return s;
 }
 
-// Flags a date the user should correct at source, instead of the app quietly adjusting
-// it. A release or analysis date later than today cannot have happened; a non-empty
-// value that is not a date at all is a typo. TAT is never checked for being in the
-// future — it is a deadline, so that is normal. Returns '' when nothing is wrong.
+// User requested released dates use the exact same DD-MM-YYYY format
+// Added anomaly rectifier to clamp Excel drag-fill typos (future dates) back to TAT anchors
 function fmtRelDate(v, r) {
   const f = fmtDate(v);
   if (f === '—' || !r || !r.tat) return f;
@@ -4252,8 +4156,6 @@ function fmtRelDate(v, r) {
   return f;
 }
 
-// User requested released dates use the exact same DD-MM-YYYY format
-// Added anomaly rectifier to clamp Excel drag-fill typos (future dates) back to TAT anchors
 function esc(s) {
   return String(s||'')
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -4358,6 +4260,8 @@ function filterPriority(month) {
   document.getElementById('pm-table').innerHTML = buildModalTable(filtered, PRIORITY_COLS);
 }
 
+
+
 // ================================================================
 //  ANALYTICS STUDIO
 // ================================================================
@@ -4373,9 +4277,9 @@ const TEAM_MEMBERS = [
   { key: 'gayathri', label: 'Gayathri',  color: '#ec4899' },
   { key: 'vamshi',   label: 'Vamshi',    color: '#f97316' },
   { key: 'nikhil',   label: 'Nikhil',    color: '#8b5cf6' },
-  { key: 'vikram',   label: 'Vikram',    color: '#0ea5e9' },
 ];
 const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
 
 function normalizeTest(name) {
   if (!name) return null;
@@ -5237,6 +5141,7 @@ function downloadChart0Data() {
   XLSX.writeFile(wb, filename);
   toast(`Downloaded: ${filename}`, 'info');
 }
+
 
 // (Auth/idle-logout removed for static GitHub Pages deployment)
 

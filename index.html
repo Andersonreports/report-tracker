@@ -2014,7 +2014,8 @@ function mapRow(raw) {
   const genId = pick('gen_id', COL_MAP.gen_id);
   const andId = pick('and_id', COL_MAP.and_id);
   // TAT from the checklist where this sample's cell was read with day and month swapped.
-  const tatFixed = fixFor(TAT_FIX, genId, andId) ||
+  const manual = MANUAL_FIX[genId];
+  const tatFixed = (manual && manual.tat) || fixFor(TAT_FIX, genId, andId) ||
                    resolveTat(pick('tat', COL_MAP.tat), parseInt(raw._run_num || 0, 10) || 0);
   if (canon.tat) canon.tat = tatFixed;
 
@@ -2024,7 +2025,7 @@ function mapRow(raw) {
 
   // Release date judged against the corrected TAT — see resolveRelDate.
   const runNum = parseInt(raw._run_num || 0, 10) || 0;
-  let relFixed = fixFor(RELDATE_FIX, genId, andId) ||
+  let relFixed = (manual && manual.rel) || fixFor(RELDATE_FIX, genId, andId) ||
                  resolveRelDate(pick('rel_date', COL_MAP.rel_date), tatFixed, runNum);
 
   // Up to Run 54 the release-date column was not kept reliably — 130 of those samples
@@ -2041,7 +2042,10 @@ function mapRow(raw) {
   const priRevRaw = pick('pri_rev', COL_MAP.pri_rev);
   // Held by Siva sir's team: always released, and outside every count, team and the
   // overdue list — but still present in the sheet totals and the All Samples table.
-  const isSiva = SIVA_RE.test(remarkRaw) || SIVA_RE.test(priRevRaw) || SIVA_RE.test(analystRaw);
+  // The phrase turns up wherever whoever filled the row put it — the remark, the reviewer,
+  // the analyst, and in six rows the TAT column, where it replaced the date outright.
+  const isSiva = SIVA_RE.test(remarkRaw) || SIVA_RE.test(priRevRaw) ||
+                 SIVA_RE.test(analystRaw) || SIVA_RE.test(tatFixed);
   if (isSiva) canon.remark = SIVA_LABEL;
 
   return {
@@ -2278,6 +2282,188 @@ function resolveTat(v, runNum) {
   if (!credible(dayFirst) && credible(monthFirst)) return flipped;
   return fmtDate(s);
 }
+
+// Dates corrected by hand, from dates-to-fix.csv in this repo. The audit listed every
+// cell the app could not read or could not believe; those corrected values were filled
+// into that file and are loaded here, keyed by Gen_ID. This is the top authority — a
+// value here wins over the checklist table, the workbook table and every inference.
+//
+// Sheet1 itself still holds the original cells, so nothing here is redundant: 21-052026,
+// 30-06-3036, 30-12-1899 and 14.03.2023 are all still in the sheet. Correcting them there
+// too would let these entries be dropped.
+//
+// A tat given as text rather than a date is kept as text, which is what 8 of them are.
+const MANUAL_FIX = {
+  "GEN_T_2.0.spik_1089":{"tat": "06-08-2025", "rel": "20-10-2025"},
+  "GEN_T_2.0.spik_1092":{"tat": "08-06-2025", "rel": "21-06-2025"},
+  "GEN_T_2.0.spik_1094":{"tat": "06-11-2025", "rel": "04-01-2026"},
+  "GEN_T_2.0.spik_1110":{"tat": "15-06-2025", "rel": "23-06-2025"},
+  "GEN_T_2.0.spik_1115":{"tat": "16-06-2025", "rel": "23-06-2025"},
+  "GEN_T_2.0.spik_1221":{"tat": "29-06-2025", "rel": "17-07-2025"},
+  "GEN_T_2.0.spik_1223A":{"tat": "09-06-2025", "rel": "02-07-2025"},
+  "GEN_T_2.0.spik_1257":{"tat": "11-07-2025", "rel": "08-07-2025"},
+  "GEN_T_2.0.spik_1258":{"tat": "11-07-2025", "rel": "08-07-2025"},
+  "GEN_T_2.0.spik_1259":{"tat": "11-07-2025", "rel": "14-07-2025"},
+  "GEN_T_2.0.spik_1260":{"tat": "12-07-2025", "rel": "14-07-2025"},
+  "GEN_T_2.0.spik_1261":{"tat": "12-07-2025", "rel": "18-07-2025"},
+  "GEN_T_2.0.spik_1262":{"tat": "12-07-2025", "rel": "19-07-2025"},
+  "GEN_T_2.0.spik_1263":{"tat": "12-07-2025", "rel": "14-07-2025"},
+  "GEN_T_2.0.spik_1348":{"tat": "11-07-2025", "rel": "28-07-2025"},
+  "GEN_T_2.0.spik_1437":{"tat": "08-08-2025", "rel": "23-07-2025"},
+  "GEN_T_2.0.spik_1454":{"tat": "10-08-2025", "rel": "20-08-2025"},
+  "GEN_T_2.0.spik_1455":{"tat": "10-08-2025", "rel": "20-08-2025"},
+  "GEN_T_2.0.spik_1456":{"tat": "10-08-2025", "rel": "29-08-2025"},
+  "GEN_T_2.0.spik_1457":{"tat": "12-08-2025", "rel": "19-08-2025"},
+  "GEN_T_2.0.spik_1458":{"tat": "12-08-2025", "rel": "22-08-2025"},
+  "GEN_T_2.0.spik_1498":{"tat": "12-08-2025", "rel": "13-08-2025"},
+  "GEN_T_2.0.spik_1499":{"tat": "12-08-2025", "rel": "13-08-2025"},
+  "GEN_T_2.0.spik_1573":{"tat": "22-08-2025", "rel": "12-09-2025"},
+  "GEN_T_2.0.spik_1574":{"tat": "23-08-2025", "rel": "12-09-2025"},
+  "GEN_T_2.0.spik_1575":{"tat": "23-08-2025", "rel": "12-09-2025"},
+  "GEN_T_2.0.spik_1625":{"tat": "30-08-2025", "rel": "15-09-2025"},
+  "GEN_T_2.0.spik_1648":{"tat": "05-09-2025", "rel": "16-09-2025"},
+  "GEN_T_2.0.spik_1649":{"tat": "05-09-2025", "rel": "16-09-2025"},
+  "GEN_T_2.0.spik_1650":{"tat": "05-09-2025", "rel": "12-09-2025"},
+  "GEN_T_2.0.spik_1699A":{"tat": "11-09-2025", "rel": "23-09-2025"},
+  "GEN_T_2.0.spik_1700":{"tat": "12-09-2025", "rel": "25-09-2025"},
+  "GEN_T_2.0.spik_1701A":{"tat": "12-09-2025", "rel": "24-09-2025"},
+  "GEN_T_2.0.spik_1702A":{"tat": "12-09-2025", "rel": "20-09-2025"},
+  "GEN_T_2.0.spik_1703A":{"tat": "12-09-2025", "rel": "24-09-2025"},
+  "GEN_T_2.0.spik_1704A":{"tat": "12-09-2025", "rel": "23-09-2025"},
+  "GEN_T_2.0.spik_1705A":{"tat": "12-09-2025", "rel": "23-09-2025"},
+  "GEN_T_2.0.spik_1706A":{"tat": "12-09-2025", "rel": "22-09-2025"},
+  "GEN_T_2.0.spik_1707A":{"tat": "12-09-2025", "rel": "26-09-2025"},
+  "GEN_T_2.0.spik_1738":{"tat": "12-09-2025", "rel": "26-09-2025"},
+  "GEN_T_2.0.spik_1778":{"tat": "23-09-2025", "rel": "26-05-2025"},
+  "GEN_T_2.0.spik_1779":{"tat": "23-09-2025", "rel": "26-05-2025"},
+  "GEN_T_2.0.spik_1891":{"tat": "29-09-2025", "rel": "29-09-2025"},
+  "GEN_T_2.0.spik_1892":{"tat": "29-09-2025", "rel": "29-09-2025"},
+  "GEN_T_2.0.spik_1893":{"tat": "29-09-2025", "rel": "29-09-2025"},
+  "GEN_T_2.0.spik_1907":{"tat": "12-10-2025", "rel": "15-10-2025"},
+  "GEN_T_2.0.spik_1915":{"tat": "12-10-2025", "rel": "24-10-2025"},
+  "GEN_T_2.0.spik_1916":{"tat": "12-10-2025", "rel": "24-10-2025"},
+  "GEN_T_2.0.spik_1956":{"tat": "17-10-2025", "rel": "18-10-2025"},
+  "GEN_T_2.0.spik_2140":{"tat": "16-11-2025", "rel": "19-11-2025"},
+  "GEN_T_2.0.spik_2246":{"tat": "23-11-2025", "rel": "25-11-2025"},
+  "GEN_T_2.0.spik_2247":{"tat": "23-11-2025", "rel": "25-11-2025"},
+  "GEN_T_2.0.spik_2248":{"tat": "23-11-2025", "rel": "25-11-2025"},
+  "GEN_T_2.0.spik_2249":{"tat": "23-11-2025", "rel": "25-11-2025"},
+  "GEN_T_2.0.spik_2250":{"tat": "23-11-2025", "rel": "25-11-2025"},
+  "GEN_T_2.0.spik_2251":{"tat": "23-11-2025", "rel": "25-11-2025"},
+  "GEN_T_2.0.spik_2323":{"tat": "03-12-2025", "rel": "05-12-2025"},
+  "GEN_T_2.0.spik_2324":{"tat": "03-12-2025", "rel": "05-12-2025"},
+  "GEN_T_2.0.spik_2325":{"tat": "03-12-2025", "rel": "05-12-2025"},
+  "GEN_T_2.0.spik_2326":{"tat": "03-12-2025", "rel": "03-12-2025"},
+  "GEN_T_2.0.spik_2363":{"tat": "07-12-2025", "rel": "11-12-2025"},
+  "GEN_T_2.0.spik_2364":{"tat": "07-12-2025", "rel": "11-12-2025"},
+  "GEN_T_2.0.spik_2365":{"tat": "07-12-2025", "rel": "11-12-2025"},
+  "GEN_T_2.0.spik_2367":{"tat": "07-12-2025", "rel": "11-12-2025"},
+  "GEN_T_2.0.spik_2374":{"tat": "07-12-2025", "rel": "09-12-2025"},
+  "GEN_T_2.0.spik_2375":{"tat": "07-12-2025", "rel": "09-12-2025"},
+  "GEN_T_2.0.spik_2415":{"tat": "20-12-2025", "rel": "08-02-2026"},
+  "GEN_T_2.0.spik_2416":{"tat": "20-12-2025", "rel": "08-02-2026"},
+  "GEN_T_2.0.spik_2432":{"tat": "23-12-2025", "rel": "29-12-2025"},
+  "GEN_T_2.0.spik_2483":{"tat": "26-12-2025", "rel": "01-01-2026"},
+  "GEN_T_2.0.spik_2484":{"tat": "26-12-2025", "rel": "01-01-2026"},
+  "GEN_T_2.0.spik_2485":{"tat": "28-12-2025", "rel": "03-01-2026"},
+  "GEN_T_2.0.spik_2506":{"tat": "04-01-2026", "rel": "07-01-2026"},
+  "GEN_T_2.0.spik_2507":{"tat": "03-01-2026", "rel": "03-01-2026"},
+  "GEN_T_2.0.spik_2508":{"tat": "03-01-2026", "rel": "13-01-2026"},
+  "GEN_T_2.0.spik_2514":{"tat": "31-12-2025", "rel": "03-01-2026"},
+  "GEN_T_2.0.spik_2525":{"tat": "03-01-2026", "rel": "14-01-2026"},
+  "GEN_T_2.0.spik_2526":{"tat": "03-01-2026", "rel": "14-01-2026"},
+  "GEN_T_2.0.spik_2527":{"tat": "03-01-2026", "rel": "05-01-2026"},
+  "GEN_T_2.0.spik_2529":{"tat": "04-01-2026", "rel": "02-01-2026"},
+  "GEN_T_2.0.spik_2530":{"tat": "04-01-2026", "rel": "02-01-2026"},
+  "GEN_T_2.0.spik_2531":{"tat": "04-01-2026", "rel": "03-01-2026"},
+  "GEN_T_2.0.spik_2532":{"tat": "04-01-2026", "rel": "03-01-2026"},
+  "GEN_T_2.0.spik_2550":{"tat": "04-01-2026", "rel": "07-01-2026"},
+  "GEN_T_2.0.spik_2551":{"tat": "03-01-2026", "rel": "07-01-2026"},
+  "GEN_T_2.0.spik_2552":{"tat": "05-01-2026", "rel": "12-01-2026"},
+  "GEN_T_2.0.spik_2553":{"tat": "05-01-2026", "rel": "02-01-2026"},
+  "GEN_T_2.0.spik_2554":{"tat": "05-01-2026", "rel": "02-01-2026"},
+  "GEN_T_2.0.spik_2555":{"tat": "05-01-2026", "rel": "14-01-2026"},
+  "GEN_T_2.0.spik_2556":{"tat": "05-01-2026", "rel": "06-01-2026"},
+  "GEN_T_2.0.spik_2559":{"tat": "05-01-2026", "rel": "07-01-2026"},
+  "GEN_T_2.0.spik_2560":{"tat": "05-01-2026", "rel": "07-01-2026"},
+  "GEN_T_2.0.spik_2566":{"tat": "07-01-2026", "rel": "07-01-2026"},
+  "GEN_T_2.0.spik_2574":{"tat": "05-01-2026", "rel": "07-01-2026"},
+  "GEN_T_2.0.spik_2576":{"tat": "06-01-2026", "rel": "07-01-2026"},
+  "GEN_T_2.0.spik_2588":{"tat": "05-01-2026", "rel": "07-01-2026"},
+  "GEN_T_2.0.spik_2596A":{"tat": "10-01-2026", "rel": "10-01-2026"},
+  "GEN_T_2.0.spik_2684":{"tat": "21-01-2026", "rel": "20-01-2026"},
+  "GEN_T_2.0.spik_2700":{"tat": "12-01-2026", "rel": "16-01-2026"},
+  "GEN_T_2.0.spik_2701":{"tat": "12-01-2026", "rel": "16-01-2026"},
+  "GEN_T_2.0.spik_2702":{"tat": "12-01-2026", "rel": "16-01-2026"},
+  "GEN_T_2.0.spik_2703":{"tat": "12-01-2026", "rel": "16-01-2026"},
+  "GEN_T_2.0.spik_2704":{"tat": "12-01-2026", "rel": "16-01-2026"},
+  "GEN_T_2.0.spik_2705":{"tat": "12-01-2026", "rel": "16-01-2026"},
+  "GEN_T_2.0.spik_2706":{"tat": "12-01-2026", "rel": "16-01-2026"},
+  "GEN_T_2.0.spik_2724":{"tat": "17-01-2026", "rel": "17-01-2026"},
+  "GEN_T_2.0.spik_2750":{"tat": "30-01-2026", "rel": "28-01-2026"},
+  "GEN_T_2.0.spik_2802":{"tat": "04-02-2026", "rel": "20-01-2026"},
+  "GEN_T_2.0.spik_2803":{"tat": "04-02-2026", "rel": "20-01-2026"},
+  "GEN_T_2.0.spik_2804":{"tat": "05-02-2026", "rel": "12-02-2026"},
+  "GEN_T_2.0.spik_2805":{"tat": "05-02-2026", "rel": "09-02-2026"},
+  "GEN_T_2.0.spik_2806":{"tat": "05-02-2026", "rel": "03-02-2026"},
+  "GEN_T_2.0.spik_2807":{"tat": "05-02-2026", "rel": "03-02-2026"},
+  "GEN_T_2.0.spik_2904":{"tat": "04-02-2026", "rel": "12-02-2026"},
+  "GEN_T_2.0.spik_2905":{"tat": "04-02-2026", "rel": "12-02-2026"},
+  "GEN_T_2.0.spik_2906":{"tat": "04-02-2026", "rel": "12-02-2026"},
+  "GEN_T_2.0.spik_2966":{"tat": "22-02-2026", "rel": "19-02-2025"},
+  "GEN_T_2.0.spik_3086":{"tat": "24-02-2026", "rel": "23-02-2026"},
+  "GEN_T_2.0.spik_3087":{"tat": "24-02-2026", "rel": "23-02-2026"},
+  "GEN_T_2.0.spik_3129":{"tat": "08-03-2026", "rel": "14-03-2026"},
+  "GEN_T_2.0.spik_3152":{"tat": "10-03-2026", "rel": "14-03-2026"},
+  "GEN_T_2.0.spik_3224":{"tat": "17-03-2026", "rel": "14-03-2026"},
+  "GEN_T_2.0.spik_3409":{"tat": "04-04-2026", "rel": "16-04-2026"},
+  "GEN_T_2.0.spik_3433":{"tat": "24-03-2026", "rel": "07-04-2026"},
+  "GEN_T_2.0.spik_3434":{"tat": "27-03-2026", "rel": "07-04-2026"},
+  "GEN_T_2.0.spik_3435":{"tat": "27-03-2026", "rel": "07-04-2026"},
+  "GEN_T_2.0.spik_3613":{"tat": "26-04-2026", "rel": "29-04-2025"},
+  "GEN_T_2.0.spik_3646":{"tat": "28-04-2026", "rel": "02-05-2026"},
+  "GEN_T_2.0.spik_3708":{"tat": "06-05-2026", "rel": "11-05-2026"},
+  "GEN_T_2.0.spik_3771":{"tat": "10-05-2026", "rel": "21-05-2026"},
+  "GEN_T_2.0.spik_3810":{"tat": "11-05-2026", "rel": "20-05-2026"},
+  "GEN_T_2.0.spik_3817":{"tat": "12-05-2026", "rel": "22-05-2026"},
+  "GEN_T_2.0.spik_3818":{"tat": "12-05-2026", "rel": "22-05-2026"},
+  "GEN_T_2.0.spik_4070AF":{"tat": "09-06-2026", "rel": "10-06-2026"},
+  "GEN_T_2.0.spik_4077":{"tat": "08-06-2026", "rel": "15-06-2026"},
+  "GEN_T_2.0.spik_4078":{"tat": "08-06-2026", "rel": "15-06-2026"},
+  "GEN_T_2.0.spik_4079":{"tat": "08-06-2026", "rel": "15-06-2026"},
+  "GEN_T_2.0.spik_4080":{"tat": "08-06-2026", "rel": "15-06-2026"},
+  "GEN_T_2.0.spik_4081":{"tat": "08-06-2026", "rel": "15-06-2026"},
+  "GEN_T_2.0.spik_4082":{"tat": "08-06-2026", "rel": "15-06-2026"},
+  "GEN_T_2.0.spik_4083":{"tat": "08-06-2026", "rel": "08-06-2026"},
+  "GEN_T_2.0.spik_4084":{"tat": "08-06-2026", "rel": "08-06-2026"},
+  "GEN_T_2.0.spik_4086":{"tat": "08-06-2026", "rel": "05-06-2026"},
+  "GEN_T_2.0.spik_4087":{"tat": "08-06-2026", "rel": "13-06-2026"},
+  "GEN_T_2.0.spik_4089":{"tat": "08-06-2026", "rel": "11-06-2026"},
+  "GEN_T_2.0.spik_4156":{"tat": "09-06-2026", "rel": "18-06-2026"},
+  "GEN_T_2.0.spik_4157":{"tat": "08-06-2026", "rel": "13-06-2026"},
+  "GEN_T_2.0.spik_4158":{"tat": "08-06-2026", "rel": "15-06-2026"},
+  "GEN_T_2.0.spik_4159":{"tat": "08-06-2026", "rel": "08-06-2026"},
+  "GEN_T_2.0.spik_4160":{"tat": "08-06-2026", "rel": "18-06-2026"},
+  "GEN_T_2.0.spik_4161":{"tat": "08-06-2026", "rel": "15-06-2026"},
+  "GEN_T_2.0.spik_4171":{"tat": "09-06-2026", "rel": "17-06-2026"},
+  "GEN_T_2.0.spik_4186":{"tat": "17-06-2026", "rel": "19-06-2026"},
+  "GEN_T_2.0.spik_4187":{"tat": "17-06-2026", "rel": "19-06-2026"},
+  "GEN_T_2.0.spik_4307":{"tat": "\u2014", "rel": "09-06-2026"},
+  "GEN_T_2.0.spik_4308":{"tat": "\u2014", "rel": "09-06-2026"},
+  "GEN_T_2.0.spik_4594":{"tat": "30-06-2026", "rel": "20-07-2026"},
+  "GEN_T_2.0.spik_4834":{"tat": "Sent to Siva sir team"},
+  "GEN_T_2.0.spik_4835":{"tat": "Sent to Siva sir team"},
+  "GEN_T_2.0.spik_4836":{"tat": "Sent to Siva sir team"},
+  "GEN_T_2.0.spik_4923":{"tat": "Sent to Siva sir team"},
+  "GEN_T_2.0.spik_5021":{"tat": "Sent to Siva sir team"},
+  "GEN_T_2.0.spik_5032":{"tat": "Sent to Siva sir team"},
+  "GEN_T_2.0.spik_AF1090":{"tat": "10-06-2025", "rel": "06-06-2025"},
+  "GEN_T_2.0.spik_AF1269":{"tat": "12-07-2025", "rel": "28-06-2025"},
+  "GEN_T_2.0.spik_AF2575":{"tat": "04-01-2026", "rel": "23-12-2025"},
+  "GEN_T_2.0.spik_AF2651":{"tat": "01-01-2026", "rel": "03-01-2026"},
+  "GEN_T_2.0.spik_AF2801":{"tat": "04-02-2026", "rel": "20-01-2026"},
+  "GEN_T_2.0.spik_CVS1268":{"tat": "10-07-2025", "rel": "04-07-2025"},
+};
 
 // Both correction tables are keyed by Gen_ID where the sample has one and by Anderson_ID
 // only where it does not. So a row that has a Gen_ID must never fall back to its

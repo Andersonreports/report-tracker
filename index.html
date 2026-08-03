@@ -2015,7 +2015,7 @@ function mapRow(raw) {
   const andId = pick('and_id', COL_MAP.and_id);
   // TAT from the checklist where this sample's cell was read with day and month swapped.
   const manual = MANUAL_FIX[genId];
-  const tatFixed = (manual && manual.tat) || fixFor(TAT_FIX, genId, andId) ||
+  let tatFixed = (manual && manual.tat) || fixFor(TAT_FIX, genId, andId) ||
                    resolveTat(pick('tat', COL_MAP.tat), parseInt(raw._run_num || 0, 10) || 0);
   if (canon.tat) canon.tat = tatFixed;
 
@@ -2044,12 +2044,35 @@ function mapRow(raw) {
   // overdue list — but still present in the sheet totals and the All Samples table.
   // The phrase turns up wherever whoever filled the row put it — the remark, the reviewer,
   // the analyst, and in six rows the TAT column, where it replaced the date outright.
+  // A note written into a date column is a remark, not a date. "Sent to Siva sir team"
+  // turns up in TAT and "No need to release report" in REPORT RELEASE DATE; both are
+  // moved to REMARK and the date cleared, so the date columns carry only dates and a
+  // database load does not have to cope with prose in a date field. A bare dash is not a
+  // note, so it is simply cleared. A bare number is left alone — that would be a day
+  // count, though the sheet currently has none.
+  const noteFrom = (v) => {
+    const t = String(v || '').trim();
+    if (!t || t === '—' || t === '-' || parseDate(t) || /^\d+$/.test(t)) return '';
+    return t;
+  };
+  const movedNotes = [noteFrom(tatFixed), noteFrom(relFixed)].filter(Boolean);
+  if (noteFrom(tatFixed)) tatFixed = '';
+  if (noteFrom(relFixed)) relFixed = '';
+
+  // Built before the Siva test, so a phrase that has just moved out of TAT is still seen.
+  const remarkWithNotes = [remarkRaw, ...movedNotes]
+    .map(x => String(x || '').trim())
+    .filter((x, i, all) => x && x !== '-' && x !== '—' && all.indexOf(x) === i)
+    .join(' · ');
+
   // A cancer panel is that team's work whether or not anyone wrote it down: 23 samples,
   // 16 of which were already being excluded because someone had noted it.
-  const isSiva = SIVA_RE.test(remarkRaw) || SIVA_RE.test(priRevRaw) ||
-                 SIVA_RE.test(analystRaw) || SIVA_RE.test(tatFixed) ||
+  const isSiva = SIVA_RE.test(remarkWithNotes) || SIVA_RE.test(priRevRaw) ||
+                 SIVA_RE.test(analystRaw) ||
                  CANCER_PANEL_RE.test(pick('test', COL_MAP.test));
-  if (isSiva) canon.remark = SIVA_LABEL;
+  canon.remark = isSiva ? SIVA_LABEL : remarkWithNotes;
+  canon.tat = tatFixed;
+  canon.rel_date = relFixed;
 
   return {
     sno:          pick('sno', COL_MAP.sno),
@@ -2068,7 +2091,7 @@ function mapRow(raw) {
     pri_rev:      priRevRaw,
     // Dropped from the finalised set; still read so older sheets keep working.
     final:        get(COL_MAP.final),
-    remark:       isSiva ? SIVA_LABEL : remarkRaw,
+    remark:       isSiva ? SIVA_LABEL : remarkWithNotes,
     is_siva:      isSiva,
     rel_date:     relFixed,
     history:      pick('history', COL_MAP.history),

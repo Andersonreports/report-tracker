@@ -3734,17 +3734,21 @@ function markRepeats(list) {
     const base = byId[m[1]];
     if (!base || base === r) return;
 
-    // A repeat has to be the same sample in every respect — Anderson_ID, sample name,
-    // client and test, not just a Gen_ID that looks derived. If any one of them differs it
-    // is a new sample, however similar the Gen_ID. Compared case-insensitively with
-    // whitespace collapsed, since the sheet is inconsistent about both; anything beyond
-    // that is a real difference and is meant to fail.
+    // A repeat has to be the same sample: same Anderson_ID, same client, same test, on top
+    // of a Gen_ID that looks derived from the original's. Any one of those differing makes
+    // it a new sample however similar the Gen_ID.
+    //
+    // The sample name is deliberately not compared. Anderson_ID is the patient identity and
+    // is system-generated; the name is free text typed by whoever entered the row, and 25
+    // genuine repeats differ only in its wording — "BABY.PUZHALENTHI M" against
+    // "BABY.PUZHALENTHI M (4Y|M)", or an age written (9Y|F) in one row and (9YF) in the
+    // other. Requiring it to match left the rule catching almost nothing.
     const same = (a, b) => {
       const norm = v => String(v || '').trim().replace(/\s+/g, ' ').toUpperCase();
       const x = norm(a);
       return x !== '' && x === norm(b);
     };
-    const isSameSample = same(base.and_id, r.and_id) && same(base.name, r.name) &&
+    const isSameSample = same(base.and_id, r.and_id) &&
                          same(base.client, r.client) && same(base.test, r.test);
     if (!isSameSample) return;
 

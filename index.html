@@ -3703,23 +3703,23 @@ async function fetchGoogleSheet(silent) {
 }
 
 // A repeat sample is a patient's sample re-sequenced after a QC failure. It carries the
-// original's Gen_ID with an A or AF appended — spik_4322 is re-sequenced as spik_4322A.
-// Both rows were being counted as separate releases, inflating July by 14 and June by 1,
-// when between them they are one report.
+// original's Gen_ID with an A appended, or _A where the original ends in AF — spik_4328 is
+// re-sequenced as spik_4328A.
 //
-// This is not re-analysis. Re-analysis is raw data received from an external client; it
-// lives in its own sheet, feeds the Re-analysis tab, and has its own rule of two samples
-// to one. It never reaches the reviewer rings.
+// Both halves count. A re-sequenced sample was reviewed twice and both reviews are work, so
+// the reviewer is credited for each: Dr. Sudha's July is 105, counting spik_4328 and
+// spik_4328A separately. The pairing is recorded and shown in the remark so the relationship
+// is visible, but it does not change any count.
 //
-// The repeat is the report that actually went out, so it counts and the original is
-// superseded. Where the re-analysis was done by someone else — spik_4326 moved from Vikram
-// to Nikhil — the credit follows whoever did the final review, which is the point of
-// crediting the repeat rather than the original.
+// A repeat is only recognised when the Anderson_ID, client and test all match the original.
+// The sample name is not compared — Anderson_ID is the patient identity and system-generated,
+// while the name is free text, and 25 genuine repeats differ only in its wording. A bare AF
+// suffix is not a repeat either: it is the sample type, amniotic fluid, and spik_4640 and
+// spik_4640AF are two different patients.
 //
-// Only the counts change. Both rows stay in All Samples, the Released tab and the export,
-// and each says in its remark what it is, so a row that does not count is never a mystery.
-// This is a pass over the finished rows because mapRow sees one row at a time and cannot
-// know whether a repeat of it exists.
+// This is not re-analysis. Re-analysis is raw data from an external client, lives in its own
+// sheet, feeds the Re-analysis tab under its own two-to-one rule, and never reaches the
+// reviewer rings.
 function markRepeats(list) {
   const byId = {};
   list.forEach(r => { if (r.gen_id) byId[r.gen_id] = r; });
@@ -3754,10 +3754,7 @@ function markRepeats(list) {
 
     r.repeat_of = base.gen_id;
 
-    // The original is only superseded once the repeat has actually been released. Two
-    // repeats have no release date yet, and dropping their originals would have left those
-    // samples counting for nobody at all.
-    if (parseDate(r.rel_date)) base.superseded_by = r.gen_id;
+    base.resequenced_as = r.gen_id;
 
     // _canon carries the remark the All Samples table and the Excel export read, so it has
     // to be written too — updating row.remark alone leaves the label off the download.
@@ -3768,14 +3765,9 @@ function markRepeats(list) {
       if (row._canon) row._canon.remark = row.remark;
     };
     note(r, 'Repeat of ' + base.gen_id);
-    if (base.superseded_by === r.gen_id) note(base, 'Superseded by ' + r.gen_id);
+    note(base, 'Re-sequenced as ' + r.gen_id);
   });
   return list;
-}
-
-// Superseded originals drop out of every count, the way Siva sir team samples do.
-function countsAsSample(r) {
-  return !r.superseded_by;
 }
 
 function parseGrid(grid) {
@@ -5976,7 +5968,6 @@ function anInitFilters() {
     // lands in the month it actually went out. Matches the reviewer counts, which have
     // always keyed off the release date, and skips a superseded original for the same
     // reason they do.
-    if (!countsAsSample(r)) return false;
     const d = parseDate(r.rel_date);
     return d ? d.getFullYear() : null;
   }).filter(Boolean))].sort((a, b) => b - a);
@@ -6063,7 +6054,6 @@ function anDrawChart1() {
     // lands in the month it actually went out. Matches the reviewer counts, which have
     // always keyed off the release date, and skips a superseded original for the same
     // reason they do.
-    if (!countsAsSample(r)) return false;
     const d = parseDate(r.rel_date);
     if (!d) return false;
     const yearMatch = year === 'All' || String(d.getFullYear()) === year;
@@ -6099,7 +6089,6 @@ function anDrawChart2() {
     // lands in the month it actually went out. Matches the reviewer counts, which have
     // always keyed off the release date, and skips a superseded original for the same
     // reason they do.
-    if (!countsAsSample(r)) return false;
     const d = parseDate(r.rel_date);
     if (!d) return false;
     const yearMatch = year === 'All' || String(d.getFullYear()) === year;
@@ -6302,7 +6291,6 @@ function countWithSingleGene(whole, singleGene) {
 function _chart0Data(year, month) {
   const filtered = rows.filter(r => {
     if (getStatus(r) !== 'Released') return false;
-    if (!countsAsSample(r)) return false;
     const d = parseDate(r.rel_date);
     if (!d) return false;
     const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
@@ -6365,7 +6353,6 @@ function openReviewerRingModal(key, label) {
   // Get released samples for this reviewer
   const reviewerSamples = rows.filter(r => {
     if (getStatus(r) !== 'Released') return false;
-    if (!countsAsSample(r)) return false;
     const d = parseDate(r.rel_date);
     if (!d) return false;
     const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
@@ -6519,7 +6506,6 @@ function downloadReviewerSamples(label, period) {
   // Get released samples for this reviewer
   const reviewerSamples = rows.filter(r => {
     if (getStatus(r) !== 'Released') return false;
-    if (!countsAsSample(r)) return false;
     const d = parseDate(r.rel_date);
     if (!d) return false;
     const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
@@ -6757,7 +6743,6 @@ function downloadChart0Data() {
   // Get the filtered data using the same logic as the chart
   const filtered = rows.filter(r => {
     if (getStatus(r) !== 'Released') return false;
-    if (!countsAsSample(r)) return false;
     const d = parseDate(r.rel_date);
     if (!d) return false;
     const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;

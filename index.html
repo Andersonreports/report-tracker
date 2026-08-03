@@ -1750,12 +1750,17 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15A9 9 0 1 1 5.64 5.64L23 10"/></svg>
         Records <span class="rc-num" id="ra-count-num">0</span>
       </div>
+      <button class="btn btn-sm btn-pri" onclick="downloadReanalysisExcel()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download Excel
+      </button>
+      <span id="ra-freeze-btn"></span>
       <button id="ra-clear-team" class="rel-filter-toggle" style="display:none" onclick="raFilterTeam(null)">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         <span id="ra-clear-team-label">Clear team</span>
       </button>
     </div>
-    <div class="tbl-wrap glass"><div id="ra-table"></div></div>
+    <div class="tbl-wrap glass"><div id="ra-table" style="overflow:auto"></div></div>
   </div>
 
 
@@ -3779,6 +3784,7 @@ function startAutoSync() {
 const REANALYSIS_SHEET = 'RE-ANALYSIS';
 let reanalysisHeaders = [];   // column names, in sheet order
 let reanalysisRows = [];      // [{ header: value, ... }]
+let _raView = [];             // the rows currently listed, after team filter and search
 let raTeamFilter = null;      // active team key from a ring click
 let raSearch = '';
 
@@ -3942,7 +3948,58 @@ function renderReanalysis() {
     }
   }
 
+  _raView = data;   // what the download writes, so it matches what is on screen
   renderReanalysisTable(reanalysisHeaders, data);
+
+  const fb = document.getElementById('ra-freeze-btn');
+  if (fb) fb.innerHTML = freezeBtnHtml('ra-table');
+  applyFreeze('ra-table');
+}
+
+// The re-analysis sheet is a separate sheet with its own columns, so it needs its own
+// download: the All Samples export covers Sheet1 only. Columns are taken from the sheet
+// verbatim, in sheet order, rather than mapped to Sheet1's schema — this sheet is not
+// expected to have the same shape, and a database load wants what the sheet actually says.
+//
+// Exports the rows currently listed, so a team filter or a search narrows the file the same
+// way it narrows the table. Clear both to export everything.
+function downloadReanalysisExcel() {
+  try {
+    if (typeof XLSX === 'undefined') { toast('SheetJS not loaded — refresh the page', 'err'); return; }
+    const headers = reanalysisHeaders;
+    const data = _raView.length ? _raView : reanalysisRows;
+    if (!headers.length || !data.length) { toast('No re-analysis rows to export', 'warn'); return; }
+
+    const wsData = [headers.slice()];
+    data.forEach(r => wsData.push(headers.map(h => String(r[h] == null ? '' : r[h]))));
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = wsData[0].map((h, i) => {
+      let max = String(h).length;
+      wsData.forEach(row => { if (row[i] && String(row[i]).length > max) max = String(row[i]).length; });
+      return { wch: Math.min(max + 2, 40) };
+    });
+    XLSX.utils.book_append_sheet(wb, ws, 'Re-analysis');
+
+    const t = new Date();
+    const fname = `Re-analysis_${String(t.getDate()).padStart(2,'0')}-${String(t.getMonth()+1).padStart(2,'0')}-${t.getFullYear()}.xlsx`;
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
+    const buf = new ArrayBuffer(wbout.length);
+    const view = new Uint8Array(buf);
+    for (let i = 0; i < wbout.length; i++) view[i] = wbout.charCodeAt(i) & 0xFF;
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fname; a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+    toast(`Excel downloaded: ${data.length} rows × ${headers.length} columns`, 'ok');
+  } catch (e) {
+    toast('Download failed: ' + e.message, 'err');
+    console.error('[downloadReanalysisExcel]', e);
+  }
 }
 
 function renderReanalysisTable(headers, data) {

@@ -2044,8 +2044,11 @@ function mapRow(raw) {
   // overdue list — but still present in the sheet totals and the All Samples table.
   // The phrase turns up wherever whoever filled the row put it — the remark, the reviewer,
   // the analyst, and in six rows the TAT column, where it replaced the date outright.
+  // A cancer panel is that team's work whether or not anyone wrote it down: 23 samples,
+  // 16 of which were already being excluded because someone had noted it.
   const isSiva = SIVA_RE.test(remarkRaw) || SIVA_RE.test(priRevRaw) ||
-                 SIVA_RE.test(analystRaw) || SIVA_RE.test(tatFixed);
+                 SIVA_RE.test(analystRaw) || SIVA_RE.test(tatFixed) ||
+                 CANCER_PANEL_RE.test(pick('test', COL_MAP.test));
   if (isSiva) canon.remark = SIVA_LABEL;
 
   return {
@@ -3303,6 +3306,9 @@ function anaDateToDayFirst(v) {
 // and "sir" together. Never matched against Sample_Name: 28 patients are named
 // Siva-something, and one false positive would drop a real sample from every count.
 const SIVA_RE = /siva\s*sir/i;
+// Every cancer-panel spelling in the sheet is "Hereditary Cancer …", and no other test
+// name contains the word, so matching on it alone is unambiguous.
+const CANCER_PANEL_RE = /cancer/i;
 const SIVA_LABEL = 'Siva sir team samples';
 
 // ================================================================

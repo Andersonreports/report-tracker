@@ -3846,7 +3846,8 @@ function parseBinary(binary) {
     allRows.push(obj);
   }
 
-  return allRows.map(mapRow).filter(r => r.name || r.gen_id || r.and_id || r.client || r.test);
+  const out = allRows.map(mapRow).filter(r => r.name || r.gen_id || r.and_id || r.client || r.test);
+  return markRepeats(out);
 }
 
 // ================================================================
@@ -3876,6 +3877,75 @@ async function fetchGoogleSheet(silent) {
     setLivePill(false, e.name === 'AbortError' ? 'Request timed out' : e.message);
     if (!silent) toast('Failed to fetch Google Sheet: ' + (e.name === 'AbortError' ? 'Request timed out (15s)' : e.message), 'err');
   }
+}
+
+// A repeat sample is a patient's sample re-sequenced after a QC failure. It carries the
+// original's Gen_ID with an A appended, or _A where the original ends in AF — spik_4322 from
+// Run-89A was re-sequenced as spik_4322A in Run-94A.
+//
+// The pair is one report, so it counts once: the sample from the LATER run is the one that
+// counts and the earlier is superseded. That is decided on run number rather than on which
+// Gen_ID carries the suffix, since the suffix does not guarantee the ordering. Where the runs
+// tie, the later release date wins, and failing that the suffixed row.
+//
+// A pair only counts once when both halves have a release date. Where only one is dated —
+// which is how these are meant to be entered — nothing is superseded, because the single
+// dated row is already the only one counted.
+//
+// Recognised when the Anderson_ID, client and test all match. The sample name is not compared:
+// Anderson_ID is the patient identity and system-generated, while the name is free text, and
+// spik_4322 reads "MR.NARESH G (30Y/M)" against "NARESH G (30Y/M)" for the same patient. A
+// bare AF suffix is not a repeat — it is the sample type, amniotic fluid.
+//
+// Only counts change. Both rows stay in All Samples, the Released tab and the export, and each
+// says in its remark what it is.
+function markRepeats(list) {
+  const byId = {};
+  list.forEach(r => { if (r.gen_id) byId[r.gen_id] = r; });
+  const runOf = r => parseInt(r.run_number || 0, 10) || 0;
+  const relOf = r => { const d = parseDate(r.rel_date); return d ? d.getTime() : 0; };
+
+  list.forEach(r => {
+    const m = String(r.gen_id || '').match(/^(.+?)(?:_A|A)$/);
+    if (!m) return;
+    const base = byId[m[1]];
+    if (!base || base === r) return;
+
+    const same = (a, b) => {
+      const norm = v => String(v || '').trim().replace(/\s+/g, ' ').toUpperCase();
+      const x = norm(a);
+      return x !== '' && x === norm(b);
+    };
+    if (!(same(base.and_id, r.and_id) && same(base.client, r.client) && same(base.test, r.test))) return;
+
+    r.repeat_of = base.gen_id;
+    base.repeated_as = r.gen_id;
+
+    // Both dated, or there is no double count to remove.
+    if (!parseDate(base.rel_date) || !parseDate(r.rel_date)) return;
+
+    let keep, drop;
+    if (runOf(r) !== runOf(base))      { keep = runOf(r) > runOf(base) ? r : base; }
+    else if (relOf(r) !== relOf(base)) { keep = relOf(r) > relOf(base) ? r : base; }
+    else                               { keep = r; }
+    drop = keep === r ? base : r;
+    drop.superseded_by = keep.gen_id;
+
+    const note = (row, text) => {
+      const cur = String(row.remark || '').trim();
+      if (cur.includes(text)) return;
+      row.remark = cur ? cur + ' \u00b7 ' + text : text;
+      if (row._canon) row._canon.remark = row.remark;
+    };
+    note(keep, 'Repeat counted — supersedes ' + drop.gen_id);
+    note(drop, 'Superseded by ' + keep.gen_id + ' (later run)');
+  });
+  return list;
+}
+
+// A superseded half of a repeat pair is out of every count, the way Siva sir team samples are.
+function countsAsSample(r) {
+  return !r.superseded_by;
 }
 
 function parseGrid(grid) {
@@ -3942,7 +4012,8 @@ function parseGrid(grid) {
     allRows.push(obj);
   }
 
-  return allRows.map(mapRow).filter(r => r.name || r.gen_id || r.and_id || r.client || r.test);
+  const out = allRows.map(mapRow).filter(r => r.name || r.gen_id || r.and_id || r.client || r.test);
+  return markRepeats(out);
 }
 
 function startAutoSync() {
@@ -6154,7 +6225,8 @@ function anInitFilters() {
   const years = [...new Set(rows.map(r => {
     // Counted by when the report was released, not by its TAT deadline, so a sample
     // lands in the month it actually went out. Matches the reviewer counts, which have
-    // always keyed off the release date.
+    // always keyed off the release date, and skips a superseded half of a repeat pair.
+    if (!countsAsSample(r)) return false;
     const d = parseDate(r.rel_date);
     return d ? d.getFullYear() : null;
   }).filter(Boolean))].sort((a, b) => b - a);
@@ -6239,7 +6311,8 @@ function anDrawChart1() {
   const filtered = rows.filter(r => {
     // Counted by when the report was released, not by its TAT deadline, so a sample
     // lands in the month it actually went out. Matches the reviewer counts, which have
-    // always keyed off the release date.
+    // always keyed off the release date, and skips a superseded half of a repeat pair.
+    if (!countsAsSample(r)) return false;
     const d = parseDate(r.rel_date);
     if (!d) return false;
     const yearMatch = year === 'All' || String(d.getFullYear()) === year;
@@ -6273,7 +6346,8 @@ function anDrawChart2() {
   const filtered = rows.filter(r => {
     // Counted by when the report was released, not by its TAT deadline, so a sample
     // lands in the month it actually went out. Matches the reviewer counts, which have
-    // always keyed off the release date.
+    // always keyed off the release date, and skips a superseded half of a repeat pair.
+    if (!countsAsSample(r)) return false;
     const d = parseDate(r.rel_date);
     if (!d) return false;
     const yearMatch = year === 'All' || String(d.getFullYear()) === year;
@@ -6480,6 +6554,7 @@ function countWithSingleGene(whole, singleGene) {
 function _chart0Data(year, month) {
   const filtered = rows.filter(r => {
     if (getStatus(r) !== 'Released') return false;
+    if (!countsAsSample(r)) return false;
     const d = parseDate(r.rel_date);
     if (!d) return false;
     const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
@@ -6542,6 +6617,7 @@ function openReviewerRingModal(key, label) {
   // Get released samples for this reviewer
   const reviewerSamples = rows.filter(r => {
     if (getStatus(r) !== 'Released') return false;
+    if (!countsAsSample(r)) return false;
     const d = parseDate(r.rel_date);
     if (!d) return false;
     const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
@@ -6695,6 +6771,7 @@ function downloadReviewerSamples(label, period) {
   // Get released samples for this reviewer
   const reviewerSamples = rows.filter(r => {
     if (getStatus(r) !== 'Released') return false;
+    if (!countsAsSample(r)) return false;
     const d = parseDate(r.rel_date);
     if (!d) return false;
     const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;

@@ -4550,16 +4550,45 @@ const TEAM_LEADER_MAP = {
   'Team 7': 'Nikhil'
 };
 
-// Team targets per month
+// Monthly target per reviewer. Held per person rather than per team because the three that
+// changed — Gayathri to 35, Vamshi and Nikhil to 40 — are each the only member of their team,
+// and a per-person figure is what "extra samples" is measured against.
+//
+// The four unchanged carry the target their team already had: Naveen 40, Vignesh 40,
+// Dr. Sudha 80, Diwakar 40. Gayathri, Vamshi and Nikhil previously had none — their teams
+// were set to 0, which fell through a falsy check to 100 — so 35, 40 and 40 replace an
+// effective 100 rather than a 0. Vikram shares Nikhil's team and so his target.
+const REVIEWER_TARGETS = {
+  naveen:   40,
+  vignesh:  40,
+  sudha:    80,
+  diwakar:  40,
+  gayathri: 35,
+  vamshi:   40,
+  nikhil:   40,
+  vikram:   40
+};
+const DEFAULT_TARGET = 40;
+
+// Targets are still needed by team for the Team Workload view.
 const TEAM_TARGETS = {
   'Team 1': 40,
   'Team 2': 40,
   'Team 3': 80,
   'Team 4': 40,
-  'Team 5': 0,
-  'Team 6': 0,
-  'Team 7': 0
+  'Team 5': 35,
+  'Team 6': 40,
+  'Team 7': 40
 };
+
+// One reviewer's monthly target, and what they released beyond it.
+function targetFor(key) {
+  const t = REVIEWER_TARGETS[key];
+  return (t === undefined) ? DEFAULT_TARGET : t;
+}
+function extraOver(key, count) {
+  return Math.max(0, count - targetFor(key));
+}
 
 function renderTeamWorkload(containerId, data) {
   const el = document.getElementById(containerId);
@@ -6403,11 +6432,12 @@ function ringReviewerKeys(key, year, month) {
 function buildReviewerRingsHtml(teamCount, total, month, inThresholdWindow, highlightKey, year) {
   return TEAM_MEMBERS.filter(t => !t.untilJun2026 || showsVikram(year === undefined ? 'All' : year, month)).map(t => {
     const cnt = teamCount[t.key] || 0;
-    // Fixed 100-sample target only applies to a single selected month; when
-    // viewing "All" months, fall back to share-of-total so the ring still
-    // makes sense at that larger scale.
-    const pct = month !== 'All' ? Math.min(cnt / 100, 1) : (total > 0 ? cnt / total : 0);
-    const celebrate = inThresholdWindow && cnt >= 40;
+    // The ring fills against this reviewer's own target for a single month; across "All"
+    // months a target is meaningless, so it falls back to share-of-total to stay readable.
+    const tgt = targetFor(t.key);
+    const extra = extraOver(t.key, cnt);
+    const pct = month !== 'All' ? Math.min(cnt / tgt, 1) : (total > 0 ? cnt / total : 0);
+    const celebrate = inThresholdWindow && cnt >= tgt;
     const isHighlighted = t.key === highlightKey;
     return `
     <div style="display:flex;flex-direction:column;align-items:center;gap:14px;flex:1;min-width:150px;cursor:pointer;${isHighlighted ? `outline:2px solid ${t.color};outline-offset:8px;border-radius:18px;` : ''}" onclick="openReviewerRingModal('${t.key}','${t.label.replace(/'/g, "\\'")}')">
@@ -6423,6 +6453,9 @@ function buildReviewerRingsHtml(teamCount, total, month, inThresholdWindow, high
       <div style="text-align:center">
         <div style="font-size:13px;font-weight:800;color:${t.color};text-transform:uppercase;letter-spacing:1px">${t.label}</div>
         <div style="font-size:12px;color:#94a3b8;margin-top:5px">${cnt} sample${cnt !== 1 ? 's' : ''} released</div>
+        ${month !== 'All' ? `<div style="font-size:11px;color:#94a3b8;margin-top:3px">target ${tgt}${
+          extra > 0 ? ` · <span style="color:${t.color};font-weight:800">+${extra} extra</span>`
+                    : (cnt < tgt ? ` · ${tgt - cnt} to go` : '')}</div>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -6601,9 +6634,9 @@ function downloadReviewerCounts(label, key) {
     }
   });
 
-  // Get target for this team
-  const target = TEAM_TARGETS[reviewerTeam] || 100;
-  const additionalCount = Math.max(0, totalCount - target);
+  // This reviewer's own monthly target, and what they released beyond it.
+  const target = targetFor(key);
+  const additionalCount = extraOver(key, totalCount);
 
   // Prepare data for Excel
   const excelData = [];
@@ -6940,8 +6973,8 @@ function downloadChart0Data() {
   TEAM_MEMBERS.forEach(t => {
     const teamName = TEAM_MAP[t.label] || 'Team 6';
     const cnt = teamCount[t.key] || 0;
-    const target = TEAM_TARGETS[teamName] || 100;
-    const additionalCount = Math.max(0, cnt - target);
+    const target = targetFor(t.key);
+    const additionalCount = extraOver(t.key, cnt);
 
     excelData.push([
       `${teamName}: ${t.label}`,

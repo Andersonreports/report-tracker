@@ -3911,12 +3911,30 @@ function markRepeats(list) {
     const base = byId[m[1]];
     if (!base || base === r) return;
 
+    // The Anderson_ID must match EXACTLY — same case, same characters, only surrounding
+    // whitespace ignored, since that is invisible and never a real difference. It also has to
+    // be a real ID rather than a note: some rows carry "CMC", "Internal", "Not Registered" or
+    // "CMC sample_Yet to be billed" in that column, and those match each other exactly, so
+    // without this two unrelated patients sharing a placeholder would be merged into one count.
+    // A real Anderson ID starts with letters, carries at least six digits and contains no
+    // spaces. Letters appear mid-string too — AND251R0003001, AND25AE0000097 — so the digits
+    // are counted rather than required to be contiguous. The placeholders all fail one of the
+    // three: "CMC" and "PREPGT" have no digits, "Not Registered" and "cmc endocrinology" have
+    // spaces.
+    const idOf = v => String(v == null ? '' : v).trim();
+    const isRealId = v => /^[A-Za-z]/.test(v) && !/\s/.test(v) &&
+                          (v.replace(/\D/g, '').length >= 6);
+    const baseId = idOf(base.and_id), repId = idOf(r.and_id);
+    if (!isRealId(baseId) || baseId !== repId) return;
+
+    // Client and test are compared more loosely — case and spacing vary between rows for the
+    // same value, and neither identifies the sample the way the Anderson_ID does.
     const same = (a, b) => {
       const norm = v => String(v || '').trim().replace(/\s+/g, ' ').toUpperCase();
       const x = norm(a);
       return x !== '' && x === norm(b);
     };
-    if (!(same(base.and_id, r.and_id) && same(base.client, r.client) && same(base.test, r.test))) return;
+    if (!(same(base.client, r.client) && same(base.test, r.test))) return;
 
     r.repeat_of = base.gen_id;
     base.repeated_as = r.gen_id;

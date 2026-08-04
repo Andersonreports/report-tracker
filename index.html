@@ -1902,12 +1902,12 @@ const SHEET_SCHEMA = [
   { key:'test',         label:'Test',                             aliases:['test','testname','testrequested'] },
   { key:'gen_id',       label:'Gen_ID',                           aliases:['genid','geneticid'] },
   { key:'and_id',       label:'Anderson_ID',                      aliases:['andersonid','andid','andersonno'] },
-  // Not a Sheet1 column — looked up per sample from the CNV workbook.
-  { key:'cnv_status',   label:'CNV Status',                       derived:true },
   { key:'client',       label:'Client',                           aliases:['client','clientname'] },
   { key:'tat',          label:'TAT(30 Days)',                     aliases:['tat30days','tatdays','tat','turnaround'] },
   { key:'bioinfo_time', label:'Bioinfo Analysis Time',            aliases:['bioinfoanalysistime','bioinformaticsanalysistime','bioinfotime','bioinfo'] },
   { key:'rep_exp',      label:'Repeat Expansion',                 aliases:['repeatexpansion','repeat'] },
+  // Not a Sheet1 column — looked up per sample from the CNV workbook.
+  { key:'cnv_status',   label:'CNV Status',                       derived:true },
   { key:'analyst',      label:'ANALYZE BY',                       aliases:['analyzeby','analysedby','analyzedby','analyseby','analystby','analyst'] },
   { key:'ana_date',     label:'ANALYZE DATE',                     aliases:['analyzedate','analysisdate','analyzeddate','analyseddate','dateofanalysis'] },
   // The Reviewer behind team workload, sample counts and getStatus — see `critical`.

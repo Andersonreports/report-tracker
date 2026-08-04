@@ -2159,7 +2159,8 @@ function mapRow(raw) {
     run_number:   runFix ? runFix.num : (raw._run_num || 0),
     run_text:     runFix ? runFix.run : (raw._run_txt || '—'),
     run_recovered: !!runFix,
-    cnv_status:   cnvStatusFor(genId),
+    // Cancer panels aren't CNV-called — treat them as No CNV rather than leaving CNV Status blank.
+    cnv_status:   CANCER_PANEL_RE.test(pick('test', COL_MAP.test)) ? 'No CNV' : cnvStatusFor(genId),
     is_hidden:    !!raw._hidden,
     // Row in the finalised schema's shape — drives the All Samples view and its export.
     _canon:       canon,

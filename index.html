@@ -6759,7 +6759,9 @@ function downloadReviewerSamples(label, period) {
   const now = new Date();
   const dateStr = now.toISOString().split('T')[0];
   const cleanLabel = label.replace(/[^a-zA-Z0-9]/g, '_');
-  const filename = `${cleanLabel}-samples-${dateStr}.xlsx`;
+  // The period is in the name too, so Diwakar's July file is distinguishable from his June one.
+  const periodSlug = String(period || '').trim().replace(/\s+/g, '-') || 'All-Time';
+  const filename = `${cleanLabel}_${periodSlug}_downloaded-${dateStr}.xlsx`;
 
   // Trigger download
   XLSX.writeFile(wb, filename);
@@ -6929,30 +6931,10 @@ function downloadChart0Data() {
   const year = document.getElementById('an-f0-year').value;
   const month = document.getElementById('an-f0-month').value;
 
-  // Get the filtered data using the same logic as the chart
-  const filtered = rows.filter(r => {
-    if (getStatus(r) !== 'Released') return false;
-    const d = parseDate(r.rel_date);
-    if (!d) return false;
-    const yearMatch  = year  === 'All' || String(d.getFullYear()) === year;
-    const monthMatch = month === 'All' || d.toLocaleString('default', { month: 'short' }) === month;
-    return yearMatch && monthMatch;
-  });
-
-  // Build team count data
-  // Single Gene tests are tallied apart so three of them can count as one.
-  const whole = {}, singleGene = {};
-  TEAM_MEMBERS.forEach(t => { whole[t.key] = 0; singleGene[t.key] = 0; });
-  filtered.forEach(r => {
-    const rv = String(r.pri_rev || '').toLowerCase().trim();
-    const sg = isSingleGene(r);
-    TEAM_MEMBERS.forEach(t => {
-      if (!rv.includes(t.key)) return;
-      if (sg) singleGene[t.key]++; else whole[t.key]++;
-    });
-  });
-  const teamCount = {};
-  TEAM_MEMBERS.forEach(t => { teamCount[t.key] = countWithSingleGene(whole[t.key], singleGene[t.key]); });
+  // Ask the chart for its figures rather than recounting. This file used to run its own
+  // filter and count, which drifted: it skipped foldVikram, so July listed Vikram as his own
+  // team on 7 and Nikhil on 68 where the ring showed Nikhil 75 with Vikram folded in.
+  const { teamCount } = _chart0Data(year, month);
 
   // Prepare data for Excel
   const excelData = [];
@@ -6970,7 +6952,10 @@ function downloadChart0Data() {
   let totalTarget = 0;
   let totalAdditional = 0;
 
-  TEAM_MEMBERS.forEach(t => {
+  // Only the reviewers the chart shows. From July 2026 Vikram has no ring of his own — his
+  // samples belong to Nikhil's team and are already inside Nikhil's figure, so listing him
+  // separately would both name a team that no longer exists and double the total.
+  TEAM_MEMBERS.filter(t => t.key in teamCount).forEach(t => {
     const teamName = TEAM_MAP[t.label] || 'Team 6';
     const cnt = teamCount[t.key] || 0;
     const target = targetFor(t.key);
@@ -7008,7 +6993,10 @@ function downloadChart0Data() {
   // Generate filename
   const now = new Date();
   const dateStr = now.toISOString().split('T')[0];
-  const filename = `team-summary-${dateStr}.xlsx`;
+  // The period goes in the name, so a folder of these is identifiable without opening them.
+  const slug = (year === 'All' && month === 'All') ? 'All-Time'
+             : `${month === 'All' ? '' : month + '-'}${year === 'All' ? '' : year}`.replace(/-$/, '');
+  const filename = `Team-Summary_${slug}_downloaded-${dateStr}.xlsx`;
 
   // Trigger download
   XLSX.writeFile(wb, filename);

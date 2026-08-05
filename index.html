@@ -1912,14 +1912,25 @@ const SHEET_SCHEMA = [
   { key:'analyst',      label:'ANALYZE BY',                       aliases:['analyzeby','analysedby','analyzedby','analyseby','analystby','analyst'] },
   { key:'ana_date',     label:'ANALYZE DATE',                     aliases:['analyzedate','analysisdate','analyzeddate','analyseddate','dateofanalysis'] },
   // The Reviewer behind team workload, sample counts and getStatus — see `critical`.
-  // Aliases run specific → general so a precise header always wins; the bare
-  // reviewer spellings at the end are the safety net. `avoid` keeps a FINAL REVIEW /
-  // FINAL REVIEWER / "Final Clinical Review" column from being taken as this one.
-  { key:'pri_rev',      label:'PRIMARY REVIWER  CLINICAL REVIEW',
+  // Some header rows spell this "PRIMARY REVIWER (PRATHEEBA/NAVEEN)" or "...(DIWAKAR/
+  // NAVEEN)" — whichever two names sit in parens there, the column is still just the
+  // Reviewer, and its cell values (not the header's names) are each row's actual reviewer.
+  // Aliases run specific → general so a precise match always wins; the bare reviewer
+  // spellings at the end are the safety net. `avoid` keeps a genuinely separate FINAL
+  // REVIEW / FINAL REVIEWER column (see the `final` key below) from being taken as this
+  // one — and the merged "PRIMARY REVIWER  CLINICAL REVIEW" single-cell header some
+  // sections use is claimed whole by the exact alias below, since that section has no
+  // second, separate clinical-review value to split out.
+  { key:'pri_rev',      label:'Reviewer',
     aliases:['primaryreviwerclinicalreview','primaryreviewerclinicalreview','primaryreviwer',
-             'primaryreviewer','primaryreview','clinicalreviwer','clinicalreview',
+             'primaryreviewer','primaryreview',
              'reviewer','reviwer','reviewedby','reviewdby','reviewby','review'],
     avoid:['final'], critical:true },
+  // A genuinely separate column in the sections that have one — the clinical/final
+  // sign-off, distinct from the Reviewer above.
+  { key:'final',        label:'Clinical Reviewer',
+    aliases:['finalclinicalreview','finalreview','finalreviewer','finalreviewedby',
+             'clinicalreview','clinicalreviewer','clinicalreviwer'] },
   { key:'remark',       label:'REMARK',                           aliases:['remark','remarks','note','notes'] },
   { key:'rel_date',     label:'REPORT RELEASE DATE',              aliases:['reportreleasedate','releasedate','releasedon','reportrelease'] },
   { key:'history',      label:'History writeup',                  aliases:['historywriteup','history','writeup'] },
@@ -2153,8 +2164,7 @@ function mapRow(raw) {
     assign_date:  assignDate,
     ana_date:     anaDate,
     pri_rev:      priRevRaw,
-    // Dropped from the finalised set; still read so older sheets keep working.
-    final:        get(COL_MAP.final),
+    final:        pick('final', COL_MAP.final),
     remark:       isSiva ? SIVA_LABEL : remarkWithNotes,
     is_siva:      isSiva,
     rel_date:     relFixed,
@@ -4174,6 +4184,7 @@ function mapReanalysisRow(r) {
     analyst: analystRaw,
     ana_date: raField(r, ['analyze date', 'analysis date']),
     pri_rev: priRevRaw,
+    final:   raField(r, ['final review', 'final reviewer', 'final']),
     remark:  isSiva ? SIVA_LABEL : remarkRaw,
     rel_date: raField(r, ['report release date', 'release date']),
     history: raField(r, ['history writeup', 'history']),
@@ -4182,7 +4193,6 @@ function mapReanalysisRow(r) {
     ...canon,
     analyst_raw:  analystRaw,
     assign_date:  '',
-    final:        raField(r, ['final review', 'final reviewer', 'final']),
     is_siva:      isSiva,
     run_number:   0,
     run_text:     '—',
@@ -5368,7 +5378,7 @@ const TABLE_CFG = {
   yet:       { status:'Yet to Start', q:'q-yet',  test:'f-yet-test',  analyst:null,              tat:null,  tatMonth:'f-yet-month', tatYear:'f-yet-year', tatDate:'f-yet-date',
                cols:['name','run_text','test','gen_id','and_id','client','tat','rep_exp','cnv_status','re_analysis'] },
   assigned:  { status:'Ongoing',      q:'q-asgn', test:'f-asgn-test', reviewer:'f-asgn-employee', tat:'f-asgn-tat', run:'f-asgn-run', relMonth:null,          relYear:null,
-               cols:['pri_rev','analyst','assign_date','name','run_text','test','gen_id','and_id','client','tat','ana_date','cnv_status','re_analysis','remark'] },
+               cols:['pri_rev','final','analyst','assign_date','name','run_text','test','gen_id','and_id','client','tat','ana_date','cnv_status','re_analysis','remark'] },
   released:  { status:'Released',     q:'q-rel',  test:'f-rel-test',  analyst:'f-rel-analyst',  team:'f-rel-team', client:'f-rel-client', tat:null, run:'f-rel-run', relMonth:'f-rel-month', relYear:'f-rel-year', relDate:'f-rel-date',
                cols:['name','test','gen_id','and_id','run_text','analyst_txt','client','tat','rel_date','cnv_status','re_analysis','remark','_remove'] },
 };
@@ -5376,8 +5386,8 @@ const TABLE_CFG = {
 const COL_LABELS = {
   name:'Sample Name', test:'Test', gen_id:'Gen. ID', and_id:'And. ID', run_text: 'Run',
   client:'Client', tat:'TAT', rep_exp:'Repeat Exp',
-  analyst:'Assigned To', analyst_raw:'Assigned To', analyst_txt:'Analyst', assign_date:'Assigned Date', ana_date:'Analyze Date', pri_rev:'Primary Reviewer',
-  final:'Final Review', remark:'Remark', rel_date:'Release Date', history:'History',
+  analyst:'Assigned To', analyst_raw:'Assigned To', analyst_txt:'Analyst', assign_date:'Assigned Date', ana_date:'Analyze Date', pri_rev:'Reviewer',
+  final:'Clinical Reviewer', remark:'Remark', rel_date:'Release Date', history:'History',
   cnv_status:'CNV Status', re_analysis:'Re-analysis',
   _status:'Status', _rel:'Release Date', _remove:'Action',
 };
@@ -5617,7 +5627,7 @@ function updateYetCount() {
 // ================================================================
 //  TAT OVERDUE TAB — all overdue samples (no day limit)
 // ================================================================
-const OVERDUE_COLS = ['name','test','gen_id','and_id','run_text', 'client','tat','_status','_overdue_days','pri_rev','remark'];
+const OVERDUE_COLS = ['name','test','gen_id','and_id','run_text', 'client','tat','_status','_overdue_days','pri_rev','final','remark'];
 
 function getOverdueRows() {
   const today = new Date(); today.setHours(0,0,0,0);
@@ -6212,7 +6222,7 @@ function loadFromStorage() {
 //  PRIORITY MODAL — Yet to Start + In Review samples with TAT in next 3 months
 // ================================================================
 let _priorityRows = [];
-const PRIORITY_COLS = ['name','test', 'run_text', 'gen_id','and_id','client','tat','cnv_status','pri_rev'];
+const PRIORITY_COLS = ['name','test', 'run_text', 'gen_id','and_id','client','tat','cnv_status','pri_rev','final'];
 
 function openPriorityModal() {
   const today = new Date(); today.setHours(0,0,0,0);
@@ -6797,7 +6807,7 @@ function openReviewerRingModal(key, label) {
   document.getElementById('qmodal-count').textContent = ` · ${reviewerSamples.length} samples · ${period}`;
 
   // Define columns to show for released samples
-  const RELEASED_COLS = ['name','test','gen_id','and_id','run_text','client','tat','rel_date','analyst','cnv_status','re_analysis','remark'];
+  const RELEASED_COLS = ['name','test','gen_id','and_id','run_text','client','tat','rel_date','analyst','final','cnv_status','re_analysis','remark'];
 
   // Pre-escape label and period for use in onclick handlers
   const escapedLabel = label.replace(/'/g, "\\'");
@@ -6945,7 +6955,7 @@ function downloadReviewerSamples(label, period) {
 
   // Prepare data for Excel
   const excelData = [];
-  const RELEASED_COLS = ['name','test','gen_id','and_id','run_text','client','tat','rel_date','analyst','cnv_status','re_analysis','remark'];
+  const RELEASED_COLS = ['name','test','gen_id','and_id','run_text','client','tat','rel_date','analyst','final','cnv_status','re_analysis','remark'];
 
   // Add title
   excelData.push([`${label} - Released Samples`]);

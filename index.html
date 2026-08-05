@@ -1785,7 +1785,8 @@
 // ================================================================
 //  STATE
 // ================================================================
-let rows   = [];          // parsed report rows
+let rows   = [];          // parsed report rows — Sheet1 rows plus mapped RE-ANALYSIS rows
+let sheet1Rows = [];      // Sheet1 rows alone, before the RE-ANALYSIS rows are appended
 
 // ================================================================
 //  SVG ICONS (inline, no emoji)
@@ -1922,6 +1923,8 @@ const SHEET_SCHEMA = [
   { key:'remark',       label:'REMARK',                           aliases:['remark','remarks','note','notes'] },
   { key:'rel_date',     label:'REPORT RELEASE DATE',              aliases:['reportreleasedate','releasedate','releasedon','reportrelease'] },
   { key:'history',      label:'History writeup',                  aliases:['historywriteup','history','writeup'] },
+  // Not a Sheet1 column — set on rows merged in from the RE-ANALYSIS sheet.
+  { key:'re_analysis',  label:'Re-analysis',                      derived:true },
 ];
 
 // What the All Samples table and its Excel export show. Hidden columns are still
@@ -3573,6 +3576,13 @@ function getStatus(r) {
   // Held by Siva sir's team — always treated as released, so they also drop out of the
   // overdue list and Team Workload, both of which key off status.
   if (r.is_siva) return 'Released';
+  // Re-analysis rows have no run number at all — they must not fall into the "no run
+  // number means released" rule below, which exists only for pre-run-marker Sheet1 rows.
+  if (r.re_analysis) {
+    const hasRelDateRA = r.rel_date && r.rel_date !== '—' && r.rel_date !== '-' && String(r.rel_date).trim() !== '';
+    if (hasRelDateRA) return 'Released';
+    return r.pri_rev ? 'Ongoing' : 'Yet to Start';
+  }
   const run = parseInt(r.run_number || 0, 10);
   const isHidden = !!r.is_hidden;
   const hasRelDate = r.rel_date && r.rel_date !== '—' && r.rel_date !== '-' && String(r.rel_date).trim() !== '';
@@ -3918,9 +3928,8 @@ async function fetchGoogleSheet(silent) {
     clearTimeout(timer);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const grid = await resp.json();
-    rows = parseGrid(grid);
-    saveToStorage(rows);
-    refreshAll();
+    sheet1Rows = parseGrid(grid);
+    mergeRows();
     setLivePill(true);
     if (!silent) toast(`Synced — ${rows.length} rows from Google Sheet`);
     reportSchemaWarnings(silent);
@@ -4092,7 +4101,9 @@ function startAutoSync() {
 }
 
 // ================================================================
-//  RE-ANALYSIS TAB — separate sheet, self-contained (does not touch `rows`)
+//  RE-ANALYSIS TAB — a separate sheet with its own free-form layout, but its rows
+//  are also mapped into the main `rows` list (see mapReanalysisRow/mergeRows) so
+//  re-analysis samples show up in All Samples and the other tabs, tagged Re-analysis.
 // ================================================================
 const REANALYSIS_SHEET = 'RE-ANALYSIS';
 let reanalysisHeaders = [];   // column names, in sheet order
@@ -4112,6 +4123,7 @@ async function fetchReanalysisSheet(silent) {
     const parsed = parseReanalysisGrid(grid);
     reanalysisHeaders = parsed.headers;
     reanalysisRows = parsed.rows;
+    mergeRows();
     // Re-render only if the tab is currently open
     const active = document.querySelector('.page.active');
     if (active && active.id === 'page-reanalysis') renderReanalysis();
@@ -4120,6 +4132,75 @@ async function fetchReanalysisSheet(silent) {
     clearTimeout(timer);
     if (!silent) toast('Failed to fetch Re-analysis sheet: ' + (e.name === 'AbortError' ? 'Request timed out (15s)' : e.message), 'err');
   }
+}
+
+// Reads a field off a RE-ANALYSIS row object by trying each candidate header,
+// case-insensitively and tolerant of extra words (its headers are plain sheet text,
+// not run through resolveSchemaMap like Sheet1's).
+function raField(obj, candidates) {
+  const keys = Object.keys(obj);
+  for (const want of candidates) {
+    const k = keys.find(k => {
+      const norm = k.toLowerCase().trim();
+      return norm === want || norm.includes(want);
+    });
+    if (k) return String(obj[k] || '').trim();
+  }
+  return '';
+}
+
+// Maps one RE-ANALYSIS row onto the same shape mapRow() produces for Sheet1, so it can
+// sit in `rows` alongside ordinary samples. It has no run number and no TAT — the sheet
+// tracks a different kind of work — so getStatus() special-cases re_analysis rows rather
+// than applying the "no run number means released" rule meant for old Sheet1 rows.
+function mapReanalysisRow(r) {
+  const genId = raField(r, ['gen_id', 'genid']);
+  const test = normalizeTestName(raField(r, ['test']));
+  const priRevRaw = raField(r, ['reviewer']);
+  const analystRaw = raField(r, ['analyze by', 'analyzed by', 'analyst']);
+  const remarkRaw = raField(r, ['remark']);
+  const isSiva = SIVA_RE.test(remarkRaw) || SIVA_RE.test(priRevRaw) || SIVA_RE.test(analystRaw) ||
+                 CANCER_PANEL_RE.test(test);
+  const canon = {
+    sno:     raField(r, ['f', 's.no', 'sno']),
+    name:    raField(r, ['sample_name', 'sample name', 'name']),
+    test:    test,
+    gen_id:  genId,
+    and_id:  raField(r, ['anderson_id', 'anderson id']),
+    client:  raField(r, ['client']),
+    tat:     '',
+    bioinfo_time: '',
+    rep_exp: '',
+    analyst: analystRaw,
+    ana_date: raField(r, ['analyze date', 'analysis date']),
+    pri_rev: priRevRaw,
+    remark:  isSiva ? SIVA_LABEL : remarkRaw,
+    rel_date: raField(r, ['report release date', 'release date']),
+    history: raField(r, ['history writeup', 'history']),
+  };
+  return {
+    ...canon,
+    analyst_raw:  analystRaw,
+    assign_date:  '',
+    final:        raField(r, ['final review', 'final reviewer', 'final']),
+    is_siva:      isSiva,
+    run_number:   0,
+    run_text:     '—',
+    run_recovered: false,
+    cnv_status:   isSiva ? 'No CNV' : cnvStatusFor(genId),
+    is_hidden:    false,
+    re_analysis:  'Yes',
+    _canon:       canon,
+  };
+}
+
+// Sheet1 rows plus the RE-ANALYSIS rows, kept in sync whenever either source refreshes.
+// A patient who appears in both stays as two separate rows — a re-analysis is real,
+// additional work, not a duplicate to be collapsed away.
+function mergeRows() {
+  rows = sheet1Rows.concat(reanalysisRows.map(mapReanalysisRow));
+  saveToStorage(rows);
+  refreshAll();
 }
 
 // Generic grid → {headers, rows}. Header = first row with >=2 non-empty cells;
@@ -4958,6 +5039,7 @@ function buildModalTable(data, cols, applyStatusColors = false) {
 function schemaCell(r, col) {
   if (col.key === 'run') return r.run_text === '—' ? '' : String(r.run_text || '');
   if (col.key === 'cnv_status') return String(r.cnv_status || '');
+  if (col.key === 're_analysis') return String(r.re_analysis || '');
   return String((r._canon || {})[col.key] || '');
 }
 
@@ -5284,11 +5366,11 @@ function renderQuickCards(containerId, data, status) {
 // ================================================================
 const TABLE_CFG = {
   yet:       { status:'Yet to Start', q:'q-yet',  test:'f-yet-test',  analyst:null,              tat:null,  tatMonth:'f-yet-month', tatYear:'f-yet-year', tatDate:'f-yet-date',
-               cols:['name','run_text','test','gen_id','and_id','client','tat','rep_exp','cnv_status'] },
+               cols:['name','run_text','test','gen_id','and_id','client','tat','rep_exp','cnv_status','re_analysis'] },
   assigned:  { status:'Ongoing',      q:'q-asgn', test:'f-asgn-test', reviewer:'f-asgn-employee', tat:'f-asgn-tat', run:'f-asgn-run', relMonth:null,          relYear:null,
-               cols:['pri_rev','analyst','assign_date','name','run_text','test','gen_id','and_id','client','tat','ana_date','cnv_status','remark'] },
+               cols:['pri_rev','analyst','assign_date','name','run_text','test','gen_id','and_id','client','tat','ana_date','cnv_status','re_analysis','remark'] },
   released:  { status:'Released',     q:'q-rel',  test:'f-rel-test',  analyst:'f-rel-analyst',  team:'f-rel-team', client:'f-rel-client', tat:null, run:'f-rel-run', relMonth:'f-rel-month', relYear:'f-rel-year', relDate:'f-rel-date',
-               cols:['name','test','gen_id','and_id','run_text','analyst_txt','client','tat','rel_date','cnv_status','remark','_remove'] },
+               cols:['name','test','gen_id','and_id','run_text','analyst_txt','client','tat','rel_date','cnv_status','re_analysis','remark','_remove'] },
 };
 
 const COL_LABELS = {
@@ -5296,7 +5378,7 @@ const COL_LABELS = {
   client:'Client', tat:'TAT', rep_exp:'Repeat Exp',
   analyst:'Assigned To', analyst_raw:'Assigned To', analyst_txt:'Analyst', assign_date:'Assigned Date', ana_date:'Analyze Date', pri_rev:'Primary Reviewer',
   final:'Final Review', remark:'Remark', rel_date:'Release Date', history:'History',
-  cnv_status:'CNV Status',
+  cnv_status:'CNV Status', re_analysis:'Re-analysis',
   _status:'Status', _rel:'Release Date', _remove:'Action',
 };
 
@@ -6715,7 +6797,7 @@ function openReviewerRingModal(key, label) {
   document.getElementById('qmodal-count').textContent = ` · ${reviewerSamples.length} samples · ${period}`;
 
   // Define columns to show for released samples
-  const RELEASED_COLS = ['name','test','gen_id','and_id','run_text','client','tat','rel_date','analyst','cnv_status','remark'];
+  const RELEASED_COLS = ['name','test','gen_id','and_id','run_text','client','tat','rel_date','analyst','cnv_status','re_analysis','remark'];
 
   // Pre-escape label and period for use in onclick handlers
   const escapedLabel = label.replace(/'/g, "\\'");
@@ -6863,7 +6945,7 @@ function downloadReviewerSamples(label, period) {
 
   // Prepare data for Excel
   const excelData = [];
-  const RELEASED_COLS = ['name','test','gen_id','and_id','run_text','client','tat','rel_date','analyst','cnv_status','remark'];
+  const RELEASED_COLS = ['name','test','gen_id','and_id','run_text','client','tat','rel_date','analyst','cnv_status','re_analysis','remark'];
 
   // Add title
   excelData.push([`${label} - Released Samples`]);

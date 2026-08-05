@@ -4211,6 +4211,7 @@ function mergeRows() {
   rows = sheet1Rows.concat(reanalysisRows.map(mapReanalysisRow));
   saveToStorage(rows);
   refreshAll();
+  refreshOpenAllSamplesModal();
 }
 
 // Generic grid → {headers, rows}. Header = first row with >=2 non-empty cells;
@@ -5079,11 +5080,11 @@ function buildFullSheetTable(data) {
 let _allModalData = [];
 let _allModalView = [];   // rows currently shown (post-filter) — what Download exports
 
-function openAllSamplesModal() {
-  // Newest run first, then its A/B batch, then S.No within the run — so the latest work
-  // is at the top and each run stays in its own sheet order rather than being interleaved
-  // by date. Rows with no run marker sort last.
-  _allModalData = rows.slice().sort((a,b) => {
+// Newest run first, then its A/B batch, then S.No within the run — so the latest work
+// is at the top and each run stays in its own sheet order rather than being interleaved
+// by date. Rows with no run marker (including every merged-in RE-ANALYSIS row) sort last.
+function allSamplesSorted() {
+  return rows.slice().sort((a,b) => {
     const ra = parseInt(a.run_number || 0, 10) || 0;
     const rb = parseInt(b.run_number || 0, 10) || 0;
     if (rb !== ra) return rb - ra;
@@ -5091,6 +5092,21 @@ function openAllSamplesModal() {
     if (ta !== tb) return tb.localeCompare(ta);
     return (parseInt(a.sno || 0, 10) || 0) - (parseInt(b.sno || 0, 10) || 0);
   });
+}
+
+// A live sync (RE-ANALYSIS landing after Sheet1, the 30s auto-refresh) updates `rows`
+// but not an already-open All Samples modal's snapshot — without this, a filter applied
+// there can run against data that predates rows the user is specifically looking for.
+function refreshOpenAllSamplesModal() {
+  const isOpen = document.getElementById('qmodal-backdrop')?.classList.contains('open');
+  const isAllSamples = document.getElementById('qmodal-title')?.textContent === 'All Samples';
+  if (!isOpen || !isAllSamples) return;
+  _allModalData = allSamplesSorted();
+  filterAllSamples();
+}
+
+function openAllSamplesModal() {
+  _allModalData = allSamplesSorted();
 
   // Build unique filter values from sorted data
   const tests = [...new Set(_allModalData.map(r=>r.test).filter(Boolean))].sort();

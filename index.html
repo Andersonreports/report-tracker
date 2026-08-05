@@ -5129,6 +5129,7 @@ function openAllSamplesModal() {
         <div class="rel-panel-item"><label>Analyst</label><select class="sel" id="all-f-analyst" onchange="filterAllSamples()">${'<option value="">All Analysts</option>'+analysts.map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('')}</select></div>
         <div class="rel-panel-item"><label>Client</label><select class="sel" id="all-f-client" onchange="filterAllSamples()">${'<option value="">All Clients</option>'+clients.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}</select></div>
         <div class="rel-panel-item"><label>CNV Status</label><select class="sel" id="all-f-cnv" onchange="filterAllSamples()">${'<option value="">All CNV Status</option>'+cnvStatuses.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}</select></div>
+        <div class="rel-panel-item"><label>Re-analysis</label><select class="sel" id="all-f-ra" onchange="filterAllSamples()"><option value="">All Samples</option><option value="Yes">Re-analysis Only</option></select></div>
         <div class="rel-panel-item"><label>TAT Month</label><select class="sel" id="all-f-month" onchange="filterAllSamples()">${'<option value="">All Months</option>'+tatMonths.map(m=>`<option value="${m}">${MONTHS[m-1]}</option>`).join('')}</select></div>
         <div class="rel-panel-item"><label>TAT Year</label><select class="sel" id="all-f-year" onchange="filterAllSamples()">${'<option value="">All Years</option>'+tatYears.map(y=>`<option value="${y}">${y}</option>`).join('')}</select></div>
       </div>
@@ -5152,6 +5153,7 @@ function filterAllSamples() {
   const analyst = document.getElementById('all-f-analyst')?.value||'';
   const clientF = document.getElementById('all-f-client')?.value||'';
   const cnvF    = document.getElementById('all-f-cnv')?.value||'';
+  const raF     = document.getElementById('all-f-ra')?.value||'';
   const month   = document.getElementById('all-f-month')?.value||'';
   const year    = document.getElementById('all-f-year')?.value||'';
   const runF    = document.getElementById('all-f-run')?.value||'';
@@ -5163,6 +5165,7 @@ function filterAllSamples() {
   if (analyst) data = data.filter(r=>extractAnalysts(r.analyst_raw).includes(analyst));
   if (clientF) data = data.filter(r=>r.client===clientF);
   if (cnvF)    data = data.filter(r=>r.cnv_status===cnvF);
+  if (raF)     data = data.filter(r=>r.re_analysis===raF);
   if (month)   data = data.filter(r=>{ const d=parseDate(r.tat); return d&&String(d.getMonth()+1)===month; });
   if (year)    data = data.filter(r=>{ const d=parseDate(r.tat); return d&&String(d.getFullYear())===year; });
   // The whole schema is on screen, so free-text search spans every column of it,
@@ -5179,7 +5182,7 @@ function filterAllSamples() {
 }
 
 function clearAllSamplesFilters() {
-  ['all-f-test','all-f-run','all-f-status','all-f-analyst','all-f-client','all-f-cnv','all-f-month','all-f-year'].forEach(id => {
+  ['all-f-test','all-f-run','all-f-status','all-f-analyst','all-f-client','all-f-cnv','all-f-ra','all-f-month','all-f-year'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   const q = document.getElementById('all-q'); if (q) q.value = '';

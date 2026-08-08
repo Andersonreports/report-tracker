@@ -2299,15 +2299,6 @@ function resolveRelDate(v, tatText, runNum) {
   const pad = n => String(n).padStart(2, '0');
   const flipped = `${pad(b)}-${pad(a)}-${y}`;
   if (!dayFirst) return monthFirst ? flipped : s;
-
-  // Release dates entered from August 2026 onward use the Sheet's DD/MM/YYYY
-  // convention.  Both 07/08/2026 and 08/07/2026 are valid calendar dates, but
-  // the latter must not be inferred merely because it is nearer to the TAT:
-  // that changed newly released 7 August reports into 8 July reports.  Keep
-  // the source order for this current and future data; the legacy checks below
-  // remain in place for the older mixed-format history.
-  const DAY_FIRST_RELEASES_FROM = new Date(2026, 7, 1);
-  if (dayFirst >= DAY_FIRST_RELEASES_FROM) return fmtDate(s);
   const DAY = 86400000;
 
   // A release sits from its run's date to about four months after — never before the run
